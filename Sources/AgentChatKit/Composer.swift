@@ -6,6 +6,8 @@ import UIKit
 /// The reply field: grows to five lines, sends on the arrow, and with a hardware keyboard on Return or Command-Return
 /// (Shift-Return for a new line; `ReturnKey`). Liquid Glass from the system, nothing custom behind it; the field is plain, so the Mac draws no box of its
 /// own inside the glass.
+/// With `modelPicker`, a chip above the field shows the chat's model and reasoning and changes them
+/// (`ModelReasoningChip`); with none, no chip.
 /// `focused` is the screen's, so a scroll or a tap in the content can put the keyboard away (`dismissesKeyboard`).
 /// With `attachments`, a paperclip beside the field adds screenshots from Photos or Files, and from the clipboard while
 /// it holds a picture (its menu's Paste); a picture pasted into the field is attached too (words paste as always). The
@@ -23,6 +25,7 @@ public struct SessionComposer: View {
     /// A second way to send, where the host has one: the send button's long-press (right-click on the Mac) offers it
     /// under `label`; the tap still sends. Agent Pager's "Send now" for a thread at work, which would otherwise queue.
     public let sendNow: SendNow?
+    public let modelPicker: ModelPicker?
 
     public struct SendNow {
         public let label: String
@@ -36,7 +39,8 @@ public struct SessionComposer: View {
 
     public init(
         draft: Binding<String>, isSending: Bool, send: @escaping () -> Void, placeholder: String = "Reply",
-        focused: FocusState<Bool>.Binding, attachments: ComposerAttachments? = nil, sendNow: SendNow? = nil
+        focused: FocusState<Bool>.Binding, attachments: ComposerAttachments? = nil, sendNow: SendNow? = nil,
+        modelPicker: ModelPicker? = nil
     ) {
         _draft = draft
         self.isSending = isSending
@@ -45,6 +49,7 @@ public struct SessionComposer: View {
         self.focused = focused
         self.attachments = attachments
         self.sendNow = sendNow
+        self.modelPicker = modelPicker
     }
 
     /// A key's send does what the button does: nothing for an empty box, or while the last one is still going.
@@ -83,6 +88,9 @@ public struct SessionComposer: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: ChatSpace.xs) {
+            if let modelPicker {
+                ModelReasoningChip(picker: modelPicker)
+            }
             if let attachments {
                 ComposerAttachmentTray(attachments: attachments)
             }
