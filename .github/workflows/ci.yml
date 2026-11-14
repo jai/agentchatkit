@@ -11,3 +11,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift test
+  demo:
+    # The demo app builds for the Mac, and its UI tests walk the chat's main flows on an iPhone simulator.
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen
+        working-directory: Demo
+      - name: Build the Mac app
+        working-directory: Demo
+        run: xcodebuild build -project AgentChatDemo.xcodeproj -scheme AgentChatDemo-macOS -destination 'platform=macOS' -quiet
+      - name: UI tests on an iPhone
+        working-directory: Demo
+        run: |
+          device=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          xcodebuild test -project AgentChatDemo.xcodeproj -scheme AgentChatDemo-iOS -destination "id=$device" \
+            -skip-testing:AgentChatDemoUITests/DemoUITests/testReadmeScreenshots -quiet
