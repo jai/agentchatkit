@@ -119,6 +119,8 @@ confirmation, pending hook, or error cannot be replaced by a competing action. R
 on phone share the same hooks. The kit implements no vendor archive/delete endpoint. `ChatActionError`
 lives in `AgentChatCore` and is re-exported by `AgentChatKit`.
 
+Host actions can keep an existing Pin/Open menu with `ChatThreadActions(archive: archive, delete: delete).menuItems { existingHostMenu }`. These items join Archive/Delete in the context menu; the shared swipe and Delete-key actions retain their host hooks.
+
 When a host already owns route values or a selected detail column, use the list's header/footer initializer. Its row
 closure contains the host's own `NavigationLink(value:)` or selection button, so returning to the list and restoring
 drafts remain host-owned. Header and footer hold its starting, empty and error states. The list uses native `List`

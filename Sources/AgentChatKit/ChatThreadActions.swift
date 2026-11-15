@@ -7,11 +7,19 @@ public struct ChatThreadActions {
     public var archive: Action?
     public var delete: Action?
     public var identifiers: ChatThreadActionIdentifiers
+    fileprivate var hostMenu: (@MainActor () -> AnyView)?
 
     public init(archive: Action? = nil, delete: Action? = nil, identifiers: ChatThreadActionIdentifiers = .init()) {
         self.archive = archive
         self.delete = delete
         self.identifiers = identifiers
+    }
+
+    /// Keep host-specific items such as Pin or Open alongside the shared Archive/Delete controls.
+    public func menuItems<Menu: View>(@ViewBuilder _ content: @escaping @MainActor () -> Menu) -> Self {
+        var actions = self
+        actions.hostMenu = { AnyView(content()) }
+        return actions
     }
 }
 
@@ -45,7 +53,13 @@ private struct ChatThreadActionModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         swipeContent(content)
-            .contextMenu { buttons }
+            .contextMenu {
+                if let menu = actions.hostMenu {
+                    menu()
+                    if actions.archive != nil || actions.delete != nil { Divider() }
+                }
+                buttons
+            }
             .disabled(controller.isPending)
             .overlay(alignment: .trailing) {
                 if controller.isPending {

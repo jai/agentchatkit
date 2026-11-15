@@ -21,6 +21,7 @@ remain with the parent. Agent Pager was read only as the queue/row reference.
   rows can still use that modifier. Right-click, phone long-press/trailing swipe, and Mac Delete share one controller
   per row identity and the same confirmation/pending/error states. Missing hooks omit menu/swipe controls and disable
   the Mac Delete command. Pending controllers survive a temporarily absent/reinserted item ID.
+- `ChatThreadActions.menuItems { ... }` keeps host Pin/Open menu items beside Archive/Delete, without nested context menus replacing one another. Shared UI coverage invokes a host Open menu item on both platforms.
 - Native NavigationLink disclosure indicators belong to List; remove an explicit default-row chevron when adopting
   the convenience destination initializer. No kit-owned navigation destination is registered for the host initializer.
 - Identifier types: `ChatThreadRowIdentifiers`, `ChatThreadActionIdentifiers`, `QueuedReplyIdentifiers`,

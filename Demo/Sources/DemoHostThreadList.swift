@@ -102,5 +102,9 @@ struct DemoHostThreadList: View {
         }, identifiers: .init(archive: "archive-\(thread.id)", delete: "delete-\(thread.id)",
                              confirmDelete: "confirm-\(thread.id)", cancelDelete: "cancel-\(thread.id)",
                              dismissError: "dismiss-\(thread.id)", progress: "pending-\(thread.id)"))
+            .menuItems {
+                Button("Open host thread") { open(thread) }
+                    .accessibilityIdentifier("host-open-\(thread.id)")
+            }
     }
 }

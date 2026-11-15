@@ -67,6 +67,23 @@ final class AdoptionUITests: FixtureUITestCase {
         XCTAssertGreaterThan(hostTitleHeight, element("title-context").frame.height)
     }
 
+    func testHostMenuItemsRemainBesideArchiveAndDelete() {
+        launch("host-threads")
+        let row = element("sessionRow-alpha")
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        #if os(macOS)
+        row.rightClick()
+        #else
+        row.press(forDuration: 1)
+        #endif
+        XCTAssertTrue(element("archive-alpha").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("delete-alpha").exists)
+        activate(element("host-open-alpha"))
+        wait(element("host-open"), "label == 'Opened: alpha, Open calls: 1'")
+        XCTAssertTrue(row.exists)
+        notice("Archive calls: 0, Delete calls: 0")
+    }
+
     func testCustomDeliveryAndQuestionControlIDs() {
         launch("delivery")
         XCTAssertTrue(element("host-sent").waitForExistence(timeout: 5))
