@@ -347,7 +347,8 @@ public final class LiveChatModel {
         ])["messageId"]?.string ?? message
     }
 
-    /// Answers the agent's open question: the chosen options' ids, and words when it takes them.
+    /// Answers the agent's open question: the chosen options' ids, and words when it takes them. A refusal keeps the
+    /// question open and throws.
     public func answer(_ question: LiveQuestion, options: [String], text: String? = nil) async throws {
         var content: [String: JSONValue] = [:]
         if question.multiple {
@@ -367,9 +368,12 @@ public final class LiveChatModel {
         chat.answered(question.requestID)
     }
 
-    /// Declines the agent's open question.
+    /// Declines the agent's open question. A refusal keeps the question open and throws.
     public func decline(_ question: LiveQuestion) async throws {
-        _ = try await post(Acp.response(question.requestID, result: ["action": "decline"]))
+        let (_, response) = try await post(Acp.response(question.requestID, result: ["action": "decline"]))
+        guard (200..<300).contains(response.statusCode) else {
+            throw LiveRequestError.http(response.statusCode)
+        }
         chat.answered(question.requestID)
     }
 

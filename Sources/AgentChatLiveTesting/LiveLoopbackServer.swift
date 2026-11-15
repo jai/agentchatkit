@@ -30,6 +30,7 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
     private var prompted: Prompted?
     private var answered: Answered?
     private var userMessages = 0
+    private var refuseNext: Int?
 
     /// Every request, as `POST <rpc method>` or `GET stream`: what tests count.
     public private(set) var requests: [String] = []
@@ -43,6 +44,10 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
 
     public func onPrompt(_ prompted: Prompted?) { self.prompted = prompted }
     public func onAnswer(_ answered: Answered?) { self.answered = answered }
+
+    /// The next request after `initialize` is refused with this HTTP status, untouched: what a client does with a
+    /// refusal.
+    public func refuseNextRequest(_ status: Int) { refuseNext = status }
 
     /// Only this bearer is let in from now; `nil` lets any in.
     public func accept(bearer: String?) { self.bearer = bearer }
@@ -208,6 +213,10 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
         }
         guard request.value(forHTTPHeaderField: "Acp-Session-Id") == session else {
             return (Data(), response(request, 400)) // As the server package: a session's requests name it.
+        }
+        if let status = refuseNext {
+            refuseNext = nil
+            return (Data(), response(request, status))
         }
         if message["method"] == nil {
             await take(answer: message, from: name)

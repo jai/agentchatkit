@@ -156,6 +156,50 @@ struct FollowTests {
         try await eventually("removed") { live.chat.message(sent)?.status == .removed }
     }
 
+    @Test(arguments: [409, 500])
+    func aRefusedAnswerOrDeclineKeepsTheQuestionOpen(_ status: Int) async throws {
+        await server.ask("Merge now?", options: [.init(id: "merge", label: "Merge now")])
+        let live = model()
+        let following = follow(live)
+        defer { following.cancel() }
+        try await eventually("asked") { live.chat.question != nil }
+        let question = try #require(live.chat.question)
+
+        await server.refuseNextRequest(status)
+        await #expect(throws: LiveRequestError.http(status)) { try await live.decline(question) }
+        #expect(live.chat.question == question)
+
+        await server.refuseNextRequest(status)
+        await #expect(throws: LiveRequestError.http(status)) {
+            try await live.answer(question, options: ["merge"])
+        }
+        #expect(live.chat.question == question)
+    }
+
+    @Test(arguments: [409, 500])
+    func aRefusedEditRetryOrRemoveChangesNothing(_ status: Int) async throws {
+        await server.setState(.running)
+        let live = model()
+        let following = follow(live)
+        defer { following.cancel() }
+        try await eventually("live") { live.phase == .live }
+        let queued = try await live.send("Merge it.", clientRef: "q")
+        try await eventually("queued") { live.chat.message(queued)?.status == .queued }
+
+        await server.refuseNextRequest(status)
+        await #expect(throws: LiveRequestError.http(status)) { try await live.edit(queued, text: "Changed.") }
+        await server.refuseNextRequest(status)
+        await #expect(throws: LiveRequestError.http(status)) { try await live.remove(queued) }
+        await server.setStatus(queued, .failed)
+        try await eventually("failed") { live.chat.message(queued)?.status == .failed }
+        await server.refuseNextRequest(status)
+        await #expect(throws: LiveRequestError.http(status)) { try await live.retry(queued) }
+
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(live.chat.message(queued)?.text == "Merge it.")
+        #expect(live.chat.message(queued)?.status == .failed)
+    }
+
     @Test func aQuestionGoesToBothClientsAndTheFirstAnswerWins() async throws {
         let phone = model()
         let mac = model()
