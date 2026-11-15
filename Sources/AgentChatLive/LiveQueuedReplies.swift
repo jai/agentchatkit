@@ -20,9 +20,8 @@ public struct LiveQueuedReplies: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: theme.spacing.sm) {
             ForEach(controls.live.chat.queuedReplies) { message in
-                QueuedReplyRow(text: message.text, status: controls.errors[message.id]?.message ?? "Queued",
-                               hasError: controls.errors[message.id] != nil,
-                               isBusy: controls.busy.contains(message.id), interrupts: interrupts,
+                QueuedReplyRow(text: message.text, status: "Queued", error: controls.errors[message.id],
+                               interrupts: interrupts,
                                identifiers: identifiers(message), edit: {
                     Task {
                         await controls.edit(message.id) { words in
@@ -35,6 +34,7 @@ public struct LiveQueuedReplies: View {
                 }, sendNow: {
                     Task { await controls.sendNow(message.id) }
                 })
+                .disabled(controls.busy.contains(message.id))
             }
         }
     }

@@ -11,7 +11,7 @@ struct DemoHostThreadList: View {
     var usesValueNavigation = false
     @State private var threads = [Thread(id: "alpha", title: "Alpha host thread"),
                                   Thread(id: "beta", title: "Beta host thread"),
-                                  Thread(id: "read-only", title: "Read-only host thread")]
+                                  Thread(id: "read-only", title: "Read-only host thread"),]
     @State private var selection: String?
     @State private var opened = "none"
     @State private var opens = 0

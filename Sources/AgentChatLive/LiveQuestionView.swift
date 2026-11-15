@@ -22,21 +22,28 @@ public struct LiveQuestionIdentifiers {
 /// Option order follows the schema.
 /// Selection is local presentation state, reset whenever elicitation/create names a different request.
 public struct LiveQuestionView: View {
+    public enum ChoiceBehavior: Equatable, Sendable {
+        /// Follow the schema: free-text/multiple-choice forms use Submit; a plain single choice sends on tap.
+        case automatic
+        /// A single choice sends on tap, including any composed free text. Multiple choices still use Submit.
+        case immediate
+    }
+
     public let controls: LiveChatControls
     public var identifiers: LiveQuestionIdentifiers
-    public var singleChoiceSendsImmediately: Bool
+    public var choiceBehavior: ChoiceBehavior
 
     public init(controls: LiveChatControls, identifiers: LiveQuestionIdentifiers = .init(),
-                singleChoiceSendsImmediately: Bool = false) {
+                choiceBehavior: ChoiceBehavior = .automatic) {
         self.controls = controls
         self.identifiers = identifiers
-        self.singleChoiceSendsImmediately = singleChoiceSendsImmediately
+        self.choiceBehavior = choiceBehavior
     }
 
     public var body: some View {
         if let question = controls.live.chat.question {
             LiveQuestionForm(controls: controls, question: question, identifiers: identifiers,
-                             singleChoiceSendsImmediately: singleChoiceSendsImmediately)
+                             choiceBehavior: choiceBehavior)
                 .id(question.requestID)
         }
     }
@@ -47,7 +54,7 @@ private struct LiveQuestionForm: View {
     let controls: LiveChatControls
     let question: LiveQuestion
     let identifiers: LiveQuestionIdentifiers
-    let singleChoiceSendsImmediately: Bool
+    let choiceBehavior: LiveQuestionView.ChoiceBehavior
     @State private var selected: Set<String> = []
     @State private var text = ""
 
@@ -74,7 +81,7 @@ private struct LiveQuestionForm: View {
                         .disabled(controls.answering || (options.isEmpty && words.isEmpty))
                 }
                 Button("Decline", role: .cancel) {
-                    Task { await controls.answer(question, options: [], decline: true) }
+                    Task { await controls.decline(question) }
                 }
                 .buttonStyle(.bordered)
                 .liveIdentifier(identifiers.decline)
@@ -91,11 +98,10 @@ private struct LiveQuestionForm: View {
 
     private func choose(_ option: LiveQuestion.Option) {
         if question.multiple {
-            if selected.contains(option.id) { selected.remove(option.id) }
-            else { selected.insert(option.id) }
+            if selected.contains(option.id) { selected.remove(option.id) } else { selected.insert(option.id) }
         } else if question.freeText {
             selected = [option.id]
-            if singleChoiceSendsImmediately && words.isEmpty { submit() }
+            if choiceBehavior == .immediate { submit() }
         } else {
             selected = [option.id]
             submit()

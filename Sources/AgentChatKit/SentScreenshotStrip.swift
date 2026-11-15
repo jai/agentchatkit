@@ -93,7 +93,7 @@ extension View {
 
 struct SentScreenshotPresentation: ViewModifier {
     @Bindable var viewing: SentScreenshotViewing
-    var identifiers: SentScreenshotIdentifiers? = nil
+    var identifiers: SentScreenshotIdentifiers?
 
     func body(content: Content) -> some View {
         #if os(iOS)

@@ -24,8 +24,7 @@ struct ThreadAnswerLayout: Layout {
         var origin = bounds.origin
         for subview in subviews {
             subview.place(at: origin, anchor: .topLeading, proposal: proposed)
-            if sideBySide { origin.x += cell + spacing }
-            else { origin.y += subview.sizeThatFits(proposed).height + spacing }
+            if sideBySide { origin.x += cell + spacing } else { origin.y += subview.sizeThatFits(proposed).height + spacing }
         }
     }
 

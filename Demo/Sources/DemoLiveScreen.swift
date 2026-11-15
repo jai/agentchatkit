@@ -54,7 +54,7 @@ struct DemoLiveScreen: View {
                 LiveQuestionView(controls: controls, identifiers: .init(
                     question: .init(answer: { "demo-live-option-\($0)" }),
                     text: "demo-live-answer-text", submit: "demo-live-answer-submit", decline: "demo-live-decline"
-                ), singleChoiceSendsImmediately: true)
+                ), choiceBehavior: .immediate)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("demo-live-question")
             } else if let state = chat.model.chat.state, state.working {

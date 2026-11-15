@@ -1,3 +1,4 @@
+import AgentChatCore
 import SwiftUI
 
 /// Above the composer, not in the conversation. The host alone says whether Send now interrupts a turn.
@@ -25,12 +26,12 @@ public struct ThreadQueuedReplies<ID: Hashable & Sendable>: View {
     }
 
     private func row(_ reply: QueuedReply<ID>) -> some View {
-        QueuedReplyRow(text: reply.text, status: model.errors[reply.id]?.message ?? reply.statusText,
-                       hasError: model.errors[reply.id] != nil, isBusy: model.isBusy(reply),
+        QueuedReplyRow(text: reply.text, status: reply.statusText, error: model.errors[reply.id],
                        interrupts: interrupts, identifiers: identifiers(reply),
                        edit: { Task { await model.edit(reply) } },
                        remove: { Task { await model.remove(reply) } },
                        sendNow: model.canSendNow ? { Task { await model.sendNow(reply) } } : nil)
+            .disabled(model.isBusy(reply))
     }
 }
 
@@ -40,21 +41,19 @@ public struct QueuedReplyRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     public var text: String
     public var status: String
-    public var hasError: Bool
-    public var isBusy: Bool
+    public var error: ChatActionError?
     public var interrupts: Bool
     public var identifiers: QueuedReplyIdentifiers
     private let edit: () -> Void
     private let remove: () -> Void
     private let sendNow: (() -> Void)?
 
-    public init(text: String, status: String, hasError: Bool = false, isBusy: Bool = false,
+    public init(text: String, status: String, error: ChatActionError? = nil,
                 interrupts: Bool = false, identifiers: QueuedReplyIdentifiers = .init(),
                 edit: @escaping () -> Void, remove: @escaping () -> Void, sendNow: (() -> Void)? = nil) {
         self.text = text
         self.status = status
-        self.hasError = hasError
-        self.isBusy = isBusy
+        self.error = error
         self.interrupts = interrupts
         self.identifiers = identifiers
         self.edit = edit
@@ -76,10 +75,10 @@ public struct QueuedReplyRow: View {
                 .chatTextStyle(.body)
                 .chatIdentifier(identifiers.text)
                 .lineLimit(2)
-            Text(status)
+            Text(error?.message ?? status)
                 .chatTextStyle(.meta)
                 .chatIdentifier(identifiers.status)
-                .foregroundStyle(hasError ? theme.toneBad : theme.inkQuiet)
+                .foregroundStyle(error != nil ? theme.toneBad : theme.inkQuiet)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: theme.spacing.sm) {
                     editAndRemove
@@ -94,7 +93,6 @@ public struct QueuedReplyRow: View {
             .labelStyle(.titleAndIcon)
             .chatTextStyle(.control)
             .controlSize(theme.controlSize)
-            .disabled(isBusy)
         }
         .padding(theme.spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)

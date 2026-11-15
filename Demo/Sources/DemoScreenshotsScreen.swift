@@ -9,8 +9,7 @@ struct DemoScreenshotsScreen: View {
 
     var body: some View {
         Group {
-            if sharesViewer { content.presentsSentScreenshots(viewing) }
-            else { content }
+            if sharesViewer { content.presentsSentScreenshots(viewing) } else { content }
         }
     }
 

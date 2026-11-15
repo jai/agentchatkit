@@ -7,3 +7,6 @@ DerivedData/
 
 # SwiftLint Remote Config Cache
 .swiftlint/RemoteConfigCache
+
+# Local review logs and CI artifacts
+tmp/

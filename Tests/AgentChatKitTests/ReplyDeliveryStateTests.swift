@@ -12,7 +12,7 @@ struct ReplyDeliveryStateTests {
 
     @Test func localQueuedRetryingFailedRemovedAndUnknownSayTheirStatusWithoutTicks() {
         let states: [ReplyDeliveryState] = [.queued, .pending(attempts: 1), .pending(attempts: 3),
-                                          .inThreadQueue, .failed, .removed, .other]
+                                          .inThreadQueue, .failed, .removed, .other,]
         for state in states { #expect(state.ticks == nil, "\(state)") }
     }
 }

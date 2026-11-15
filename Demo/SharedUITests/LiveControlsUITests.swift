@@ -36,20 +36,51 @@ final class LiveControlsUITests: FixtureUITestCase {
         wait(app.buttons["live-cancel-now"], "exists == false")
     }
 
-    func testPendingCancelAndFailedHostRetry() {
+    func testPendingCancelDefaultFailedRetryAndFailedRemove() {
         launch("live-status")
         XCTAssertTrue(element("live-sent-pending").waitForExistence(timeout: 10))
         XCTAssertTrue(element("live-delivered-delivered").exists)
         XCTAssertFalse(element("live-sent-failed").exists)
-        XCTAssertFalse(app.buttons["live-cancel-failed"].exists)
+        XCTAssertTrue(app.buttons["live-cancel-failed"].exists)
         XCTAssertFalse(app.buttons["live-cancel-delivered"].exists)
+        let identity = "ID: failed, Ref: fixture-failed"
+        wait(element("live-identity-failed"), "label == '\(identity)'")
         activate(app.buttons["live-cancel-pending"])
         wait(element("live-sent-pending"), "exists == false")
         wait(element("fixture-notice"), "label CONTAINS 'pending=removed'")
+        activate(app.buttons["live-cancel-failed-remove"])
+        wait(element("live-reply-failed-remove"), "exists == false")
+        wait(element("live-identity-failed-remove"), "exists == false")
+        wait(element("fixture-notice"), "label CONTAINS 'failed-remove=removed'")
+        activate(app.buttons["live-retry-failed"])
+        XCTAssertTrue(element("live-sent-failed").waitForExistence(timeout: 5))
+        wait(app.buttons["live-retry-failed"], "exists == false")
+        wait(element("live-identity-failed"), "label == '\(identity)'")
+        wait(element("fixture-notice"), "label CONTAINS 'failed=pending'")
+        wait(element("fixture-notice"), "label CONTAINS 'Retry calls: 0'")
+        activate(app.buttons["live-deliver-retry"])
+        XCTAssertTrue(element("live-delivered-failed").waitForExistence(timeout: 5))
+        wait(element("live-sent-failed"), "exists == false")
+        wait(app.buttons["live-cancel-failed"], "exists == false")
+        wait(element("live-identity-failed"), "label == '\(identity)'")
+    }
+
+    func testFailedRetryHostOverrideRemainsAvailable() {
+        launch("live-status-override")
         activate(app.buttons["live-retry-failed"])
         XCTAssertTrue(element("live-delivered-failed").waitForExistence(timeout: 5))
-        wait(app.buttons["live-retry-failed"], "exists == false")
         wait(element("fixture-notice"), "label CONTAINS 'Retry calls: 1'")
+        wait(element("live-identity-failed"), "label == 'ID: failed, Ref: fixture-failed'")
+    }
+
+    func testImmediateChoiceBehaviorSendsTheChoiceAndComposedTextOnTap() {
+        launch("live-question-immediate")
+        let text = element("live-answer-text")
+        activate(text)
+        text.typeText("Start here")
+        activate(app.buttons["live-answer-phone"])
+        wait(element("live-answer-received"), "label == 'iPhone: Start here'")
+        wait(app.buttons["live-submit"], "exists == false")
     }
 
     func testSingleChoiceMultipleChoiceWithTextFreeTextAndDecline() {

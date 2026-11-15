@@ -132,14 +132,14 @@ are untouched. Generic ticks keep caption2 and WaitWhat keeps semibold-footnote 
     init(live: LiveChatModel)
     let live: LiveChatModel
     private(set) var busy: Set<String>
-    private(set) var errors: [String: ChatActionError]
+    var errors: [String: ChatActionError] { get } // Filtered against current live status.
     private(set) var answering: Bool
     func edit(_ id: String, restore: @MainActor (String) -> Void) async -> Bool
     func remove(_ id: String) async -> Bool
     func sendNow(_ id: String) async -> Bool
-    func retry(_ id: String, using hook: Retry) async -> Bool
-    func answer(_ question: LiveQuestion, options: [String], text: String? = nil,
-                decline: Bool = false) async -> Bool
+    func retry(_ id: String, using hook: Retry? = nil) async -> Bool
+    func answer(_ question: LiveQuestion, options: [String], text: String? = nil) async -> Bool
+    func decline(_ question: LiveQuestion) async -> Bool
     func error(for question: LiveQuestion) -> ChatActionError?
 }
 
@@ -153,16 +153,23 @@ LiveQueuedReplies.init(controls: LiveChatControls, draft: Binding<String>, inter
 LiveReplyStatus.init(controls: LiveChatControls, messageID: String,
                      identifiers: ReplyStatusIdentifiers = .init(), retry: LiveChatControls.Retry? = nil)
 LiveQuestionView.init(controls: LiveChatControls, identifiers: LiveQuestionIdentifiers = .init(),
-                      singleChoiceSendsImmediately: Bool = false)
+                      choiceBehavior: LiveQuestionView.ChoiceBehavior = .automatic)
+// LiveQuestionView.ChoiceBehavior: .automatic, .immediate
 LiveQuestionIdentifiers.init(question: ThreadQuestionIdentifiers<String> = .init(), text: String? = nil,
                              submit: String? = nil, decline: String? = nil, error: String? = nil)
 LiveScreenshotStrip.init(live: LiveChatModel, messageID: String,
                          identifiers: SentScreenshotIdentifiers = .init(), load: @escaping LiveAttachmentLoader)
 typealias LiveAttachmentLoader = @Sendable (LiveAttachment) async -> Result<Data, ChatActionError>
+
+QueuedReplyRow.init(text: String, status: String, error: ChatActionError? = nil,
+                    interrupts: Bool = false, identifiers: QueuedReplyIdentifiers = .init(),
+                    edit: @escaping () -> Void, remove: @escaping () -> Void, sendNow: (() -> Void)? = nil)
+// .disabled(requestIsBusy) is inherited from the host/caller.
 ```
 
 `QueuedReplyRow` is the small, stateless generic presenter extracted from `ThreadQueuedReplies`: text/status,
-error/busy/interrupt flags, the existing queue identifiers and Edit/Remove/optional Send now callbacks. Both old
+an optional `ChatActionError`, interrupt styling, the existing identifiers and Edit/Remove/optional Send now callbacks.
+It inherits `.disabled` from its caller; neither an `isBusy` flag nor duplicate error/status flags are required. Both old
 and live queue views use it, with full icon-and-word controls, native button styles and reflow. Minimum label heights
 are 44pt on iOS and 28pt on Mac; native button padding can add to them. `SentReplyStatus` now renders optional actions
 below ticks too, making pending Cancel available without suppressing the required tick. The additive
@@ -220,67 +227,74 @@ unavailable message; the new deterministic live screenshot fixtures exercise rea
 
 Questions use `live.answer` / `live.decline`. Without free text, a single choice sends immediately; with free text,
 select then type (or type alone) and Submit. Multiple selection is local presentation state, emitted in schema order.
-The existing Live demo explicitly uses `singleChoiceSendsImmediately: true` to retain its established one-tap option
-interaction. Each new request identity resets selection/text; stale question callbacks are rejected. Request errors
+The default `choiceBehavior: .automatic` follows the question schema; `.immediate` sends a single choice on tap,
+including composed text. Multiple choices still require Submit. The original Live demo uses `.immediate` to retain
+its established one-tap option interaction. `controls.answer(question, options:text:)` and `controls.decline(question)`
+are separate APIs, sharing a private named response case; refused responses retain the question. Each new request identity resets selection/text; stale question callbacks are rejected. Request errors
 are sanitized and scoped to the original question. No wire methods are invented.
+
+### Live actions and request authority
+
+Failed Retry defaults to `live.retry(id)` (force-only edit); the same id/clientRef returns to pending. Passing
+`retry: host.retryFailedReply` overrides it. Pending/queued/failed Cancel/Remove use `live.remove`; delivering and
+delivered Cancel is hidden. Queued Edit/Send now retain pending/queued guards and cannot accidentally retry a failed
+reply. Edit restores only the current explicitly `.removed` message's words, even when the RPC reply was lost. It
+reads the current host draft in its restore callback. A missing message in a capped snapshot is never confirmation.
+
+Action completion reads authoritative state before reporting errors: newer delivery/removal suppresses an older
+request failure. The error dictionary is a projection of request errors scoped to their unchanged actionable status;
+there is no message/queue copy. The coordinator retains only busy/errors and small request metadata. Removed text
+comes from LiveChat after the await, not from a cached reply or a pre-request copy.
 
 ### Authored coverage — NOT RUN on Cube03
 
-- `Tests/AgentChatLiveTests/LiveControlsTests.swift`: real loopback ACP streams and recorded request bodies;
-  at-ordered queue/conversation projection; pending/queued/delivering/delivered/failed/nil tick mapping; force-only
-  Send now edit (no replacement prompt); busy duplicate suppression; delayed acknowledgement with newer streamed
-  delivery; Edit remove-before-restore and words typed during the request; later delivery prevents obsolete draft
-  restoration; pending Cancel; failed-operation draft preservation and reconnect retry; cursor-expiry snapshot after a failed force;
-  unsupported operations issue
-  no RPC; host-only Retry; single/multiple/free-text answer payloads, Decline and stale question rejection.
-  The wrapper delays RPC results while continuing to forward notifications, so completion cannot hide newer state.
-- `Demo/SharedUITests/LiveControlsUITests.swift`: both iPhone/Mac; actual Edit/Remove/Send now controls and minimum
-  heights; queue order and no duplicate conversation entry; streamed ticks/Cancel; failed host Retry; single choice,
-  single choice plus text, multiple choice plus text, text-only Submit and Decline; replacement question selection/text reset; original attachment indexes after
-  unsupported/invalid slots; shared/local viewer IDs and Close; streamed resource replacement and loader call counts.
+- `Tests/AgentChatLiveTests/LiveControlsTests.swift`: retained projection/ticks/Send now/draft/question coverage;
+  default failed Retry records force-only edit with unchanged message ID/clientRef and only one original prompt;
+  failed/pending Remove records actual remove requests; failed Edit/Send now and delivered mutations issue no RPC;
+  the optional host Retry override replaces the built-in request. Separate Decline tests cover HTTP refusal,
+  retained question/error, then explicit resubmission with the original request ID.
+- Deterministic request gates hold or lose POST replies while the real ACP stream keeps flowing: pending,
+  delivering, delivered and removed updates supersede a lost Retry reply; a lost Remove reply plus explicit
+  removed status restores the latest removed words into the current composer; later delivered status prevents
+  restoration and stale errors; a request gated before transmission plus a capped 200-message snapshot cannot
+  infer removal from absence. Existing failure presentation also disappears on later streamed delivery.
+- The live-control test helper now waits for Observation notifications, with explicit request/response gates for
+  in-flight assertions. It does not sleep or repeat actions until green. Tests have a suite time limit. The
+  production model's reconnect/request timers remain unchanged. Original generic controller regressions are intact.
+- `Demo/SharedUITests/LiveControlsUITests.swift`: both iPhone/Mac; default failed Retry -> pending -> delivered with
+  unchanged visible ID/clientRef, failed Remove, pending Cancel, hidden delivered Cancel and explicit host override;
+  automatic schema choice behavior plus immediate single-choice/text-on-tap. Existing queue sizes/actions,
+  questions/selection reset, screenshot indexes, replacement loads and local/shared viewer interactions remain.
 - Both-platform `testLiveLightRenderedPieces`, `testLiveDarkRenderedPieces`, `testLiveLargeRenderedPieces` author
-  real XCUIScreen attachments for queue/status/single question/multiple question/text-only question/strip/viewer.
-  They use the existing `FixtureUITestCase.keep` infrastructure. Optional exported names are
+  real XCUIScreen attachments for queue/status/single question/multiple question/text-only question/strip/viewer,
+  using the existing `FixtureUITestCase.keep` infrastructure. Optional exported names remain
   `{ios,macos}-live-{queue,status,question-single,question-multiple,question-text,screenshots,viewer}-{light,dark,large}.png`,
   plus `ios-live-queue-large-lower.png`. These pictures have NOT been rendered or inspected in this step.
 - Existing package tests, upstream Live tests, Extraction UI tests and both-platform Adoption/Mac suites are retained.
-  SharedUITests is already included in both demo targets, so no demo project/workflow change is needed.
-  Package.swift declares the existing DurableNetworking product directly for the test transport recorder.
+  SharedUITests is already included in both demo targets; this follow-up needs no package, project or workflow edits.
 
-### Exact files changed in this delegated step
+### Exact files changed in this follow-up
 
-- `Package.swift` (existing transport product exposed directly to live test target)
-- `Sources/AgentChatLive/LiveChatMessages.swift`
-- `Sources/AgentChatLive/LiveChatControls.swift` (new)
-- `Sources/AgentChatLive/LiveQueuedReplies.swift` (new)
-- `Sources/AgentChatLive/LiveReplyStatus.swift` (new)
-- `Sources/AgentChatLive/LiveQuestionView.swift` (new)
-- `Sources/AgentChatLive/LiveScreenshotStrip.swift` (new)
+- `Sources/AgentChatLive/LiveChatControls.swift`
+- `Sources/AgentChatLive/LiveQueuedReplies.swift`
+- `Sources/AgentChatLive/LiveReplyStatus.swift`
+- `Sources/AgentChatLive/LiveQuestionView.swift`
 - `Sources/AgentChatKit/ThreadQueuedReplies.swift`
-- `Sources/AgentChatKit/ReplyDeliveryState.swift`
-- `Sources/AgentChatKit/ReplyStatusIdentifiers.swift`
-- `Sources/AgentChatKit/ThreadQuestion.swift`
-- `Tests/AgentChatLiveTests/LiveControlsTests.swift` (new)
+- `Tests/AgentChatLiveTests/LiveControlsTests.swift`
 - `Demo/Sources/DemoLiveScreen.swift`
-- `Demo/Sources/DemoLiveControlsFixture.swift` (new)
-- `Demo/Sources/DemoAdoptionFixtures.swift`
-- `Demo/SharedUITests/LiveControlsUITests.swift` (new)
+- `Demo/Sources/DemoLiveControlsFixture.swift`
+- `Demo/SharedUITests/LiveControlsUITests.swift`
 - `README.md`
 - `Demo/ADOPTION.md`
 
-### Open gates for parent
+### Parent handoff
 
-1. Failed Retry wire semantics remain undefined: edit/remove accept only pending/queued, and same-clientRef prompt
-   deduplicates failed. `LiveReplyStatus.retry` is a host hook; absent means no Retry button. Parent can wire the
-   owner's answer without changing these renderers. Delivering Cancel is unsupported and hidden.
-2. FeedbackKit must supply the authenticated attachment loader described above. LiveChatModel exposes metadata, not
-   an attachment-byte loader. No FeedbackKit repo was touched.
-3. Existing `LiveChatModel.decline` posts the response and clears its local question without checking whether the
-   HTTP status is successful (unlike `answer`). The UI adapter calls the existing method as required. The model/
-   protocol owner should validate refusal handling; this delegated UI step did not modify transport/model semantics.
-4. Compilation, all tests, both-platform UI behavior and actual light/dark/large pictures require parent remote CI.
-   This step ran **no builds, tests, simulators or Apple tools**. Source review and `git diff --check` only.
-5. No output-last-message path was supplied in this conversation/environment. The complete handoff is saved here;
-   supply a repo-local destination if a separate copy is required. No commits, fetch/rebase/push, branches/worktrees,
-   signing/config changes, .github edits, messages or other-repo edits were made. The pre-existing untracked
-   `.claude/` directory was left alone.
+The protocol Retry/failed Remove and Decline-status gaps are resolved upstream; the adapters use the updated model
+APIs. The host screenshot loader contract above is unchanged: FeedbackKit supplies authenticated bytes, while the
+kit retains the original attachment indexes and shared/local viewer identifiers.
+
+Parent remote CI must compile/run all checks and inspect real light/dark/large captures on both platforms. This
+follow-up ran **no builds, tests, simulators or Apple tools**; only source review and `git diff --check`. No wire,
+parser, production transport/server, workflow, git-history, config/signing or other-repo edits were made. No messages
+or Brain work were performed. Pre-existing `.claude/` and the separately appearing untracked `tmp/` were left alone.
+Parent's output flag saves the final response.

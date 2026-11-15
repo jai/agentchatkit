@@ -307,8 +307,8 @@ request busy/error state. Messages, queue, working state, questions and attachme
 
 ```swift
 LiveQueuedReplies(controls: controls, draft: $draft, identifiers: queueIDs)
-LiveReplyStatus(controls: controls, messageID: message.id, identifiers: statusIDs,
-                retry: host.retryFailedReply) // Omit until the host has an authorized failed-reply retry API.
+LiveReplyStatus(controls: controls, messageID: message.id, identifiers: statusIDs) // Built-in live Retry/Cancel.
+// Optional host Retry override: add retry: host.retryFailedReply.
 LiveQuestionView(controls: controls, identifiers: questionIDs)
 LiveScreenshotStrip(live: model, messageID: message.id, identifiers: pictureIDs,
                     load: host.loadAttachment)
@@ -323,15 +323,20 @@ When drawing `LiveReplyStatus` there, clear that projected user's `ticks` and `d
 leave nil-status external messages' date on the bubble. The demo's `DemoLiveScreen.messages` shows this mapping.
 Other hosts may keep projected ticks and add only their own failed status/actions.
 
-Edit calls `live.remove` before prepending its words to the **current** draft. Remove calls `live.remove`; Send now
-calls `live.sendNow` (force-only edit). No local queue/status is overwritten on completion. Pending/queued Cancel
-uses remove; delivering/delivered/failed Cancel is absent. Failed Retry is absent without a host hook: the current
-profile's edit/remove reject failed messages and repeating a failed prompt's clientRef deduplicates it.
+Edit calls `live.remove` and prepends the explicitly removed record's words to the **current** draft. A lost RPC
+reply still permits restoration when the stream confirms `.removed`; absence in a capped snapshot never does.
+Remove/Cancel accept pending, queued or failed and use `live.remove`. Queued Edit/Send now remain limited to
+pending/queued; Send now calls `live.sendNow` (force-only edit). Failed Retry defaults to `live.retry`: force-only edit
+returns the same message to pending with the same ID/clientRef. An optional host Retry callback overrides that RPC.
+Delivering/delivered Cancel is absent. No completion overwrites live messages/queue or displays an old request error
+above newer delivery/removal. `controls.errors` exposes request errors only for their unchanged actionable status.
 
 Single-choice questions without free text send on tap. Questions allowing text or multiple choices retain local
-selection/text until Submit; choices go in schema order. Decline uses `live.decline`. The optional
-`singleChoiceSendsImmediately: true` keeps a one-tap single-choice flow even when free text is allowed (type any words
-before choosing); the original Live demo opts into this behavior. Request identity resets selection/text.
+selection/text until Submit; choices go in schema order. `controls.answer(question, options:text:)` and
+`controls.decline(question)` are separate methods and share request busy/error handling. A refused Decline leaves the
+question open. `LiveQuestionView.ChoiceBehavior.automatic` follows that schema-based behavior; `.immediate` sends a
+single choice on tap, including composed text. Multiple choices still use Submit. Set `choiceBehavior: .immediate`
+for that flow; the original Live demo opts in. Request identity resets selection/text.
 
 `LiveAttachmentLoader` is `@Sendable (LiveAttachment) async -> Result<Data, ChatActionError>`. The host resolves
 relative URIs against its ACP endpoint, applies/renews authentication where appropriate, and returns image bytes or a
@@ -341,6 +346,6 @@ indexes. A streamed attachment change cancels/reloads the strip for the same mes
 `SentScreenshotViewing` viewer and every `SentScreenshotIdentifiers` override are reused.
 
 Deterministic live fixtures use `LiveLoopbackServer`, not polling or independent UI snapshots. Launch with
-`-DemoFixture live-queue|live-status|live-question-single|live-question|live-question-multiple|live-question-text|live-screenshots|live-screenshots-local`.
+`-DemoFixture live-queue|live-status|live-status-override|live-question-single|live-question|live-question-immediate|live-question-multiple|live-question-text|live-screenshots|live-screenshots-local`.
 The both-platform `LiveControlsUITests` author interactions and real XCUIScreen light/dark/large captures using the
 existing capture infrastructure. See [Demo/ADOPTION.md](Demo/ADOPTION.md) for the exact handoff and validation limits.

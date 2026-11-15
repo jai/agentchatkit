@@ -1,7 +1,7 @@
 import AgentChatKit
 import SwiftUI
 
-/// Sent ticks and supported actions from the current stream state. Failed Retry exists only with a host hook.
+/// Sent ticks and supported actions from the current stream state. Failed Retry uses the live RPC unless the host overrides it.
 /// When used in ChatView.extras, clear that ChatMessage's ticks to avoid drawing them twice, and set hasExtras.
 public struct LiveReplyStatus: View {
     @Environment(\.chatTheme) private var theme
@@ -33,12 +33,12 @@ public struct LiveReplyStatus: View {
     }
 
     private func retryAction(_ message: LiveMessage) -> (() -> Void)? {
-        guard message.status == .failed, let retry else { return nil }
+        guard message.status == .failed else { return nil }
         return { Task { await controls.retry(messageID, using: retry) } }
     }
 
     private func cancelAction(_ message: LiveMessage) -> (() -> Void)? {
-        guard message.status == .pending || message.status == .queued else { return nil }
+        guard message.status == .pending || message.status == .queued || message.status == .failed else { return nil }
         return { Task { await controls.remove(messageID) } }
     }
 }

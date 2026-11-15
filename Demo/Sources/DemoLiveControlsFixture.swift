@@ -30,9 +30,10 @@ final class DemoLiveControlsFixtureModel {
             await server.publish(Self.message("remove", "Remove these words", .queued, second: 2))
             await server.publish(Self.message("edit", "Edit these words", .queued, second: 1))
             await server.publish(Self.message("now", "Send these words now", .queued, second: 3))
-        } else if fixture == "live-status" {
+        } else if fixture.hasPrefix("live-status") {
             await server.publish(Self.message("pending", "Pending reply", .pending))
             await server.publish(Self.message("failed", "Failed reply", .failed))
+            await server.publish(Self.message("failed-remove", "Failed reply to remove", .failed))
             await server.publish(Self.message("delivered", "Delivered reply", .delivered))
         } else if fixture.hasPrefix("live-question") {
             let options: [LiveQuestion.Option] = fixture == "live-question-text" ? [] : [
@@ -55,7 +56,7 @@ final class DemoLiveControlsFixtureModel {
 
     func retry(_ message: LiveMessage) async throws {
         retries += 1
-        // This fixture's host-owned hook publishes acceptance. No unsupported ACP retry/edit is invented.
+        // Only the override fixture uses this host hook; the default fixture uses live.retry.
         await server.setStatus(message.id, .delivered)
     }
 
@@ -68,7 +69,7 @@ final class DemoLiveControlsFixtureModel {
         await server.publish([
             "sessionUpdate": "user_message", "messageId": "pictures",
             "content": [["type": "resource_link", "name": "replacement.png", "uri": "attachments/replacement",
-                         "mimeType": "image/png"]],
+                         "mimeType": "image/png",],],
         ])
     }
 
@@ -77,7 +78,7 @@ final class DemoLiveControlsFixtureModel {
         ["sessionUpdate": "user_message", "messageId": .string(id),
          "content": [["type": "text", "text": .string(words)]],
          "_meta": ["agentchatkit": ["status": .string(status.rawValue),
-                                   "at": .string("2026-01-01T12:00:0\(second).000Z")]]]
+                                   "at": .string("2026-01-01T12:00:0\(second).000Z"), "clientRef": .string("fixture-\(id)"),],],]
     }
 
     private static func withPictures(_ update: JSONValue) -> JSONValue {
@@ -105,8 +106,7 @@ struct DemoLiveControlsFixture: View {
 
     var body: some View {
         Group {
-            if sharesViewer { content.presentsSentScreenshots(viewing) }
-            else { content }
+            if sharesViewer { content.presentsSentScreenshots(viewing) } else { content }
         }
         .task { await host.follow() }
         .navigationTitle("Live shared controls")
@@ -139,12 +139,21 @@ struct DemoLiveControlsFixture: View {
                                                        deliveredTicks: "live-delivered-\(message.id)",
                                                        retry: "live-retry-\(message.id)", cancel: "live-cancel-\(message.id)",
                                                        error: "live-error-\(message.id)"),
-                                    retry: host.retry)
+                                    retry: host.fixture == "live-status-override" ? host.retry : nil)
+                    if host.fixture.hasPrefix("live-status"), message.status != .removed {
+                        Text("ID: \(message.id), Ref: \(message.clientRef ?? "none")")
+                            .chatTextStyle(.meta).accessibilityIdentifier("live-identity-\(message.id)")
+                    }
+                }
+                if host.fixture.hasPrefix("live-status") {
+                    Button("Deliver retried reply") { Task { await host.server.setStatus("failed", .delivered) } }
+                        .chatTextStyle(.control).controlSize(theme.controlSize)
+                        .accessibilityIdentifier("live-deliver-retry")
                 }
                 LiveQuestionView(controls: host.controls, identifiers: .init(
                     question: .init(question: "live-question", answer: { "live-answer-\($0)" }),
                     text: "live-answer-text", submit: "live-submit", decline: "live-decline", error: "live-question-error"
-                ))
+                ), choiceBehavior: host.fixture == "live-question-immediate" ? .immediate : .automatic)
                 if host.fixture.hasPrefix("live-question") {
                     Button("Ask a replacement question") { Task { await host.replaceQuestion() } }
                         .chatTextStyle(.control).controlSize(theme.controlSize)
