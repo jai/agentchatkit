@@ -143,6 +143,21 @@ enum LocalHost {
         if let given = ProcessInfo.processInfo.environment["AGENTCHAT_DEV_HOST"], let url = URL(string: given) {
             return url
         }
+        // Started on a thread of its own with a full stack, whichever thread first asks: a test's cooperative thread
+        // has a small one, and a filtered run on GitHub's macOS 26 runner died with SIGBUS here.
+        nonisolated(unsafe) var started: URL?
+        let done = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            started = start()
+            done.signal()
+        }
+        thread.stackSize = 8 << 20
+        thread.start()
+        done.wait()
+        return started!
+    }()
+
+    private static func start() -> URL {
         let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
         let node = Process()
@@ -168,7 +183,7 @@ enum LocalHost {
             fatalError("server/dev/host.ts said \(seen)")
         }
         return URL(string: "http://127.0.0.1:\(port)")!
-    }()
+    }
 
     /// Held open while this process runs: the host exits when it closes.
     nonisolated(unsafe) static let stdin = Pipe()

@@ -30,18 +30,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: swift build --build-tests
-      # One suite at a time, so a test process that aborts says which suite it was in.
-      - name: swift test, suite by suite
-        run: |
-          failed=0
-          for suite in AgentChatKitTests AgentChatLiveTests.FixtureTests AgentChatLiveTests.FollowTests \
-                       AgentChatLiveTests.LiveControlsTests; do
-            echo "::group::$suite"
-            swift test --skip-build --filter "$suite" || { echo "::error::$suite failed"; failed=1; }
-            echo "::endgroup::"
-          done
-          exit $failed
+      - run: swift test
       # A test process that crashes says nothing in the log: print its crash report.
       - name: Crash reports
         if: failure()
