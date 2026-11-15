@@ -1,0 +1,40 @@
+{
+  "name": "@jai/agentchat-live",
+  "version": "0.0.0",
+  "description": "The live chat protocol's server (docs/live-protocol.md in jai/agentchatkit): the room Durable Object, frames, cursors and broadcast, and a conformance suite for a host's adapter.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jai/agentchatkit.git",
+    "directory": "server"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./conformance": {
+      "types": "./dist/conformance.d.ts",
+      "default": "./dist/conformance.js"
+    },
+    "./memory": {
+      "types": "./dist/memory.d.ts",
+      "default": "./dist/memory.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "fixtures": "node scripts/embed-fixtures.mjs",
+    "test": "node --test --test-timeout=20000 --test-force-exit test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json && cp -R ../protocol/fixtures dist/fixtures"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  }
+}

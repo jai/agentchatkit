@@ -15,6 +15,7 @@ chats with it. It knows nothing of pull requests or of any app's Worker: a host 
 | `AgentChatKit` | `ChatView`, `ChatMessage`, `SessionBubble`, `SessionComposer`, `ComposerAttachments`, `ModelReasoningChip` and `ModelPicker`, `DeliveryTicks`, `ChatQuickReply` and `WaitWhatButton`, `MarkdownText`, `ChatScroll` and `followsChatEnd`, `ReturnKey`, `Pasteboard`, `FoldSet`, `ChatStyle`, `ChatTheme` | SwiftUI, and `AgentChatCore`, re-exported. |
 | `AgentChatLive` | `LiveChatModel` follows a chat live ([protocol](docs/live-protocol.md)): stream, reconnect with back-off, read while down, one cursor, the writes; `LiveChat` and its `chatMessages` | `AgentChatKit`, [DurableNetworking](https://github.com/jai/durable-networking) |
 | `AgentChatLiveTesting` | `LiveLoopbackServer`: the protocol's server in memory, for tests, previews and demos | `AgentChatLive` |
+| `@jai/agentchat-live` (npm, [`server/`](server/README.md)) | The protocol's server for a Cloudflare Worker: `<base>/acp`, the room Durable Object, replay and broadcast; a conformance suite every host runs; an in-memory host | none; installed from each release's tarball |
 
 ## Use it
 
