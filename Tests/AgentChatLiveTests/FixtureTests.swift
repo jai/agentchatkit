@@ -51,6 +51,9 @@ extension JSONValue {
     var isNull: Bool { self == .null }
 }
 
+/// Disabled: the protocol moved to ACP v2 (docs/live-protocol.md) and these read the earlier fixtures. AgentChatLive is
+/// being rebuilt on ACP; its new fixture tests replace these.
+@Suite(.disabled("AgentChatLive is being rebuilt on the ACP v2 profile; these read the earlier fixtures"))
 struct FixtureTests {
     @Test(arguments: Fixtures.clientScenarios)
     func theClientEndsWhereTheFixtureSays(_ name: String) throws {

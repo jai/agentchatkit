@@ -1,0 +1,302 @@
+{
+  "about": "The agent asks. Both clients get elicitation/create and the state turns requires_action. Client A answers; the host cancels the request on client B, shows the answer as a user message, and moves on.",
+  "server": {
+    "before": [
+      {
+        "sessionUpdate": "user_message",
+        "messageId": "m1",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why is the build red?"
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:00.000Z",
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "status": "delivered",
+            "clientRef": "ref-1"
+          }
+        }
+      },
+      {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Checking CI",
+            "problem": null
+          }
+        }
+      }
+    ],
+    "clients": 2,
+    "ask": {
+      "sessionId": "chat-1",
+      "mode": "form",
+      "message": "Merge now or wait for review?",
+      "requestedSchema": {
+        "type": "object",
+        "properties": {
+          "choice": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "wait"
+            ],
+            "enumNames": [
+              "Merge now",
+              "Wait for review"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Anything to add"
+          }
+        }
+      }
+    },
+    "stream_both": [
+      "elicitation/create",
+      {
+        "sessionUpdate": "state_update",
+        "state": "requires_action",
+        "_meta": {
+          "agentchatkit": {
+            "activity": null,
+            "problem": null
+          }
+        }
+      }
+    ],
+    "answer_from": 0,
+    "answer": {
+      "action": "accept",
+      "content": {
+        "choice": "merge",
+        "text": "and tag it"
+      }
+    },
+    "to_other": "$/cancel_request",
+    "then": [
+      {
+        "sessionUpdate": "user_message",
+        "messageId": "u12",
+        "content": [
+          {
+            "type": "text",
+            "text": "Merge now: and tag it"
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:42.000Z",
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "status": "pending"
+          }
+        }
+      },
+      {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Merging",
+            "problem": null
+          }
+        }
+      }
+    ]
+  },
+  "client": {
+    "start": {
+      "cursor": "c:2",
+      "messages": [
+        {
+          "sessionUpdate": "user_message",
+          "messageId": "m1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Why is the build red?"
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "at": "2026-11-15T05:00:00.000Z",
+              "sender": {
+                "login": "jai",
+                "name": "Jai"
+              },
+              "status": "delivered",
+              "clientRef": "ref-1"
+            }
+          }
+        }
+      ],
+      "state": null
+    },
+    "messages": [
+      {
+        "jsonrpc": "2.0",
+        "id": 900,
+        "method": "elicitation/create",
+        "params": {
+          "sessionId": "chat-1",
+          "mode": "form",
+          "message": "Merge now or wait for review?",
+          "requestedSchema": {
+            "type": "object",
+            "properties": {
+              "choice": {
+                "type": "string",
+                "enum": [
+                  "merge",
+                  "wait"
+                ],
+                "enumNames": [
+                  "Merge now",
+                  "Wait for review"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "description": "Anything to add"
+              }
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "state_update",
+            "state": "requires_action",
+            "_meta": {
+              "agentchatkit": {
+                "activity": null,
+                "problem": null
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:3"
+            }
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:3",
+      "messages": [
+        {
+          "id": "m1",
+          "kind": "user",
+          "text": "Why is the build red?",
+          "status": "delivered"
+        }
+      ],
+      "state": {
+        "state": "requires_action",
+        "activity": null
+      },
+      "question": 900
+    },
+    "then": [
+      {
+        "jsonrpc": "2.0",
+        "method": "$/cancel_request",
+        "params": {
+          "requestId": 900
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u12",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge now: and tag it"
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:42.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "pending"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:4"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "state_update",
+            "state": "running",
+            "_meta": {
+              "agentchatkit": {
+                "activity": "Merging",
+                "problem": null
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:5"
+            }
+          }
+        }
+      }
+    ],
+    "expect_then": {
+      "cursor": "c:5",
+      "messages": [
+        {
+          "id": "m1",
+          "kind": "user",
+          "text": "Why is the build red?",
+          "status": "delivered"
+        },
+        {
+          "id": "u12",
+          "kind": "user",
+          "text": "Merge now: and tag it",
+          "status": "pending"
+        }
+      ],
+      "state": {
+        "state": "running",
+        "activity": "Merging"
+      },
+      "question": null
+    }
+  }
+}

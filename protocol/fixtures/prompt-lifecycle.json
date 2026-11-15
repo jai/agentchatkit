@@ -1,0 +1,506 @@
+{
+  "about": "Prompts sent while the agent works: inserted at once as queued, edited and forced, delivered; another removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held (its status is known) but has no bubble.",
+  "server": {
+    "before": [
+      {
+        "sessionUpdate": "user_message",
+        "messageId": "m1",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why is the build red?"
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:00.000Z",
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "status": "delivered",
+            "clientRef": "ref-1"
+          }
+        }
+      },
+      {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Running tests",
+            "problem": null
+          }
+        }
+      }
+    ],
+    "resume": "@2",
+    "writes": [
+      {
+        "request": {
+          "method": "session/prompt",
+          "params": {
+            "sessionId": "chat-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "Merge it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "clientRef": "ref-7",
+                "force": false
+              }
+            }
+          }
+        },
+        "result": {
+          "messageId": "@u7"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "queued",
+                "clientRef": "ref-7"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "request": {
+          "method": "session/prompt",
+          "params": {
+            "sessionId": "chat-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "Merge it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "clientRef": "ref-7",
+                "force": false
+              }
+            }
+          }
+        },
+        "result": {
+          "messageId": "@u7"
+        },
+        "stream": []
+      },
+      {
+        "request": {
+          "method": "_agentchatkit/edit",
+          "params": {
+            "sessionId": "chat-1",
+            "messageId": "@u7",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "Merge it, then tag."
+              }
+            ],
+            "force": true
+          }
+        },
+        "result": {
+          "messageId": "@u7"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it, then tag."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "queued",
+                "clientRef": "ref-7"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "request": {
+          "method": "session/prompt",
+          "params": {
+            "sessionId": "chat-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "Never mind."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "clientRef": "ref-8",
+                "force": false
+              }
+            }
+          }
+        },
+        "result": {
+          "messageId": "@u8"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u8",
+            "content": [
+              {
+                "type": "text",
+                "text": "Never mind."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:11.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "queued",
+                "clientRef": "ref-8"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "request": {
+          "method": "_agentchatkit/remove",
+          "params": {
+            "sessionId": "chat-1",
+            "messageId": "@u8"
+          }
+        },
+        "result": {
+          "messageId": "@u8"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u8",
+            "content": [
+              {
+                "type": "text",
+                "text": "Never mind."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:11.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "removed",
+                "clientRef": "ref-8"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "request": {
+          "method": "_agentchatkit/remove",
+          "params": {
+            "sessionId": "chat-1",
+            "messageId": "@u8"
+          }
+        },
+        "error": -32009,
+        "stream": []
+      }
+    ]
+  },
+  "client": {
+    "start": {
+      "cursor": "c:2",
+      "messages": [
+        {
+          "sessionUpdate": "user_message",
+          "messageId": "m1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Why is the build red?"
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "at": "2026-11-15T05:00:00.000Z",
+              "sender": {
+                "login": "jai",
+                "name": "Jai"
+              },
+              "status": "delivered",
+              "clientRef": "ref-1"
+            }
+          }
+        }
+      ],
+      "state": null
+    },
+    "messages": [
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "queued",
+                "clientRef": "ref-7"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:3"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it, then tag."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "queued",
+                "clientRef": "ref-7"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:4"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it, then tag."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "delivering",
+                "clientRef": "ref-7"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:5"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it, then tag."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "delivered",
+                "clientRef": "ref-7"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:6"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u8",
+            "content": [
+              {
+                "type": "text",
+                "text": "Never mind."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:11.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "queued",
+                "clientRef": "ref-8"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:7"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u8",
+            "content": [
+              {
+                "type": "text",
+                "text": "Never mind."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:11.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "removed",
+                "clientRef": "ref-8"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:8"
+            }
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:8",
+      "messages": [
+        {
+          "id": "m1",
+          "kind": "user",
+          "text": "Why is the build red?",
+          "status": "delivered"
+        },
+        {
+          "id": "u7",
+          "kind": "user",
+          "text": "Merge it, then tag.",
+          "status": "delivered"
+        },
+        {
+          "id": "u8",
+          "kind": "user",
+          "text": "Never mind.",
+          "status": "removed"
+        }
+      ],
+      "state": null,
+      "question": null
+    },
+    "bubbles": [
+      "m1",
+      "u7"
+    ],
+    "ticks": {
+      "u7": 2
+    }
+  }
+}

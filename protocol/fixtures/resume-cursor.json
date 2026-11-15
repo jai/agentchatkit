@@ -1,0 +1,280 @@
+{
+  "about": "Resume from the cursor after update 2: only what came after it, the current state, then live updates.",
+  "server": {
+    "before": [
+      {
+        "sessionUpdate": "user_message",
+        "messageId": "m1",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why is the build red?"
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:00.000Z",
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "status": "delivered",
+            "clientRef": "ref-1"
+          }
+        }
+      },
+      {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Reading the CI log",
+            "problem": null
+          }
+        }
+      },
+      {
+        "sessionUpdate": "agent_message",
+        "messageId": "m3",
+        "content": [
+          {
+            "type": "text",
+            "text": "A test times out on the simulator."
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:05.000Z"
+          }
+        }
+      }
+    ],
+    "resume": "@2",
+    "during": [
+      {
+        "sessionUpdate": "agent_message",
+        "messageId": "m5",
+        "content": [
+          {
+            "type": "text",
+            "text": "I raised the timeout to 30 s."
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:08.000Z"
+          }
+        }
+      }
+    ],
+    "stream": [
+      {
+        "sessionUpdate": "agent_message",
+        "messageId": "m3",
+        "content": [
+          {
+            "type": "text",
+            "text": "A test times out on the simulator."
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:05.000Z"
+          }
+        }
+      },
+      {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Reading the CI log",
+            "problem": null
+          }
+        }
+      },
+      {
+        "sessionUpdate": "agent_message",
+        "messageId": "m5",
+        "content": [
+          {
+            "type": "text",
+            "text": "I raised the timeout to 30 s."
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:08.000Z"
+          }
+        }
+      }
+    ]
+  },
+  "client": {
+    "start": {
+      "cursor": "c:2",
+      "messages": [
+        {
+          "sessionUpdate": "user_message",
+          "messageId": "m1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Why is the build red?"
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "at": "2026-11-15T05:00:00.000Z",
+              "sender": {
+                "login": "jai",
+                "name": "Jai"
+              },
+              "status": "delivered",
+              "clientRef": "ref-1"
+            }
+          }
+        }
+      ],
+      "state": {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Reading the CI log",
+            "problem": null
+          }
+        }
+      }
+    },
+    "messages": [
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "agent_message",
+            "messageId": "m3",
+            "content": [
+              {
+                "type": "text",
+                "text": "A test times out on the simulator."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:05.000Z"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:3"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "state_update",
+            "state": "running",
+            "_meta": {
+              "agentchatkit": {
+                "activity": "Reading the CI log",
+                "problem": null
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:3"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "agent_message",
+            "messageId": "m5",
+            "content": [
+              {
+                "type": "text",
+                "text": "I raised the timeout to 30 s."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:08.000Z"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:4"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "state_update",
+            "state": "idle",
+            "_meta": {
+              "agentchatkit": {
+                "activity": null,
+                "problem": null
+              }
+            },
+            "stopReason": "end_turn"
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:5"
+            }
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:5",
+      "messages": [
+        {
+          "id": "m1",
+          "kind": "user",
+          "text": "Why is the build red?",
+          "status": "delivered"
+        },
+        {
+          "id": "m3",
+          "kind": "agent",
+          "text": "A test times out on the simulator.",
+          "status": null
+        },
+        {
+          "id": "m5",
+          "kind": "agent",
+          "text": "I raised the timeout to 30 s.",
+          "status": null
+        }
+      ],
+      "state": {
+        "state": "idle",
+        "activity": null
+      },
+      "question": null
+    }
+  }
+}

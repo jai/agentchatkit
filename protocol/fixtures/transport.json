@@ -1,0 +1,55 @@
+{
+  "about": "What the client does on each HTTP answer and when the stream ends; the back-off and keep-alive.",
+  "statuses": [
+    {
+      "status": 202,
+      "action": "wait for the answer on the stream"
+    },
+    {
+      "status": 200,
+      "action": "follow"
+    },
+    {
+      "status": 401,
+      "action": "reauth"
+    },
+    {
+      "status": 403,
+      "action": "stop"
+    },
+    {
+      "status": 404,
+      "action": "initialize again",
+      "about": "a connection id the server no longer knows"
+    },
+    {
+      "status": 500,
+      "action": "reconnect"
+    },
+    {
+      "status": 503,
+      "action": "reconnect"
+    }
+  ],
+  "ended": {
+    "about": "the stream ends, or nothing heard for quiet_limit_ms",
+    "action": "reconnect"
+  },
+  "backoff_ms": [
+    1000,
+    2000,
+    4000,
+    8000,
+    15000,
+    15000
+  ],
+  "jitter": 0.2,
+  "backoff_resets_after_ms": 10000,
+  "keep_alive_ms": 15000,
+  "quiet_limit_ms": 40000,
+  "retained_messages": 200,
+  "headers": {
+    "connection": "Acp-Connection-Id",
+    "session": "Acp-Session-Id"
+  }
+}

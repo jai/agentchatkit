@@ -1,127 +1,150 @@
 {
-  "about": "Messages show in order of `at`, not of arrival: the agent's a2 (written at :08) arrives after the person's u2 (:10), and goes before it. A message without `at` (t9) stays where it arrived: it sorts at the `at` of the message before it. Equal `at` keeps the order taken.",
+  "about": "By `at`, not arrival: a2 (:08) arrives after u2 (:10) and goes before it. t9 has no `at`: it sorts at the `at` of the message before it when first taken. Equal `at` keeps the order taken.",
   "client": {
     "start": {
-      "cursor": "c:2",
-      "seq": 2,
+      "cursor": "c:1",
       "messages": [
         {
-          "id": "m1",
-          "seq": 1,
-          "role": "user",
-          "text": "Why is the build red?",
-          "at": "2026-11-15T05:00:00.000Z",
-          "tool": null,
-          "partial": false,
-          "reply_id": null,
-          "images": [],
-          "sender": {
-            "login": "jai",
-            "name": "Jai"
+          "sessionUpdate": "user_message",
+          "messageId": "m1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Why is the build red?"
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "at": "2026-11-15T05:00:00.000Z",
+              "sender": {
+                "login": "jai",
+                "name": "Jai"
+              },
+              "status": "delivered",
+              "clientRef": "ref-1"
+            }
           }
         }
       ],
-      "replies": [],
-      "state": null,
-      "more_before": false
+      "state": null
     },
-    "inputs": [
+    "messages": [
       {
-        "source": "stream",
-        "frame": {
-          "type": "message",
-          "cursor": "c:3",
-          "seq": 3,
-          "message": {
-            "id": "u2",
-            "seq": 3,
-            "role": "user",
-            "text": "Also check the iPad.",
-            "at": "2026-11-15T05:00:10.000Z",
-            "tool": null,
-            "partial": false,
-            "reply_id": null,
-            "images": [],
-            "sender": {
-              "login": "jai",
-              "name": "Jai"
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u2",
+            "content": [
+              {
+                "type": "text",
+                "text": "Also check the iPad."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "pending",
+                "clientRef": "ref-u2"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:2"
             }
           }
         }
       },
       {
-        "source": "stream",
-        "frame": {
-          "type": "message",
-          "cursor": "c:4",
-          "seq": 4,
-          "message": {
-            "id": "a2",
-            "seq": 4,
-            "role": "assistant",
-            "text": "The iPhone run is green.",
-            "at": "2026-11-15T05:00:08.000Z",
-            "tool": null,
-            "partial": false,
-            "reply_id": null,
-            "images": [],
-            "sender": null
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "agent_message",
+            "messageId": "a2",
+            "content": [
+              {
+                "type": "text",
+                "text": "The iPhone run is green."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:08.000Z"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:3"
+            }
           }
         }
       },
       {
-        "source": "stream",
-        "frame": {
-          "type": "message",
-          "cursor": "c:5",
-          "seq": 5,
-          "message": {
-            "id": "t9",
-            "seq": 5,
-            "role": "tool",
-            "text": "xcodebuild test",
-            "at": null,
-            "tool": "Bash",
-            "partial": false,
-            "reply_id": null,
-            "images": [],
-            "sender": null
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "t9",
+            "title": "xcodebuild test",
+            "name": "Bash",
+            "kind": "execute",
+            "status": "completed",
+            "_meta": {
+              "agentchatkit": {
+                "at": null
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:4"
+            }
           }
         }
       }
     ],
     "expect": {
-      "cursor": "c:5",
-      "seq": 5,
+      "cursor": "c:4",
       "messages": [
         {
           "id": "m1",
-          "seq": 1,
+          "kind": "user",
           "text": "Why is the build red?",
-          "partial": false
+          "status": "delivered"
         },
         {
           "id": "a2",
-          "seq": 4,
+          "kind": "agent",
           "text": "The iPhone run is green.",
-          "partial": false
+          "status": null
         },
         {
           "id": "u2",
-          "seq": 3,
+          "kind": "user",
           "text": "Also check the iPad.",
-          "partial": false
+          "status": "pending"
         },
         {
           "id": "t9",
-          "seq": 5,
+          "kind": "tool",
           "text": "xcodebuild test",
-          "partial": false
+          "status": null
         }
       ],
-      "replies": [],
       "state": null,
-      "more_before": false
+      "question": null
     }
   }
 }

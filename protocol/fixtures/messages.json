@@ -1,0 +1,411 @@
+{
+  "about": "Each JSON-RPC message the profile uses, with our _meta. Both sides decode and encode every one.",
+  "client_to_host": [
+    {
+      "name": "initialize",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": 2,
+          "clientCapabilities": {
+            "elicitation": {
+              "form": {}
+            }
+          },
+          "clientInfo": {
+            "name": "AgentChatLive",
+            "version": "0.3.0"
+          }
+        }
+      }
+    },
+    {
+      "name": "resume from start",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "session/resume",
+        "params": {
+          "sessionId": "chat-1",
+          "cwd": "/",
+          "replayFrom": {
+            "type": "start"
+          }
+        }
+      }
+    },
+    {
+      "name": "resume from a cursor",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "session/resume",
+        "params": {
+          "sessionId": "chat-1",
+          "cwd": "/",
+          "replayFrom": {
+            "type": "_cursor",
+            "cursor": "c:2"
+          }
+        }
+      }
+    },
+    {
+      "name": "prompt",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "session/prompt",
+        "params": {
+          "sessionId": "chat-1",
+          "prompt": [
+            {
+              "type": "text",
+              "text": "Merge it."
+            },
+            {
+              "type": "image",
+              "mimeType": "image/jpeg",
+              "data": "/9j/4AAQ"
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "clientRef": "ref-7",
+              "force": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "edit",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "_agentchatkit/edit",
+        "params": {
+          "sessionId": "chat-1",
+          "messageId": "u7",
+          "prompt": [
+            {
+              "type": "text",
+              "text": "Merge it, then tag."
+            }
+          ],
+          "force": true
+        }
+      }
+    },
+    {
+      "name": "remove",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "_agentchatkit/remove",
+        "params": {
+          "sessionId": "chat-1",
+          "messageId": "u8"
+        }
+      }
+    },
+    {
+      "name": "answer",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 900,
+        "result": {
+          "action": "accept",
+          "content": {
+            "choice": "merge",
+            "text": "and tag it"
+          }
+        }
+      }
+    }
+  ],
+  "host_to_client": [
+    {
+      "name": "initialized",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": 2,
+          "agentCapabilities": {
+            "loadSession": true
+          },
+          "agentInfo": {
+            "name": "agentchat-live",
+            "version": "0.3.0"
+          }
+        }
+      }
+    },
+    {
+      "name": "user message",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "m1",
+            "content": [
+              {
+                "type": "text",
+                "text": "Why is the build red?"
+              },
+              {
+                "type": "resource_link",
+                "name": "screenshot.jpg",
+                "uri": "acp/attachments/a1?sig=abc",
+                "mimeType": "image/jpeg",
+                "size": 412803,
+                "_meta": {
+                  "agentchatkit": {
+                    "width": 1179,
+                    "height": 2556,
+                    "durationMs": null
+                  }
+                }
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:00.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "delivered",
+                "clientRef": "ref-1"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "state",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "state_update",
+            "state": "running",
+            "_meta": {
+              "agentchatkit": {
+                "activity": "Reading the CI log",
+                "problem": null
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:2"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "agent message",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "agent_message",
+            "messageId": "m3",
+            "content": [
+              {
+                "type": "text",
+                "text": "A test times out on the simulator."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:05.000Z"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:3"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "agent message chunk",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "agent_message_chunk",
+            "messageId": "m9",
+            "content": {
+              "type": "text",
+              "text": "Looking at"
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:4"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "tool call",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "t4",
+            "title": "swift test",
+            "name": "Bash",
+            "kind": "execute",
+            "status": "completed",
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:06.000Z"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:5"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "model and reasoning",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "config_option_update",
+            "configOptions": [
+              {
+                "id": "model",
+                "name": "Model",
+                "type": "select",
+                "currentValue": "claude-opus-5-5",
+                "options": [
+                  {
+                    "value": "claude-opus-5-5",
+                    "name": "Claude Opus 5.5"
+                  }
+                ]
+              }
+            ]
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:6"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "question",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 900,
+        "method": "elicitation/create",
+        "params": {
+          "sessionId": "chat-1",
+          "mode": "form",
+          "message": "Merge now or wait for review?",
+          "requestedSchema": {
+            "type": "object",
+            "properties": {
+              "choice": {
+                "type": "string",
+                "enum": [
+                  "merge",
+                  "wait"
+                ],
+                "enumNames": [
+                  "Merge now",
+                  "Wait for review"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "description": "Anything to add"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "prompt taken",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "messageId": "u7"
+        }
+      }
+    },
+    {
+      "name": "cursor expired",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": -32602,
+          "message": "cursor expired"
+        }
+      }
+    },
+    {
+      "name": "not queued any more",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "error": {
+          "code": -32009,
+          "message": "conflict"
+        }
+      }
+    },
+    {
+      "name": "question taken elsewhere",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "$/cancel_request",
+        "params": {
+          "requestId": 900
+        }
+      }
+    }
+  ]
+}

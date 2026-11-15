@@ -1,330 +1,266 @@
-import json, os, sys
-# Writes protocol/fixtures/*.json, the golden fixtures of docs/live-protocol.md. Run: python3 protocol/generate.py protocol/fixtures
+"""Writes protocol/fixtures/*.json, the golden fixtures of docs/live-protocol.md (our ACP v2 profile).
+
+Run: python3 protocol/generate.py protocol/fixtures
+
+A scenario has up to two halves:
+- `server`: what the chat goes through (`before`, a resume, `during`), as ACP updates without cursors, and the updates
+  the stream must then carry. Cursors are the host's, so the server side compares updates, not cursors. `resume`
+  is "start", "@n" (the cursor after the n-th update of `before`) or "expired".
+- `client`: JSON-RPC messages arriving on the session stream, and where the client ends.
+"""
+import json
+import os
+import sys
+
 out = sys.argv[1]
 os.makedirs(out, exist_ok=True)
 T = "2026-11-15T05:00:%02d.000Z"
+SID = "chat-1"
 JAI = {"login": "jai", "name": "Jai"}
-SHOT = {"id": "img1", "url": "images/img1?sig=abc", "media_type": "image/jpeg", "width": 1179, "height": 2556}
-def msg(id, seq, role, text, s=0, **kw):
-    m = {"id": id, "seq": seq, "role": role, "text": text, "at": T % s, "tool": None, "partial": False,
-         "reply_id": None, "images": [], "sender": JAI if role == "user" else None}
-    m.update(kw); return m
-def reply(id, seq, status, text, s=0, **kw):
-    r = {"id": id, "seq": seq, "client_ref": "ref-" + id, "status": status, "text": text, "at": T % s,
-         "detail": None, "message_id": None, "sender": JAI, "images": []}
-    r.update(kw); return r
-def state(seq, working, activity=None, **kw):
-    s = {"seq": seq, "working": working, "activity": activity, "problem": None, "model": "claude-opus-5-5",
-         "effort": "high", "waiting": None}
-    s.update(kw); return s
-def cur(n): return "c:%d" % n
-def hello(seq, resumed, chat="chat-1"): return {"type": "hello", "v": 1, "chat": chat, "cursor": cur(seq), "seq": seq, "resumed": resumed}
-def f_msg(m): return {"type": "message", "cursor": cur(m["seq"]), "seq": m["seq"], "message": m}
-def f_reply(r): return {"type": "reply", "cursor": cur(r["seq"]), "seq": r["seq"], "reply": r}
-def f_state(s): return {"type": "state", "cursor": cur(s["seq"]), "seq": s["seq"], "state": s}
-def snap(seq, messages, replies, st, more=False):
-    return {"type": "snapshot", "cursor": cur(seq), "seq": seq, "messages": messages, "replies": replies, "state": st, "more_before": more}
-def strip(item):
-    """What the server side compares: everything but the host-assigned seq."""
-    return {k: v for k, v in item.items() if k != "seq"}
-def sse(frame):
-    lines = ["event: " + frame["type"]]
-    if "cursor" in frame: lines.append("id: " + frame["cursor"])
-    lines.append("data: " + json.dumps(frame, separators=(",", ":"), ensure_ascii=False))
-    return "\n".join(lines) + "\n\n"
-def expect(cursor, seq, messages, replies, st, more=False):
-    return {"cursor": cursor, "seq": seq,
-            "messages": [{"id": m["id"], "seq": m["seq"], "text": m["text"], "partial": m["partial"]} for m in messages],
-            "replies": [{"id": r["id"], "seq": r["seq"], "status": r["status"], "message_id": r["message_id"]} for r in replies],
-            "state": None if st is None else {"seq": st["seq"], "working": st["working"], "activity": st["activity"], "waiting": None if st.get("waiting") is None else st["waiting"]["id"]},
-            "more_before": more}
-def ch(kind, item): return {kind: strip(item)}
+
+
+def ours(**kw):
+    return {"agentchatkit": {k: v for k, v in kw.items()}}
+
+
+def text(t):
+    return [{"type": "text", "text": t}]
+
+
+def user(id, t, s=0, status=None, ref=None, **kw):
+    meta = {"at": None if s is None else T % s, "sender": JAI}
+    if status:
+        meta["status"] = status
+    if ref:
+        meta["clientRef"] = ref
+    meta.update(kw)
+    return {"sessionUpdate": "user_message", "messageId": id, "content": text(t), "_meta": {"agentchatkit": meta}}
+
+
+def agent(id, t, s=0):
+    return {"sessionUpdate": "agent_message", "messageId": id, "content": text(t),
+            "_meta": ours(at=None if s is None else T % s)}
+
+
+def tool(id, title, name, s=0):
+    return {"sessionUpdate": "tool_call_update", "toolCallId": id, "title": title, "name": name, "kind": "execute",
+            "status": "completed", "_meta": ours(at=None if s is None else T % s)}
+
+
+def state(st, activity=None, problem=None, stop=None):
+    u = {"sessionUpdate": "state_update", "state": st, "_meta": ours(activity=activity, problem=problem)}
+    if stop:
+        u["stopReason"] = stop
+    return u
+
+
+def note(update, cursor):
+    return {"jsonrpc": "2.0", "method": "session/update",
+            "params": {"sessionId": SID, "update": update, "_meta": ours(cursor=cursor)}}
+
+
+def item(u):
+    """What the client holds for an update, as the fixtures compare it."""
+    kind = {"user_message": "user", "agent_message": "agent", "tool_call_update": "tool"}[u["sessionUpdate"]]
+    t = u["title"] if kind == "tool" else u["content"][0]["text"]
+    return {"id": u.get("messageId") or u["toolCallId"], "kind": kind, "text": t,
+            "status": u["_meta"]["agentchatkit"].get("status")}
+
+
+def expect(cursor, updates, st=None, question=None):
+    return {"cursor": cursor, "messages": [item(u) for u in updates],
+            "state": None if st is None else {"state": st["state"], "activity": st["_meta"]["agentchatkit"]["activity"]},
+            "question": question}
+
+
 def write(name, doc):
     with open(os.path.join(out, name), "w") as f:
-        json.dump(doc, f, indent=2, ensure_ascii=False); f.write("\n")
+        json.dump(doc, f, indent=2, ensure_ascii=False)
+        f.write("\n")
 
-empty_state = state(0, False, model=None, effort=None)
 
-# --- frames.json: one of each frame, as JSON and SSE text
-m7 = msg("m7", 42, "assistant", "Done. **Tests pass.**", 2)
-r1 = reply("rpl_1", 40, "delivered", "Merge it once CI is green.", 0, message_id="m6")
-s41 = state(41, True, "Running tests")
-s43 = state(43, False, None, waiting={"id": "q1", "question": "Merge now or wait for review?", "options": [{"id": "merge", "label": "Merge now"}, {"id": "wait", "label": "Wait for review"}], "multiple": False, "free_text": True})
-frames = [
-    hello(41, True),
-    snap(41, [msg("m6", 40, "user", "Merge it once CI is green.", 0, reply_id="rpl_1", images=[SHOT]),
-              msg("t1", 39, "tool", "swift test", 1, tool="Bash")], [r1], s41, True),
-    f_msg(m7), f_reply(r1), f_state(s41), f_state(s43),
-    {"type": "ping"},
-    {"type": "close", "code": 4000, "reason": "rotate", "retry_after_ms": 0},
-    {"type": "earlier", "messages": [msg("m1", 1, "user", "Hello", 0)], "more_before": False},
-]
-write("frames.json", {
-    "about": "One of each frame type (docs/live-protocol.md#frames), as its JSON and as the SSE text the server sends. Both sides encode and decode every one.",
-    "frames": [{"json": f, "sse": sse(f)} for f in frames],
-    "unknown": {"about": "A frame type and a field a v1 client does not know: it ignores both.",
-                "sse": 'event: typing\ndata: {"type":"typing","who":"agent"}\n\nevent: state\nid: c:9\ndata: {"type":"state","cursor":"c:9","seq":9,"state":{"seq":9,"working":true,"activity":null,"problem":null,"model":null,"effort":null,"waiting":null,"mood":"busy"}}\n\n',
-                "expect": {"cursor": "c:9", "seq": 9, "messages": [], "replies": [],
-                           "state": {"seq": 9, "working": True, "activity": None, "waiting": None}, "more_before": False}},
-})
+m1 = user("m1", "Why is the build red?", 0, "delivered", "ref-1")
+s2 = state("running", "Reading the CI log")
+m3 = agent("m3", "A test times out on the simulator.", 5)
+t4 = tool("t4", "swift test", "Bash", 6)
+m5 = agent("m5", "I raised the timeout to 30 s.", 8)
+s6 = state("idle", stop="end_turn")
+QUESTION = {
+    "jsonrpc": "2.0", "id": 900, "method": "elicitation/create",
+    "params": {"sessionId": SID, "mode": "form", "message": "Merge now or wait for review?",
+               "requestedSchema": {"type": "object", "properties": {
+                   "choice": {"type": "string", "enum": ["merge", "wait"], "enumNames": ["Merge now", "Wait for review"]},
+                   "text": {"type": "string", "description": "Anything to add"}}}}}
 
-# --- connect-fresh
-m1 = msg("m1", 1, "user", "Why is the build red?", 0)
-s2 = state(2, True, "Reading the CI log")
-m3 = msg("m3", 3, "assistant", "A test times out on the simulator.", 5)
-write("connect-fresh.json", {
-    "about": "No cursor: hello (resumed false), then a snapshot of the chat as it stands. Then a change arrives live.",
-    "server": {
-        "before": [ch("message", m1), ch("state", s2), ch("message", m3)],
-        "connect": {"after": None},
-        "during": [ch("state", state(4, False))],
-        "frames": [{"type": "hello", "resumed": False},
-                   {"type": "snapshot", "messages": [strip(m1), strip(m3)], "state": strip(s2), "replies": [], "more_before": False},
-                   {"type": "state", "state": strip(state(4, False))}],
-    },
-    "client": {
-        "start": None,
-        "inputs": [{"source": "stream", "frame": hello(3, False)},
-                   {"source": "stream", "frame": snap(3, [m1, m3], [], s2)},
-                   {"source": "stream", "frame": f_state(state(4, False))}],
-        "expect": expect(cur(4), 4, [m1, m3], [], state(4, False)),
-    },
-})
-
-# --- reconnect-resume
-m4 = msg("m4", 4, "assistant", "I raised the timeout to 30 s.", 8)
-m5 = msg("m5", 5, "assistant", "CI is green.", 20)
-write("reconnect-resume.json", {
-    "about": "Reconnect with the cursor of change 2: hello (resumed true), the changes missed while away (3), then a live one (5). Nothing before the cursor comes again.",
-    "server": {
-        "before": [ch("message", m1), ch("state", s2), ch("message", m3)],
-        "connect": {"after": "@2"},
-        "during": [ch("message", m4)],
-        "frames": [{"type": "hello", "resumed": True},
-                   {"type": "message", "message": strip(m3)},
-                   {"type": "message", "message": strip(m4)}],
-    },
-    "client": {
-        "start": {"cursor": cur(2), "seq": 2, "messages": [m1], "replies": [], "state": s2, "more_before": False},
-        "inputs": [{"source": "stream", "frame": hello(4, True)},
-                   {"source": "stream", "frame": f_msg(m3)},
-                   {"source": "stream", "frame": f_msg(m4)},
-                   {"source": "stream", "frame": {"type": "ping"}},
-                   {"source": "stream", "frame": f_msg(m5)}],
-        "expect": expect(cur(5), 5, [m1, m3, m4, m5], [], s2),
-    },
-})
-
-# --- cursor-expired
-write("cursor-expired.json", {
-    "about": "A cursor the host can no longer resume from (it forgot that far back, or the transcript was replaced): hello (resumed false), then a snapshot. Not a refusal.",
-    "server": {
-        "before": [ch("message", m1), ch("state", s2), ch("message", m3)],
-        "expire": True,
-        "connect": {"after": "@1"},
-        "during": [],
-        "frames": [{"type": "hello", "resumed": False},
-                   {"type": "snapshot", "messages": [strip(m1), strip(m3)], "state": strip(s2), "replies": []}],
-    },
-    "client": {
-        "start": {"cursor": cur(1), "seq": 1, "messages": [m1], "replies": [], "state": None, "more_before": False},
-        "inputs": [{"source": "stream", "frame": hello(3, False)},
-                   {"source": "stream", "frame": snap(3, [m1, m3], [], s2)}],
-        "expect": expect(cur(3), 3, [m1, m3], [], s2),
-    },
-})
-
-# --- duplicate
-write("duplicate.json", {
-    "about": "The same message arrives twice: on the stream, then in a read that overlapped it. The second does nothing.",
-    "client": {
-        "start": {"cursor": cur(3), "seq": 3, "messages": [m1, m3], "replies": [], "state": s2, "more_before": False},
-        "inputs": [{"source": "stream", "frame": f_msg(m4)},
-                   {"source": "read", "frame": f_msg(m4)},
-                   {"source": "stream", "frame": f_msg(m4)}],
-        "expect": expect(cur(4), 4, [m1, m3, m4], [], s2),
-    },
-})
-
-# --- out-of-order
-m4p = msg("m4", 4, "assistant", "I raised the time", 8, partial=True)
-m4f = msg("m4", 6, "assistant", "I raised the timeout to 30 s.", 8)
-s5 = state(5, True, "Pushing")
-write("out-of-order.json", {
-    "about": "A read that left before the stream moved on answers after it: its older version of m4 (seq 4) and older state (seq 5) must not replace the stream's newer m4 (seq 6), nor move the cursor back.",
-    "client": {
-        "start": {"cursor": cur(3), "seq": 3, "messages": [m1, m3], "replies": [], "state": s2, "more_before": False},
-        "inputs": [{"source": "stream", "frame": f_msg(m4p)},
-                   {"source": "stream", "frame": f_state(s5)},
-                   {"source": "stream", "frame": f_msg(m4f)},
-                   {"source": "read", "frame": f_msg(m4p)},
-                   {"source": "read", "frame": f_state(s5)}],
-        "expect": expect(cur(6), 6, [m1, m3, m4f], [], s5),
-    },
-})
-
-# --- snapshot-reset
-n1 = msg("n1", 2, "assistant", "A fresh session: the transcript was replaced.", 30)
-write("snapshot-reset.json", {
-    "about": "The host reset its history: a snapshot with a lower seq than the client holds still replaces everything, cursor and seq included. Frames after it apply from its seq.",
-    "client": {
-        "start": {"cursor": cur(6), "seq": 6, "messages": [m1, m3, m4f], "replies": [], "state": s5, "more_before": False},
-        "inputs": [{"source": "stream", "frame": hello(2, False)},
-                   {"source": "stream", "frame": {"type": "snapshot", "cursor": "e2:2", "seq": 2, "messages": [n1], "replies": [], "state": state(1, False), "more_before": False}},
-                   {"source": "stream", "frame": {"type": "message", "cursor": "e2:3", "seq": 3, "message": msg("n2", 3, "assistant", "Still here.", 31)}}],
-        "expect": expect("e2:3", 3, [n1, msg("n2", 3, "assistant", "Still here.", 31)], [], state(1, False)),
-    },
-})
-
-# --- message-update
-p1 = msg("m2", 2, "assistant", "Looking at", 3, partial=True)
-p2 = msg("m2", 3, "assistant", "Looking at the CI log", 3, partial=True)
-p3 = msg("m2", 4, "assistant", "Looking at the CI log now.", 3)
-write("message-update.json", {
-    "about": "A message written in parts (an Orca chat): versions with partial true, then the final one. Each replaces the last in place, by id.",
-    "server": {
-        "before": [ch("message", m1)],
-        "connect": {"after": "@1"},
-        "during": [ch("message", p1), ch("message", p2), ch("message", p3)],
-        "frames": [{"type": "hello", "resumed": True},
-                   {"type": "message", "message": strip(p1)},
-                   {"type": "message", "message": strip(p2)},
-                   {"type": "message", "message": strip(p3)}],
-    },
-    "client": {
-        "start": {"cursor": cur(1), "seq": 1, "messages": [m1], "replies": [], "state": None, "more_before": False},
-        "inputs": [{"source": "stream", "frame": f_msg(p1)},
-                   {"source": "stream", "frame": f_msg(p2)},
-                   {"source": "stream", "frame": f_msg(p3)}],
-        "expect": expect(cur(4), 4, [m1, p3], [], None),
-    },
-})
-
-# --- reply-lifecycle
-ra = reply("rpl_7", 2, "pending", "Merge it.", 10)
-rb = reply("rpl_7", 3, "queued", "Merge it.", 10)
-rc = reply("rpl_7", 4, "delivering", "Merge it.", 10)
-mm = msg("m9", 5, "user", "Merge it.", 12, reply_id="rpl_7")
-rd = reply("rpl_7", 6, "delivered", "Merge it.", 10, message_id="m9")
-write("reply-lifecycle.json", {
-    "about": "A reply the person sent: pending, queued behind the agent's turn, delivering, then delivered. On delivery it becomes message m9, which names it by reply_id; the reply names m9 by message_id.",
-    "server": {
-        "before": [ch("message", m1)],
-        "connect": {"after": "@1"},
-        "during": [ch("reply", ra), ch("reply", rb), ch("reply", rc), ch("message", mm), ch("reply", rd)],
-        "frames": [{"type": "hello", "resumed": True},
-                   {"type": "reply", "reply": strip(ra)},
-                   {"type": "reply", "reply": strip(rb)},
-                   {"type": "reply", "reply": strip(rc)},
-                   {"type": "message", "message": strip(mm)},
-                   {"type": "reply", "reply": strip(rd)}],
-    },
-    "client": {
-        "start": {"cursor": cur(1), "seq": 1, "messages": [m1], "replies": [], "state": None, "more_before": False},
-        "inputs": [{"source": "stream", "frame": f_reply(ra)},
-                   {"source": "stream", "frame": f_reply(rb)},
-                   {"source": "read", "frame": f_reply(ra)},
-                   {"source": "stream", "frame": f_reply(rc)},
-                   {"source": "stream", "frame": f_msg(mm)},
-                   {"source": "stream", "frame": f_reply(rd)}],
-        "expect": expect(cur(6), 6, [m1, mm], [rd], None),
-        "ticks": {"rpl_7": 2},
-    },
-})
-
-# --- earlier
-e = [msg("m%d" % i, i, "user" if i % 2 else "assistant", "Message %d" % i, i) for i in range(1, 6)]
-write("earlier.json", {
-    "about": "Load earlier: a read with before answers an earlier frame. Its messages go in front, each once; the cursor and seq do not move.",
-    "client": {
-        "start": {"cursor": cur(9), "seq": 9, "messages": e[3:], "replies": [], "state": None, "more_before": True},
-        "inputs": [{"source": "read", "frame": {"type": "earlier", "messages": e[1:4], "more_before": True}}],
-        "expect": expect(cur(9), 9, e[1:], [], None, True),
-    },
-})
-
-# --- refusals
-write("refusals.json", {
-    "about": "Each refusal before a stream starts, each close code, and what the client does about it. `action` is one of: stop, reauth (new bearer, then once more), read (read every 2 s, stream again after retry_after_ms), backoff (read, reconnect with back-off), now (reconnect at once), after (reconnect after retry_after_ms, no back-off).",
-    "http": [
-        {"status": 400, "error": "bad_request", "action": "stop", "query": "v=1&after=c:1&before=m1"},
-        {"status": 400, "error": "unsupported_version", "action": "stop", "query": "v=2"},
-        {"status": 400, "error": "unsupported_version", "action": "stop", "query": ""},
-        {"status": 401, "error": "unauthorized", "action": "reauth"},
-        {"status": 403, "error": "forbidden", "action": "stop"},
-        {"status": 404, "error": "not_found", "action": "stop"},
-        {"status": 429, "error": "busy", "action": "read", "retry_after": 30},
-        {"status": 500, "error": "internal", "action": "backoff"},
-        {"status": 502, "error": "internal", "action": "backoff"},
+# --- messages.json: one of each message we use
+write("messages.json", {
+    "about": "Each JSON-RPC message the profile uses, with our _meta. Both sides decode and encode every one.",
+    "client_to_host": [
+        {"name": "initialize", "message": {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+            "protocolVersion": 2, "clientCapabilities": {"elicitation": {"form": {}}},
+            "clientInfo": {"name": "AgentChatLive", "version": "0.3.0"}}}},
+        {"name": "resume from start", "message": {"jsonrpc": "2.0", "id": 2, "method": "session/resume", "params": {
+            "sessionId": SID, "cwd": "/", "replayFrom": {"type": "start"}}}},
+        {"name": "resume from a cursor", "message": {"jsonrpc": "2.0", "id": 3, "method": "session/resume", "params": {
+            "sessionId": SID, "cwd": "/", "replayFrom": {"type": "_cursor", "cursor": "c:2"}}}},
+        {"name": "prompt", "message": {"jsonrpc": "2.0", "id": 4, "method": "session/prompt", "params": {
+            "sessionId": SID, "prompt": text("Merge it.") + [{"type": "image", "mimeType": "image/jpeg", "data": "/9j/4AAQ"}],
+            "_meta": ours(clientRef="ref-7", force=False)}}},
+        {"name": "edit", "message": {"jsonrpc": "2.0", "id": 5, "method": "_agentchatkit/edit", "params": {
+            "sessionId": SID, "messageId": "u7", "prompt": text("Merge it, then tag."), "force": True}}},
+        {"name": "remove", "message": {"jsonrpc": "2.0", "id": 6, "method": "_agentchatkit/remove", "params": {
+            "sessionId": SID, "messageId": "u8"}}},
+        {"name": "answer", "message": {"jsonrpc": "2.0", "id": 900, "result": {
+            "action": "accept", "content": {"choice": "merge", "text": "and tag it"}}}},
     ],
-    "close": [
-        {"code": 4000, "reason": "rotate", "retry_after_ms": 0, "action": "now"},
-        {"code": 4001, "reason": "unauthorized", "retry_after_ms": 0, "action": "reauth"},
-        {"code": 4003, "reason": "forbidden", "retry_after_ms": 0, "action": "stop"},
-        {"code": 4004, "reason": "gone", "retry_after_ms": 0, "action": "stop"},
-        {"code": 4029, "reason": "busy", "retry_after_ms": 30000, "action": "read"},
-        {"code": 4500, "reason": "internal", "retry_after_ms": 0, "action": "backoff"},
-        {"code": 4503, "reason": "restarting", "retry_after_ms": 2000, "action": "after"},
+    "host_to_client": [
+        {"name": "initialized", "message": {"jsonrpc": "2.0", "id": 1, "result": {
+            "protocolVersion": 2, "agentCapabilities": {"loadSession": True},
+            "agentInfo": {"name": "agentchat-live", "version": "0.3.0"}}}},
+        {"name": "user message", "message": note(dict(m1, content=m1["content"] + [{
+            "type": "resource_link", "name": "screenshot.jpg", "uri": "acp/attachments/a1?sig=abc",
+            "mimeType": "image/jpeg", "size": 412803, "_meta": ours(width=1179, height=2556, durationMs=None)}]), "c:1")},
+        {"name": "state", "message": note(s2, "c:2")},
+        {"name": "agent message", "message": note(m3, "c:3")},
+        {"name": "agent message chunk", "message": note({"sessionUpdate": "agent_message_chunk", "messageId": "m9",
+                                                         "content": {"type": "text", "text": "Looking at"}}, "c:4")},
+        {"name": "tool call", "message": note(t4, "c:5")},
+        {"name": "model and reasoning", "message": note({"sessionUpdate": "config_option_update", "configOptions": [
+            {"id": "model", "name": "Model", "type": "select", "currentValue": "claude-opus-5-5",
+             "options": [{"value": "claude-opus-5-5", "name": "Claude Opus 5.5"}]}]}, "c:6")},
+        {"name": "question", "message": QUESTION},
+        {"name": "prompt taken", "message": {"jsonrpc": "2.0", "id": 4, "result": {"messageId": "u7"}}},
+        {"name": "cursor expired", "message": {"jsonrpc": "2.0", "id": 3, "error": {
+            "code": -32602, "message": "cursor expired"}}},
+        {"name": "not queued any more", "message": {"jsonrpc": "2.0", "id": 5, "error": {
+            "code": -32009, "message": "conflict"}}},
+        {"name": "question taken elsewhere", "message": {"jsonrpc": "2.0", "method": "$/cancel_request",
+                                                          "params": {"requestId": 900}}},
     ],
-    "dropped": {"about": "A stream that ends without a close frame, or a network error", "action": "backoff"},
-    "backoff_ms": [500, 1000, 2000, 4000, 8000, 15000, 15000],
-    "jitter": 0.2,
-    "backoff_resets_after_ms": 10000,
-    "read_interval_ms": 2000,
-    "ping_interval_ms": 15000,
-    "quiet_limit_ms": 40000,
-    "rotate_after_ms": 600000,
 })
-print("ok")
 
-# --- writes: what each write answers and the frames it produces
-q = {"id": "q1", "question": "Merge now or wait for review?", "options": [{"id": "merge", "label": "Merge now"}, {"id": "wait", "label": "Wait for review"}], "multiple": False, "free_text": True}
-w_state = state(2, False, None, waiting=q)
-w1 = reply("rpl_8", 3, "queued", "Also bump the version.", 40)
-w2 = reply("rpl_8", 4, "delivering", "Also bump the version.", 40)
-w3 = reply("rpl_9", 5, "removed", "Never mind.", 41)
-ans = reply("rpl_10", 6, "pending", "Merge now", 42, extra={"answers": "q1", "options": ["merge"]})
-write("writes.json", {
-    "about": "The four writes (docs/live-protocol.md#writes): the request, the answer, and the frames every open stream then gets. A repeat with the same client_ref answers the first reply and produces no frame.",
-    "writes": [
-        {"name": "send", "request": {"method": "POST", "path": "messages", "body": {"text": "Also bump the version.", "client_ref": "ref-rpl_8", "force": False, "images": []}},
-         "status": 201, "answer": strip(w1), "frames": [{"type": "reply", "reply": strip(w1)}]},
-        {"name": "send again", "request": {"method": "POST", "path": "messages", "body": {"text": "Also bump the version.", "client_ref": "ref-rpl_8", "force": False, "images": []}},
-         "status": 200, "answer": strip(w1), "frames": []},
-        {"name": "force", "request": {"method": "POST", "path": "replies/rpl_8/force", "body": None},
-         "status": 200, "answer": strip(w2), "frames": [{"type": "reply", "reply": strip(w2)}]},
-        {"name": "remove", "request": {"method": "DELETE", "path": "replies/rpl_9", "body": None},
-         "status": 200, "answer": strip(w3), "frames": [{"type": "reply", "reply": strip(w3)}]},
-        {"name": "answer", "request": {"method": "POST", "path": "answer", "body": {"question_id": "q1", "option_ids": ["merge"], "text": None, "client_ref": "ref-rpl_10"}},
-         "status": 201, "answer": strip(ans), "frames": [{"type": "reply", "reply": strip(ans)}, {"type": "state", "state": strip(state(7, False, None))}]},
-    ],
-    "refusals": [
-        {"name": "force a reply that is not queued", "status": 409, "error": "conflict"},
-        {"name": "remove a reply already delivering or delivered", "status": 409, "error": "conflict"},
-        {"name": "answer a question that is not open", "status": 409, "error": "conflict"},
-        {"name": "send with no text and no images", "status": 400, "error": "bad_request"},
-    ],
-    "client": {
-        "about": "The client forces a send while the chat waits on the person: the question would otherwise hold the reply in the queue for good.",
-        "start": {"cursor": cur(2), "seq": 2, "messages": [], "replies": [], "state": w_state, "more_before": False},
-        "send": {"text": "Also bump the version."},
-        "expect_force": True,
-    },
+# --- resume-start
+write("resume-start.json", {
+    "about": "No cursor held: resume from start replays the retained history, then the current state, then live updates.",
+    "server": {"before": [m1, s2, m3], "resume": "start", "during": [t4],
+               "stream": [m1, m3, s2, t4]},
+    "client": {"start": None,
+               "messages": [note(m1, "c:1"), note(m3, "c:3"), note(s2, "c:3"), note(t4, "c:4")],
+               "expect": expect("c:4", [m1, m3, t4], s2)},
 })
-print("writes ok")
+
+# --- resume-cursor
+write("resume-cursor.json", {
+    "about": "Resume from the cursor after update 2: only what came after it, the current state, then live updates.",
+    "server": {"before": [m1, s2, m3], "resume": "@2", "during": [m5],
+               "stream": [m3, s2, m5]},
+    "client": {"start": {"cursor": "c:2", "messages": [m1], "state": s2},
+               "messages": [note(m3, "c:3"), note(s2, "c:3"), note(m5, "c:4"), note(s6, "c:5")],
+               "expect": expect("c:5", [m1, m3, m5], s6)},
+})
+
+# --- resume-expired
+n1 = agent("n1", "A fresh session: the transcript was replaced.", 30)
+write("resume-expired.json", {
+    "about": "A cursor the host can't resume from answers -32602; the client resumes from start, and the replay "
+             "replaces everything it held.",
+    "server": {"before": [m1, s2, m3], "resume": "expired", "error": -32602},
+    "client": {"start": {"cursor": "c:9", "messages": [m1, m3, m5], "state": s2},
+               "error": -32602,
+               "replay": [note(n1, "e2:1"), note(state("idle", stop="end_turn"), "e2:1")],
+               "expect": expect("e2:1", [n1], state("idle", stop="end_turn"))},
+})
 
 # --- display-order
-u = msg("u2", 3, "user", "Also check the iPad.", 10)
-a = msg("a2", 4, "assistant", "The iPhone run is green.", 8)
-n = msg("t9", 5, "tool", "xcodebuild test", None) if False else dict(msg("t9", 5, "tool", "xcodebuild test", 0, tool="Bash"), at=None)
+u2 = user("u2", "Also check the iPad.", 10, "pending", "ref-u2")
+a2 = agent("a2", "The iPhone run is green.", 8)
+t9 = tool("t9", "xcodebuild test", "Bash", None)
 write("display-order.json", {
-    "about": "Messages show in order of `at`, not of arrival: the agent's a2 (written at :08) arrives after the person's u2 (:10), and goes before it. A message without `at` (t9) stays where it arrived: it sorts at the `at` of the message before it. Equal `at` keeps the order taken.",
-    "client": {
-        "start": {"cursor": cur(2), "seq": 2, "messages": [m1], "replies": [], "state": None, "more_before": False},
-        "inputs": [{"source": "stream", "frame": f_msg(u)},
-                   {"source": "stream", "frame": f_msg(a)},
-                   {"source": "stream", "frame": f_msg(n)}],
-        "expect": expect(cur(5), 5, [m1, a, u, n], [], None),
-    },
+    "about": "By `at`, not arrival: a2 (:08) arrives after u2 (:10) and goes before it. t9 has no `at`: it sorts at "
+             "the `at` of the message before it when first taken. Equal `at` keeps the order taken.",
+    "client": {"start": {"cursor": "c:1", "messages": [m1], "state": None},
+               "messages": [note(u2, "c:2"), note(a2, "c:3"), note(t9, "c:4")],
+               "expect": expect("c:4", [m1, a2, u2, t9])},
 })
-print("order ok")
+
+# --- prompt-lifecycle
+q1 = user("u7", "Merge it.", 10, "queued", "ref-7")
+q2 = user("u7", "Merge it, then tag.", 10, "queued", "ref-7")
+q3 = user("u7", "Merge it, then tag.", 10, "delivering", "ref-7")
+q4 = user("u7", "Merge it, then tag.", 10, "delivered", "ref-7")
+r1 = user("u8", "Never mind.", 11, "queued", "ref-8")
+r2 = user("u8", "Never mind.", 11, "removed", "ref-8")
+write("prompt-lifecycle.json", {
+    "about": "Prompts sent while the agent works: inserted at once as queued, edited and forced, delivered; another "
+             "removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held "
+             "(its status is known) but has no bubble.",
+    "server": {
+        "before": [m1, state("running", "Running tests")], "resume": "@2",
+        "writes": [
+            {"request": {"method": "session/prompt", "params": {"sessionId": SID, "prompt": text("Merge it."),
+                                                                "_meta": ours(clientRef="ref-7", force=False)}},
+             "result": {"messageId": "@u7"}, "stream": [q1]},
+            {"request": {"method": "session/prompt", "params": {"sessionId": SID, "prompt": text("Merge it."),
+                                                                "_meta": ours(clientRef="ref-7", force=False)}},
+             "result": {"messageId": "@u7"}, "stream": []},
+            {"request": {"method": "_agentchatkit/edit", "params": {"sessionId": SID, "messageId": "@u7",
+                                                                    "prompt": text("Merge it, then tag."), "force": True}},
+             "result": {"messageId": "@u7"}, "stream": [q2]},
+            {"request": {"method": "session/prompt", "params": {"sessionId": SID, "prompt": text("Never mind."),
+                                                                "_meta": ours(clientRef="ref-8", force=False)}},
+             "result": {"messageId": "@u8"}, "stream": [r1]},
+            {"request": {"method": "_agentchatkit/remove", "params": {"sessionId": SID, "messageId": "@u8"}},
+             "result": {"messageId": "@u8"}, "stream": [r2]},
+            {"request": {"method": "_agentchatkit/remove", "params": {"sessionId": SID, "messageId": "@u8"}},
+             "error": -32009, "stream": []},
+        ],
+    },
+    "client": {"start": {"cursor": "c:2", "messages": [m1], "state": None},
+               "messages": [note(q1, "c:3"), note(q2, "c:4"), note(q3, "c:5"), note(q4, "c:6"), note(r1, "c:7"),
+                            note(r2, "c:8")],
+               "expect": expect("c:8", [m1, q4, r2]),
+               "bubbles": ["m1", "u7"], "ticks": {"u7": 2}},
+})
+
+# --- question
+ans = user("u12", "Merge now: and tag it", 42, "pending")
+write("question.json", {
+    "about": "The agent asks. Both clients get elicitation/create and the state turns requires_action. Client A "
+             "answers; the host cancels the request on client B, shows the answer as a user message, and moves on.",
+    "server": {
+        "before": [m1, state("running", "Checking CI")], "clients": 2, "ask": QUESTION["params"],
+        "stream_both": ["elicitation/create", state("requires_action")],
+        "answer_from": 0, "answer": {"action": "accept", "content": {"choice": "merge", "text": "and tag it"}},
+        "to_other": "$/cancel_request",
+        "then": [ans, state("running", "Merging")],
+    },
+    "client": {"start": {"cursor": "c:2", "messages": [m1], "state": None},
+               "messages": [QUESTION, note(state("requires_action"), "c:3")],
+               "expect": expect("c:3", [m1], state("requires_action"), question=900),
+               "then": [{"jsonrpc": "2.0", "method": "$/cancel_request", "params": {"requestId": 900}},
+                        note(ans, "c:4"), note(state("running", "Merging"), "c:5")],
+               "expect_then": expect("c:5", [m1, ans], state("running", "Merging"), question=None)},
+})
+
+# --- transport
+write("transport.json", {
+    "about": "What the client does on each HTTP answer and when the stream ends; the back-off and keep-alive.",
+    "statuses": [
+        {"status": 202, "action": "wait for the answer on the stream"},
+        {"status": 200, "action": "follow"},
+        {"status": 401, "action": "reauth"},
+        {"status": 403, "action": "stop"},
+        {"status": 404, "action": "initialize again", "about": "a connection id the server no longer knows"},
+        {"status": 500, "action": "reconnect"},
+        {"status": 503, "action": "reconnect"},
+    ],
+    "ended": {"about": "the stream ends, or nothing heard for quiet_limit_ms", "action": "reconnect"},
+    "backoff_ms": [1000, 2000, 4000, 8000, 15000, 15000],
+    "jitter": 0.2,
+    "backoff_resets_after_ms": 10000,
+    "keep_alive_ms": 15000,
+    "quiet_limit_ms": 40000,
+    "retained_messages": 200,
+    "headers": {"connection": "Acp-Connection-Id", "session": "Acp-Session-Id"},
+})
+print("fixtures written")

@@ -1,0 +1,192 @@
+{
+  "about": "A cursor the host can't resume from answers -32602; the client resumes from start, and the replay replaces everything it held.",
+  "server": {
+    "before": [
+      {
+        "sessionUpdate": "user_message",
+        "messageId": "m1",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why is the build red?"
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:00.000Z",
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "status": "delivered",
+            "clientRef": "ref-1"
+          }
+        }
+      },
+      {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Reading the CI log",
+            "problem": null
+          }
+        }
+      },
+      {
+        "sessionUpdate": "agent_message",
+        "messageId": "m3",
+        "content": [
+          {
+            "type": "text",
+            "text": "A test times out on the simulator."
+          }
+        ],
+        "_meta": {
+          "agentchatkit": {
+            "at": "2026-11-15T05:00:05.000Z"
+          }
+        }
+      }
+    ],
+    "resume": "expired",
+    "error": -32602
+  },
+  "client": {
+    "start": {
+      "cursor": "c:9",
+      "messages": [
+        {
+          "sessionUpdate": "user_message",
+          "messageId": "m1",
+          "content": [
+            {
+              "type": "text",
+              "text": "Why is the build red?"
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "at": "2026-11-15T05:00:00.000Z",
+              "sender": {
+                "login": "jai",
+                "name": "Jai"
+              },
+              "status": "delivered",
+              "clientRef": "ref-1"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "agent_message",
+          "messageId": "m3",
+          "content": [
+            {
+              "type": "text",
+              "text": "A test times out on the simulator."
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "at": "2026-11-15T05:00:05.000Z"
+            }
+          }
+        },
+        {
+          "sessionUpdate": "agent_message",
+          "messageId": "m5",
+          "content": [
+            {
+              "type": "text",
+              "text": "I raised the timeout to 30 s."
+            }
+          ],
+          "_meta": {
+            "agentchatkit": {
+              "at": "2026-11-15T05:00:08.000Z"
+            }
+          }
+        }
+      ],
+      "state": {
+        "sessionUpdate": "state_update",
+        "state": "running",
+        "_meta": {
+          "agentchatkit": {
+            "activity": "Reading the CI log",
+            "problem": null
+          }
+        }
+      }
+    },
+    "error": -32602,
+    "replay": [
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "agent_message",
+            "messageId": "n1",
+            "content": [
+              {
+                "type": "text",
+                "text": "A fresh session: the transcript was replaced."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:30.000Z"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "e2:1"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "state_update",
+            "state": "idle",
+            "_meta": {
+              "agentchatkit": {
+                "activity": null,
+                "problem": null
+              }
+            },
+            "stopReason": "end_turn"
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "e2:1"
+            }
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "e2:1",
+      "messages": [
+        {
+          "id": "n1",
+          "kind": "agent",
+          "text": "A fresh session: the transcript was replaced.",
+          "status": null
+        }
+      ],
+      "state": {
+        "state": "idle",
+        "activity": null
+      },
+      "question": null
+    }
+  }
+}
