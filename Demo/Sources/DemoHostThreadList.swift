@@ -21,7 +21,7 @@ struct DemoHostThreadList: View {
 
     var body: some View {
         ChatThreadList(items: threads, title: \.title, actions: actions,
-                       selection: $selection, open: usesValueNavigation ? nil : open) { thread in
+                       selection: $selection, open: openAction) { thread in
             hostRow(thread)
         } header: {
             Button("New host thread") {
@@ -46,6 +46,11 @@ struct DemoHostThreadList: View {
             }
             .padding(.horizontal, ChatSpace.md)
         }
+    }
+
+    private var openAction: ((Thread) -> Void)? {
+        guard !usesValueNavigation else { return nil }
+        return { thread in open(thread) }
     }
 
     @ViewBuilder private func hostRow(_ thread: Thread) -> some View {
