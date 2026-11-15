@@ -1,0 +1,15 @@
+{
+  "originHash" : "5e8170a1b24f4b19b5b0dd7e06ac80238d75b217073302626edd791a90f6c0fd",
+  "pins" : [
+    {
+      "identity" : "durable-networking",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jai/durable-networking",
+      "state" : {
+        "revision" : "78cf3e6f488b7d0f37be0d684f122b5cc1c120f9",
+        "version" : "0.1.0"
+      }
+    }
+  ],
+  "version" : 3
+}
