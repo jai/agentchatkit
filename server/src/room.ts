@@ -231,16 +231,17 @@ export class LiveRoom<Who> {
         this.tidy();
       }
     });
+    // A first byte at once: URLSession holds a response back until it has bytes to sniff, and the next may be a
+    // keep-alive 15 s away (found in the end-to-end walkthrough, docs/end-to-end-walkthrough.md).
     const waiting = connection.pending.splice(0);
-    if (waiting.length > 0) {
-      this.write(connection, waiting.join(""));
-    }
+    this.write(connection, ": open\n\n" + waiting.join(""));
     this.startTimers();
     return new Response(readable, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-store",
         "X-Accel-Buffering": "no",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   }

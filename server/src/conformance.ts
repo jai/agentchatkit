@@ -517,7 +517,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
 
       const opened = await c.open();
       check(opened.status === 200, `the stream: expected 200, got ${opened.status}`);
+      check(opened.headers.get("X-Content-Type-Options") === "nosniff", "the stream says nosniff: URLSession waits to sniff otherwise");
       try {
+        const first = await c.comment(wait);
+        check(first === "open", `expected the stream to start with an open comment at once, got ${first}`);
         timers.advance(15_000);
         const comment = await c.comment(wait);
         check(comment === "keep-alive", `expected the keep-alive comment, got ${comment}`);
