@@ -298,3 +298,10 @@ follow-up ran **no builds, tests, simulators or Apple tools**; only source revie
 parser, production transport/server, workflow, git-history, config/signing or other-repo edits were made. No messages
 or Brain work were performed. Pre-existing `.claude/` and the separately appearing untracked `tmp/` were left alone.
 Parent's output flag saves the final response.
+
+### Native row identifiers
+
+Pass `rowIdentifier: { item in "sessionRow-\(item.id)" }` to `ChatThreadList` to identify its actual navigation
+control. On the Mac, NavigationLink combines its label and child identifiers; an identifier on the label alone
+is insufficient. The host-row initializer applies the same hook after the host builds its row. Standalone
+`ChatThreadRow` slot identifiers remain independent.

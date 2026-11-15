@@ -21,7 +21,7 @@ struct DemoHostThreadList: View {
 
     var body: some View {
         ChatThreadList(items: threads, title: \.title, actions: actions,
-                       selection: $selection, open: openAction) { thread in
+                       rowIdentifier: { "sessionRow-\($0.id)" }, selection: $selection, open: openAction) { thread in
             hostRow(thread)
         } header: {
             Button("New host thread") {

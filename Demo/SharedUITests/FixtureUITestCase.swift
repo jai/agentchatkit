@@ -37,7 +37,14 @@ class FixtureUITestCase: XCTestCase {
     }
 
     func wait(_ element: XCUIElement, _ predicate: String, timeout: TimeInterval = 6) {
-        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: predicate), object: element)
+        #if os(macOS)
+        // AppKit StaticText exposes its visible words as value; controls still use label.
+        let textPredicate = predicate.contains("label")
+            ? "(\(predicate)) OR (\(predicate.replacingOccurrences(of: "label", with: "value")))" : predicate
+        #else
+        let textPredicate = predicate
+        #endif
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: textPredicate), object: element)
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: timeout), .completed)
     }
 
