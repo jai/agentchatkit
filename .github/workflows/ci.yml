@@ -48,6 +48,19 @@ jobs:
         run: |
           device=$(xcrun simctl list devices available -j \
             | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          xcrun simctl boot "$device" || true
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl io "$device" recordVideo --codec h264 "$GITHUB_WORKSPACE/tmp/demo-motion.mov" &
+          recorder=$!
+          finish_recording() {
+            kill -INT "$recorder" 2>/dev/null || true
+            wait "$recorder" || true
+            if /usr/bin/avconvert --source "$GITHUB_WORKSPACE/tmp/demo-motion.mov" --preset Preset960x540 \
+              --output "$GITHUB_WORKSPACE/tmp/demo-screens/shared-chat-motion.mov" --replace; then
+              rm "$GITHUB_WORKSPACE/tmp/demo-motion.mov"
+            fi
+          }
+          trap finish_recording EXIT
           xcodebuild test -project AgentChatDemo.xcodeproj -scheme AgentChatDemo-iOS -destination "id=$device" \
             -skip-testing:AgentChatDemoUITests/DemoUITests/testReadmeScreenshots -quiet
 
