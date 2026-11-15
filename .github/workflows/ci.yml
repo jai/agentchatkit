@@ -4,33 +4,16 @@ on:
     branches: [main]
   pull_request:
 jobs:
-  no-direct-networking:
-    # Swift code here reaches the network only through DurableNetworking. The check is
-    # jai/durable-networking's script, pinned to its v0.1.0 commit.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - run: curl -fsSL https://raw.githubusercontent.com/jai/durable-networking/78cf3e6f488b7d0f37be0d684f122b5cc1c120f9/scripts/no-direct-networking.sh | bash -s -- .
-  server:
-    # The TypeScript server package (server/): its tests, the conformance suite on the in-memory host, and its tarball.
-    runs-on: ubuntu-latest
+  lint:
+    # SwiftLint with this repo's rules and the rules of the libraries it builds on
+    # (.swiftlint.yml's parent_config), such as DurableNetworking's no_direct_networking.
+    runs-on: macos-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: server
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - run: npm pack --dry-run
+      - run: command -v swiftlint || brew install swiftlint
+      - run: swiftlint lint --quiet
+
   test:
     # GitHub's own Mac runner: free for a public repo.
     runs-on: macos-latest

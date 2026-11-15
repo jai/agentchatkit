@@ -3,3 +3,7 @@
 .swiftpm/
 DerivedData/
 *.xcodeproj/
+
+
+# SwiftLint Remote Config Cache
+.swiftlint/RemoteConfigCache
