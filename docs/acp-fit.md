@@ -4,8 +4,9 @@ Question (Jai, 2026-11-15): should apps follow agent chats with the [Agent Clien
 (ACP) v2 over its remote transport, instead of [our live protocol v1](live-protocol.md)? Checked against the ACP v2
 draft, its prompt and session-resume RFDs, and the Streamable HTTP / WebSocket transport RFD, on 2026-11-15.
 
-**Recommendation: keep our protocol, shaped like ACP v2, so a later switch is a mapping, not a rewrite.** Use ACP on
-the other side, where it fits today: between the hub and agents that speak it (`codex-acp`, `claude-agent-acp`).
+**Recommendation: speak ACP v2 over its Streamable HTTP transport, pinned to the spec version we implement, with
+`_` extensions for what ACP lacks.** No breaker was found (below); HTTP/2 and draft status are not blockers (Jai).
+Our v1 becomes "the ACP profile our hosts and apps speak", and its fixtures become ACP messages.
 
 ## Concept by concept
 
@@ -24,22 +25,26 @@ the other side, where it fits today: between the hub and agents that speak it (`
 | auth | "orthogonal" to the transport: headers | yes |
 | several observers of one chat | named as a goal; not specified | gap |
 
-## What breaks
+## The three possible breakers
 
-- **Draft.** v2 was published 2026-07-20 as a draft that "can, and will, change", not to ship by default. The remote
-  transport RFD is Active, aimed at v1, with no replay: "in-flight messages are not replayed"; Last-Event-ID resume
-  is deferred to v2. Building on both today means tracking two moving drafts.
-- **A handshake before any data.** `initialize` (POST) → connection id → a connection stream → `session/resume` →
-  a session stream. Ours is one GET. Five round trips is the slow phone-in-a-lift case DurableNetworking exists for.
-- **HTTP/2 is a MUST.** Cloudflare's edge and URLSession both speak it, so it is not a blocker, but it is a constraint
-  we don't need: our writes are separate requests already.
-- **We relay; ACP assumes we are the agent.** Agent Pager reads transcripts of Claude Code and Codex sessions it did
-  not start; FeedbackKit is a store between a person and a runner. Neither can answer `session/prompt` as the agent
-  does, and both carry delivery states (queued, failed) that ACP does not have.
-- **Several clients on one chat** (the phone, the Mac app, a coordinator) is the normal case for us and unspecified
-  in ACP.
-- **JSON-RPC overhead** is small per message, but every frame gains an envelope and every write a request id the
-  server must answer on a different stream.
+- **We relay; ACP assumes the server is the agent.** Not a breaker. The host Worker plays the agent side:
+  `session/prompt` is acknowledged with the `messageId` once the message is inserted (a queued message's response
+  waits, as ACP's held prompts do); the transcript's messages go out as `session/update`s. Delivery states ACP lacks
+  ride as `_status` on the user message.
+- **Several clients on one chat.** Not a breaker. Each client opens its own connection and `session/resume`s the
+  session; the room sends every `session/update` to every connection on it. ACP names this as a goal and forbids
+  nothing; we specify it in our profile. Sender attribution is "out of scope" in ACP: `_sender`.
+- **No usable SDK.** Not a breaker. TypeScript: `@agentclientprotocol/sdk` gives the types and JSON-RPC; its remote
+  transport is planned, not shipped, so the Durable Object, replay and broadcast are ours either way. Swift: community
+  SDKs only and none with the SSE transport, so we write Codable types and the transport on DurableNetworking.
+
+What it costs, against v1:
+
+- **Round trips on (re)connect:** `initialize` → connection stream → `session/resume` (with `replayFrom`) → session
+  stream, where v1 was one GET. Cached connection ids and HTTP/2 keep it to one connection; measure it on a phone.
+- **Two drafts to track:** v2 and the transport RFD (whose own replay is deferred to v2; we use v2's
+  `session/resume` `replayFrom` for it). We pin a spec version and its schema in the fixtures.
+- **JSON-RPC envelopes** on every message, and write answers that arrive on the session stream, not the POST.
 
 ## SDKs
 
@@ -48,15 +53,17 @@ the other side, where it fits today: between the hub and agents that speak it (`
 - **Swift:** community only (`aptove/swift-sdk`, `wiedymi/swift-acp`, `rebornix/acp-swift-sdk`, others). None has
   the SSE transport (aptove: WebSocket only), and none runs on DurableNetworking. We would write the transport anyway.
 
-## What "shaped like ACP" means in v1
+## Extensions we need
 
-Already true: messages upserted by stable id; the write answers the message id and the stream echoes it; one
-snapshot then changes; `extra` for host fields; unknown fields and events ignored. Worth adopting now, at no cost:
+`_status` (pending, queued, delivering, delivered, failed, removed), `_clientRef`, `_detail` and `_sender` on user
+messages; `_edit` (a queued message's text, attachments, force) and `_force` on prompts; `_activity` and `_problem`
+on `state_update`; elicitation as `session/request_permission` with options, answered by its response (or ACP's own
+elicitation once it lands); host fields in `_meta`.
 
-- state names that map 1:1: `working` true = `running`; `elicitation` set = `requires_action`; else `idle`.
-- `_`-prefixed names for anything ACP lacks, when we add fields later.
+## Next
 
-Revisit when ACP v2 is final, its remote transport has Last-Event-ID replay, and it specifies several observers.
+Rewrite live-protocol.md as our ACP v2 profile (the methods we use, the extensions, the room's broadcast and resume),
+regenerate the fixtures as ACP messages, then build the server package and AgentChatLive on it.
 
 Sources: [v2 draft announcement](https://agentclientprotocol.com/announcements/acp-v2-draft),
 [prompt RFD](https://agentclientprotocol.com/rfds/v2/prompt),
