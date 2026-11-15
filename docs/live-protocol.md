@@ -17,6 +17,7 @@ we take is a new pin, in one commit with the fixtures.
 - **The host Worker is the ACP agent.** It relays: the agent behind it (Claude Code, Codex, a FeedbackKit runner) does
   not speak ACP to the app. The host turns its chat into `session/update`s and takes the app's writes.
 - **A chat is a session.** `sessionId` is the host's chat id. Apps never call `session/new`; they `session/resume`.
+  A host creates and lists chats outside ACP, with its own routes (FeedbackKit `POST` and `GET /v2/feedback`).
 - **Several clients on one session** (the phone, the Mac, a coordinator) is normal: each has its own connection and
   stream; every `session/update` goes to all of them.
 
@@ -59,7 +60,8 @@ the update's `_meta.agentchatkit`:
 | `detail` | `user_message` | `failed`: why, in words for the person |
 | `extra` | anything | the host's own fields (FeedbackKit `builderOnline`, Agent Pager `notes`), passed through |
 
-A message typed elsewhere (in the agent's own terminal) has no `status` and no ticks.
+A message typed elsewhere (in the agent's own terminal) has no `status` and no ticks. A host sets only the statuses it
+has: FeedbackKit never queues (`pending`, `delivering`, `delivered`, `failed`, `removed`).
 
 **Attachments** are content blocks. From the host: `resource_link` (`uri`, `mimeType`, `size`), with
 `_meta.agentchatkit` `{width, height, durationMs}`; `uri` is absolute and signed, or relative to `<base>/acp` and
@@ -90,6 +92,7 @@ session config options (`config_option_update`), as `ModelReasoningChip` shows t
   `pending` or `queued`, and `session/prompt` answers its `messageId`. Passing it to the agent is the host's business,
   reported by `status`. A repeat `clientRef` answers the first `messageId` and sends nothing new.
 - `force: true` asks for it to go now instead of after the agent's turn. The default is the person's choice, `false`.
+  A host that never queues ignores it.
 - **Send now** a queued message: `_agentchatkit/edit` with `force: true` alone. It turns `queued` into `pending` and
   goes to the agent at once (Jai uses this daily).
 - **Edit or force, or remove,** a message still `pending` or `queued`; otherwise error `-32009` (`conflict`).
