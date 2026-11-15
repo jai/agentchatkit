@@ -2,7 +2,7 @@
 
 The live chat, end to end, on 2026-11-15, on Borg Cube 03: the demo app on an iPhone 17 Simulator (iOS 27.2) of this
 walk's own (`agentchatkit-live`, headless, deleted afterwards), following a **real ACP host**: the server package
-(`server/`) behind `Demo/server/dev-host.ts`, over HTTP on the same Mac. Before apps adopt AgentChatLive and
+(`server/`) behind `server/dev/host.ts`, over HTTP on the same Mac. Before apps adopt AgentChatLive and
 `@jai/agentchat-live`, this is the run that shows them working together.
 
 <img src="../Demo/Screenshots/real-host.png" width="300" alt="The Live chat on a real host: a streamed answer, the question answered, and the agent going on">
@@ -14,17 +14,17 @@ walk's own (`agentchatkit-live`, headless, deleted afterwards), following a **re
   in-memory sessions (`@jai/agentchat-live/memory`), with a scripted agent writing to the session as a host would.
 - **The host's control routes stand in for the world:** `/control/drop` ends every stream (a lift, a network change),
   `/control/restart` forgets every connection (a deploy), `/control/expire` makes every cursor stale.
-- **The UI test is the script:** `testLiveChatAgainstARealHost` (`Demo/UITests`) drives it and keeps each reconnect's
-  time on its result. It skips without a host, so CI runs only the in-memory Live chat test.
+- **The UI test is the script:** `testLiveChatReconnects` (`Demo/UITests`) drives it and keeps each reconnect's
+  time on its result. CI starts the host for the `demo` job, so this runs on every push.
 
 Run it yourself:
 
 ```sh
-node Demo/server/dev-host.ts &               # http://127.0.0.1:8788/acp, session "live", bearer "token-jai"
+node server/dev/host.ts --port 8788 &        # http://127.0.0.1:8788/acp; sessions named live… have the agent
 cd Demo && xcodegen
-TEST_RUNNER_DEMO_SERVER=http://127.0.0.1:8788/acp xcodebuild test -project AgentChatDemo.xcodeproj \
+xcodebuild test -project AgentChatDemo.xcodeproj \
   -scheme AgentChatDemo-iOS -destination "id=<your simulator>" \
-  -only-testing:AgentChatDemoUITests/DemoUITests/testLiveChatAgainstARealHost
+  -only-testing:AgentChatDemoUITests/DemoUITests/testLiveChatReconnects
 ```
 
 Or by hand: launch the app with `-DemoChat live -DemoServer http://127.0.0.1:8788/acp` and use the toolbar.

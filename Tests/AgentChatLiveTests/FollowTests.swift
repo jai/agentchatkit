@@ -8,13 +8,13 @@ import AgentChatLiveTesting
 /// clients.
 @MainActor
 struct FollowTests {
-    private let server = LiveLoopbackServer()
+    private let server = LiveDevHost()
 
     private func model(
         kept: LiveChat = LiveChat(), bearer: @escaping @Sendable (Bool) async throws -> String = { _ in "token" }
     ) -> LiveChatModel {
         LiveChatModel(
-            endpoint: LiveEndpoint(acp: URL(string: "https://host.test/acp")!, session: "chat-1", bearer: bearer),
+            endpoint: LiveEndpoint(acp: server.acp, session: server.session, bearer: bearer),
             http: server, streams: server, kept: kept,
             timing: LiveTiming(backoff: [.milliseconds(1)], jitter: 0, backoffResetsAfter: .seconds(10),
                                answerLimit: .seconds(2))
@@ -46,7 +46,7 @@ struct FollowTests {
         #expect(live.chat.state?.activity == "Reading")
         await server.agentSays("m2", "Found it.")
         try await eventually("m2") { live.chat.messages.count == 2 }
-        #expect(live.chat.cursor == "c:3")
+        #expect(live.chat.cursor != nil) // The host's own; opaque here.
         #expect(live.timings.first?.fromStart == true)
         #expect(live.timings.first?.initialize != nil)
         let requests = await server.requests
@@ -130,8 +130,11 @@ struct FollowTests {
         let other = try await live.send("Never mind.", clientRef: "b")
         try await live.remove(other)
         try await eventually("removed") { live.chat.message(other)?.status == .removed }
-        await #expect(throws: LiveRequestError.refused(code: AcpError.conflict, message: "conflict")) {
+        do {
             try await live.remove(other)
+            Issue.record("A second removal was taken")
+        } catch let LiveRequestError.refused(code, _) {
+            #expect(code == AcpError.conflict)
         }
         #expect(live.chatMessages.map(\.id) == [queued])
 
@@ -156,8 +159,15 @@ struct FollowTests {
         try await eventually("removed") { live.chat.message(sent)?.status == .removed }
     }
 
-    @Test(arguments: [409, 500])
-    func aRefusedAnswerOrDeclineKeepsTheQuestionOpen(_ status: Int) async throws {
+    // A loop, not @Test(arguments:): a parameterized test in a @MainActor suite aborted swift test on the macOS 26
+    // runtime ("freed pointer was not the last allocation").
+    @Test func aRefusedAnswerOrDeclineKeepsTheQuestionOpen() async throws {
+        for status in [409, 500] {
+            try await Self().aRefusedAnswerOrDeclineKeepsTheQuestionOpen(status) // A fresh session each time.
+        }
+    }
+
+    private func aRefusedAnswerOrDeclineKeepsTheQuestionOpen(_ status: Int) async throws {
         await server.ask("Merge now?", options: [.init(id: "merge", label: "Merge now")])
         let live = model()
         let following = follow(live)
@@ -176,8 +186,15 @@ struct FollowTests {
         #expect(live.chat.question == question)
     }
 
-    @Test(arguments: [409, 500])
-    func aRefusedEditRetryOrRemoveChangesNothing(_ status: Int) async throws {
+    // A loop, not @Test(arguments:): a parameterized test in a @MainActor suite aborted swift test on the macOS 26
+    // runtime ("freed pointer was not the last allocation").
+    @Test func aRefusedEditRetryOrRemoveChangesNothing() async throws {
+        for status in [409, 500] {
+            try await Self().aRefusedEditRetryOrRemoveChangesNothing(status) // A fresh session each time.
+        }
+    }
+
+    private func aRefusedEditRetryOrRemoveChangesNothing(_ status: Int) async throws {
         await server.setState(.running)
         let live = model()
         let following = follow(live)

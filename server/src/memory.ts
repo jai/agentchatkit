@@ -294,12 +294,16 @@ export class MemorySessions {
           return refuse(409, "that question is not open");
         }
         session.question = null;
-        const choice = open.params.requestedSchema.properties.choice as
+        const properties = open.params.requestedSchema.properties;
+        const schema = (properties.choice ?? (properties.choices as { items?: unknown } | undefined)?.items) as
           | { enum?: string[]; enumNames?: string[] }
           | undefined;
-        const chosen = answer.content?.choice;
+        const picked = answer.content?.choices ?? answer.content?.choice;
+        const chosen = (Array.isArray(picked) ? picked : [picked]).filter((id): id is string => typeof id === "string");
         const label =
-          typeof chosen === "string" ? (choice?.enumNames?.[choice.enum?.indexOf(chosen) ?? -1] ?? chosen) : null;
+          chosen.length > 0
+            ? chosen.map((id) => schema?.enumNames?.[schema.enum?.indexOf(id) ?? -1] ?? id).join(", ")
+            : null;
         const words = typeof answer.content?.text === "string" ? answer.content.text : null;
         const text =
           answer.action === "accept" ? [label, words].filter((part) => part !== null).join(": ") : "(declined)";

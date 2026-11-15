@@ -3,7 +3,7 @@ import AgentChatLive
 import SwiftUI
 
 /// The Live chat, drawn from `LiveChatModel`: the header says where the stream stands, the footer is the agent at work
-/// from the chat's state, and the toolbar drops the stream or takes the network away.
+/// from the chat's state, and the toolbar drops the stream, restarts the host's connections or takes the network away.
 struct DemoLiveScreen: View {
     @Environment(\.chatTheme) private var theme
     @Bindable var chat: DemoLiveChat
@@ -85,26 +85,17 @@ struct DemoLiveScreen: View {
                     chat.dropStream()
                 }
                 .accessibilityIdentifier("demo-live-drop")
-                if chat.remote != nil {
-                    Button("Restart the host", systemImage: "arrow.clockwise.circle") {
-                        chat.restartHost()
-                    }
-                    .accessibilityIdentifier("demo-live-restart")
-                } else {
-                    Button(
-                        chat.isOnline ? "Go offline" : "Go online",
-                        systemImage: chat.isOnline ? "wifi" : "wifi.slash"
-                    ) {
-                        chat.setOnline(!chat.isOnline)
-                    }
-                    .accessibilityIdentifier("demo-live-network")
+                Button("Restart the host", systemImage: "arrow.clockwise.circle") {
+                    chat.restartHost()
                 }
-                Menu("Theme", systemImage: "paintpalette") {
-                    Picker("Theme", selection: $themeChoice) {
-                        ForEach(DemoTheme.allCases) { Text($0.label).tag($0) }
-                    }
-                    .pickerStyle(.inline)
+                .accessibilityIdentifier("demo-live-restart")
+                Button(
+                    chat.isOnline ? "Go offline" : "Go online",
+                    systemImage: chat.isOnline ? "wifi" : "wifi.slash"
+                ) {
+                    chat.setOnline(!chat.isOnline)
                 }
+                .accessibilityIdentifier("demo-live-network")
             }
         }
     }

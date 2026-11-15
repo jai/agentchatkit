@@ -253,17 +253,23 @@ public struct LiveChat: Equatable, Sendable {
         messages.insert(message, at: index)
     }
 
-    /// `_meta.agentchatkit` replaces ours whole: `_meta` patches by top-level key, and ours is one key.
+    /// Our `_meta.agentchatkit` merges key by key (docs/live-protocol.md): a key left out is kept, `null` clears it.
+    /// So a host can move a status on with `{status}` alone.
     private static func patch(_ message: inout LiveMessage, with ours: JSONValue) {
-        message.at = ours["at"]?.string ?? message.at
-        message.status = ours["status"]?.string.flatMap(LiveMessage.Status.init)
-        message.clientRef = ours["clientRef"]?.string
-        message.detail = ours["detail"]?.string
-        message.extra = ours["extra"]
-        if let sender = ours["sender"], let login = sender["login"]?.string {
-            message.sender = LiveSender(login: login, name: sender["name"]?.string)
-        } else {
-            message.sender = nil
+        guard let keys = ours.object else {
+            return
+        }
+        for (key, value) in keys {
+            switch key {
+            case "at": message.at = value.string
+            case "status": message.status = value.string.flatMap(LiveMessage.Status.init)
+            case "clientRef": message.clientRef = value.string
+            case "detail": message.detail = value.string
+            case "extra": message.extra = value.isNull ? nil : value
+            case "sender":
+                message.sender = value["login"]?.string.map { LiveSender(login: $0, name: value["name"]?.string) }
+            default: break
+            }
         }
     }
 

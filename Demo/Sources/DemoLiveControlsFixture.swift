@@ -4,11 +4,12 @@ import AgentChatLiveTesting
 import Observation
 import SwiftUI
 
-/// Deterministic host controls use the real in-memory ACP stream; buttons never assign client chat state.
+/// Deterministic host controls on the real ACP host (server/dev/host.ts); buttons never assign client chat state.
 @MainActor
 @Observable
 final class DemoLiveControlsFixtureModel {
-    let server = LiveLoopbackServer(session: "controls")
+    /// A fresh session on the dev host for each launch, so a fixture starts from nothing.
+    let server = LiveDevHost(base: DemoLiveChat.hostBase, session: "controls-\(UUID().uuidString.prefix(8))")
     let live: LiveChatModel
     let controls: LiveChatControls
     var draft = "Existing draft"
@@ -18,7 +19,7 @@ final class DemoLiveControlsFixtureModel {
 
     init(fixture: String) {
         self.fixture = fixture
-        live = LiveChatModel(endpoint: .init(acp: URL(string: "https://fixture.invalid/acp")!, session: "controls",
+        live = LiveChatModel(endpoint: .init(acp: server.acp, session: server.session,
                                              bearer: { _ in "fixture" }), http: server, streams: server)
         controls = LiveChatControls(live: live)
     }

@@ -33,7 +33,7 @@ struct DemoRoot: View {
         )
         let long = DemoChat(id: "long", title: "Long chat", messages: DemoScript.longHistory(now: .now), pace: pace)
         _chats = State(initialValue: [tour, long])
-        _live = State(initialValue: DemoLiveChat(pace: pace))
+        _live = State(initialValue: DemoLiveChat())
         let theme = UserDefaults.standard.string(forKey: "DemoTheme").flatMap { DemoTheme(rawValue: $0) }
         _themeChoice = State(initialValue: theme ?? .prHub)
         let opened = UserDefaults.standard.string(forKey: "DemoChat")

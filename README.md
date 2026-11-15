@@ -14,7 +14,7 @@ chats with it. It knows nothing of pull requests or of any app's Worker: a host 
 | `AgentChatCore` | `MessageImage` (a screenshot as a Worker takes it) and `ScreenshotLine` | Foundation. Safe in an app extension. |
 | `AgentChatKit` | `ChatView`, `ChatMessage`, `SessionBubble`, `SessionComposer`, `ComposerAttachments`, `ModelReasoningChip` and `ModelPicker`, `DeliveryTicks`, `ChatQuickReply` and `WaitWhatButton`, `MarkdownText`, `ChatScroll` and `followsChatEnd`, `ReturnKey`, `Pasteboard`, `FoldSet`, `ChatStyle`, `ChatTheme` | SwiftUI, and `AgentChatCore`, re-exported. |
 | `AgentChatLive` | `LiveChatModel` follows a chat over [our ACP v2 profile](docs/live-protocol.md): initialize, the session stream, resume from a cursor, reconnect with back-off, the writes (send, edit, send now, remove) and the agent's questions; `LiveChat` and its `chatMessages` | `AgentChatKit`, [DurableNetworking](https://github.com/jai/durable-networking) |
-| `AgentChatLiveTesting` | `LiveLoopbackServer`: an ACP host in memory, for tests, previews and demos | `AgentChatLive` |
+| `AgentChatLiveTesting` | `LiveDevHost`: one session on the server package's real ACP host on localhost (`server/dev/host.ts`), as a transport with the host's test knobs; on the Mac it starts the host with `node` | `AgentChatLive` |
 | `@jai/agentchat-live` (npm, [`server/`](server/README.md)) | The protocol's server for a Cloudflare Worker: `<base>/acp`, the room Durable Object, replay and broadcast; a conformance suite every host runs; an in-memory host | none; installed from each release's tarball |
 
 ## Use it
@@ -345,7 +345,8 @@ Image resources load in message content order; unsupported MIME types and undeco
 indexes. A streamed attachment change cancels/reloads the strip for the same message id. The existing local/shared
 `SentScreenshotViewing` viewer and every `SentScreenshotIdentifiers` override are reused.
 
-Deterministic live fixtures use `LiveLoopbackServer`, not polling or independent UI snapshots. Launch with
+Deterministic live fixtures run on the server package's dev host (`node server/dev/host.ts --port 8788`, through
+`LiveDevHost`), not polling or independent UI snapshots. Launch with
 `-DemoFixture live-queue|live-status|live-status-override|live-question-single|live-question|live-question-immediate|live-question-multiple|live-question-text|live-screenshots|live-screenshots-local`.
 The both-platform `LiveControlsUITests` author interactions and real XCUIScreen light/dark/large captures using the
 existing capture infrastructure. See [Demo/ADOPTION.md](Demo/ADOPTION.md) for the exact handoff and validation limits.

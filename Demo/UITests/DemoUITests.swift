@@ -95,55 +95,14 @@ final class DemoUITests: XCTestCase {
         XCTAssertTrue(lastPart.isHittable, "The chat stopped following the answer")
     }
 
-    /// The Live chat (AgentChatLive over ACP, on the in-memory host): an answer arrives as it is written; a dropped
-    /// stream resumes from its cursor; offline, the agent keeps writing and the chat catches up once back, nothing
-    /// twice; the agent's question is answered with a tap.
+    /// The Live chat on the server package's real host (`node server/dev/host.ts --port 8788`, which CI starts):
+    /// an answer arrives as it is written; a dropped stream resumes from its cursor; a restarted host is initialized
+    /// again; offline, the agent keeps writing and the chat catches up once back, nothing twice; the agent's question
+    /// is answered with a tap. Each reconnect's time is kept on the result.
     func testLiveChatReconnects() {
-        launch(chat: "live")
-        waitFor(element(containing: "This chat is"), "live greeting")
-        let status = app.descendants(matching: .any)["demo-live-status"]
-        waitFor(status, "stream status")
-        let streaming = { (count: Int) in
-            self.app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier == 'demo-live-status' AND label CONTAINS %@", "stream \(count)"))
-                .firstMatch
-        }
-        waitFor(streaming(1), "the first stream")
-
-        send("How does ChatView work?")
-        waitFor(app.descendants(matching: .any)["reply-ticks-2"], "delivered ticks")
-        app.buttons["demo-live-drop"].tap()
-        waitFor(streaming(2), "a new stream after the drop")
-        waitFor(element(containing: "whole chat screen"), "the answer, finished after the drop", timeout: 30)
-
-        send("How do themes work?")
-        app.buttons["demo-live-network"].tap()
-        waitFor(element(containing: "Offline"), "offline status")
-        waitFor(app.buttons["demo-live-network"], "network switch")
-        sleep(3)
-        app.buttons["demo-live-network"].tap()
-        waitFor(element(containing: "fonts, colours and icons"), "the answer written while offline", timeout: 30)
-        waitFor(streaming(3), "a new stream once back online")
-        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == %@", "How do themes work?")).count, 1,
-                       "A message showed twice after reconnecting")
-
-        // The agent asks before it merges (elicitation/create); a tap answers, and the answer shows as his message.
-        send("Merge it")
-        waitFor(app.descendants(matching: .any)["demo-live-question"], "the agent's question")
-        app.buttons["demo-live-option-merge"].tap()
-        waitFor(app.staticTexts["Merge now"], "the answer as his message")
-        waitFor(element(containing: "Merged, and tagged"), "the agent going on after the answer")
-    }
-
-    /// The Live chat against a real ACP host: the server package on this Mac (`node Demo/server/dev-host.ts`), over
-    /// HTTP. Skipped unless `TEST_RUNNER_DEMO_SERVER` names it (the end-to-end walkthrough sets it; CI has no host).
-    /// Each step's reconnect time is kept on the result.
-    func testLiveChatAgainstARealHost() throws {
-        guard let server = ProcessInfo.processInfo.environment["DEMO_SERVER"] else {
-            throw XCTSkip("No DEMO_SERVER: run Demo/server/dev-host.ts and set TEST_RUNNER_DEMO_SERVER")
-        }
         app = XCUIApplication()
-        app.launchArguments = ["-DemoChat", "live", "-DemoServer", server]
+        app.launchArguments = ["-DemoChat", "live", "-DemoSession", "live-\(UUID().uuidString.prefix(8))",
+                               "-DemoServer", ProcessInfo.processInfo.environment["DEMO_SERVER"] ?? "http://127.0.0.1:8788"]
         app.launch()
         waitFor(element(containing: "real ACP host"), "the host's greeting")
         let streaming = { (count: Int) in
@@ -166,8 +125,18 @@ final class DemoUITests: XCTestCase {
         app.buttons["demo-live-restart"].tap()
         waitFor(streaming(3), "a new connection after the host restarted")
         keepText("after the host restarted", status.label)
-        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == %@", "How does ChatView work?")).count, 1,
-                       "A message showed twice after reconnecting")
+
+        send("Tell me again")
+        waitFor(app.staticTexts["Tell me again"], "the message, taken by the host before the network goes")
+        app.buttons["demo-live-network"].tap()
+        waitFor(element(containing: "Offline"), "offline status")
+        sleep(3)
+        app.buttons["demo-live-network"].tap()
+        waitFor(streaming(4), "a new stream once back online", timeout: 30)
+        for words in ["How does ChatView work?", "Tell me again"] {
+            XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == %@", words)).count, 1,
+                           "\(words) showed twice after reconnecting")
+        }
 
         send("Merge it")
         waitFor(app.descendants(matching: .any)["demo-live-question"], "the host's question")

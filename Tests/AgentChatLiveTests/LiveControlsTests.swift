@@ -10,10 +10,10 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct LiveControlsTests {
-    private let server = LiveLoopbackServer()
+    private let server = LiveDevHost()
 
     private func model(_ transport: RecordedLiveTransport, kept: LiveChat = LiveChat()) -> LiveChatModel {
-        LiveChatModel(endpoint: .init(acp: URL(string: "https://host.test/acp")!, session: "chat-1",
+        LiveChatModel(endpoint: .init(acp: server.acp, session: server.session,
                                       bearer: { _ in "token" }), http: transport, streams: transport, kept: kept,
                       timing: .init(backoff: [.milliseconds(1)], jitter: 0,
                                     backoffResetsAfter: .seconds(10), answerLimit: .seconds(5)))
@@ -262,8 +262,15 @@ extension LiveControlsTests {
         #expect(controls.busy.isEmpty)
     }
 
-    @Test(arguments: [LiveMessage.Status.pending, .delivering, .delivered, .removed])
-    func newerStreamStateSupersedesALostDefaultRetryReply(_ status: LiveMessage.Status) async throws {
+    // A loop, not @Test(arguments:): a parameterized test in a @MainActor suite aborted swift test on the macOS 26
+    // runtime ("freed pointer was not the last allocation").
+    @Test func newerStreamStateSupersedesALostDefaultRetryReply() async throws {
+        for status in [LiveMessage.Status.pending, .delivering, .delivered, .removed] {
+            try await Self().newerStreamStateSupersedesALostDefaultRetryReply(status) // A fresh session each time.
+        }
+    }
+
+    private func newerStreamStateSupersedesALostDefaultRetryReply(_ status: LiveMessage.Status) async throws {
         let harness = try await start()
         let live = harness.live
         let controls = harness.controls
@@ -418,6 +425,7 @@ extension LiveControlsTests {
         let id = try await live.send("Keep original")
         try await observeUntil { live.chat.message(id)?.status == .queued }
         await server.setDown(true)
+        try await observeUntil { live.phase == .reconnecting } // The drop has reached the model.
         var draft = "Unchanged"
         #expect(await controls.edit(id, restore: { draft = $0 }) == false)
         #expect(draft == "Unchanged")
@@ -513,7 +521,7 @@ extension LiveControlsTests {
 /// mutation, or lose the request before it reaches the server. No production transport/server behavior is changed.
 private actor RecordedLiveTransport: HTTPTransport, StreamingTransport {
     enum ChangeGate: Equatable { case beforeSend, afterSend }
-    let server: LiveLoopbackServer
+    let server: LiveDevHost
     private(set) var posts: [JSONValue] = []
     private var holding = false
     private var held: [(String, AsyncThrowingStream<String, any Error>.Continuation)] = []
@@ -527,7 +535,7 @@ private actor RecordedLiveTransport: HTTPTransport, StreamingTransport {
     private var resumeWaiters: [CheckedContinuation<Void, Never>] = []
     private var responseRefusal: Int?
 
-    init(server: LiveLoopbackServer) { self.server = server }
+    init(server: LiveDevHost) { self.server = server }
     func holdMessageResults() { holding = true }
     func releaseMessageResults() {
         holding = false

@@ -47,6 +47,9 @@ shows.
 
 ## Messages
 
+Our `_meta.agentchatkit` merges **key by key**, unlike `_meta` itself: a key left out is kept, and `null` clears it,
+so a host moves a status on with `{"status": "delivered"}` alone.
+
 Each message is `user_message`, `agent_message` or a tool call (`tool_call_update`, first seen creates), upserted by
 `messageId` / `toolCallId` with ACP's patch rules. `agent_message_chunk` may stream an answer's text. Our fields ride in
 the update's `_meta.agentchatkit`:
