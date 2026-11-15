@@ -217,12 +217,14 @@ struct LiveControlsTests {
         try await observeUntil { live.chat.message(id)?.status == .failed }
         let before = await transport.posts.count
         var retries = 0
-        #expect(await controls.retry(id) { message in
+        // Out of #expect: an #expect inside another's closure is a recursive macro expansion.
+        let retried = await controls.retry(id) { message in
             #expect(message.id == id)
             #expect(message.clientRef == "override-ref")
             retries += 1
             await server.setStatus(message.id, .delivered)
-        })
+        }
+        #expect(retried)
         try await observeUntil { live.chat.message(id)?.status == .delivered }
         #expect(retries == 1)
         #expect(await transport.posts.count == before, "Override replaces the default RPC")
