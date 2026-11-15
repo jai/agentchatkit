@@ -126,6 +126,68 @@ struct ReplyQueueControllerTests {
         #expect(calls == 1, "a stale queued snapshot cannot send the intent again")
     }
 
+    @Test func aRefreshMakingTheNextReplyBusyDoesNotLoseItsSendNowIntent() async {
+        let first = reply("first")
+        let second = reply("second", at: 1)
+        let gate = QueueGate()
+        var sent: [String] = []
+        let model = ReplyQueueController(replies: [first, second], remove: { _ in .success(nil) }, sendNow: { item in
+            sent.append(item.id)
+            if item.id == first.id { await gate.pause() }
+            return .success(nil)
+        })
+        for item in [first, second] { model.sendNowWhenQueued(clientRef: item.clientRef) }
+        let processing = Task { await model.sendNowWhereQueued() }
+        await gate.waitUntilEntered()
+        var busy = second
+        busy.actionPending = true
+        model.replaceReplies([first, busy])
+        gate.release()
+        await processing.value
+        #expect(sent == ["first"])
+        model.replaceReplies([second])
+        await model.sendNowWhereQueued()
+        #expect(sent == ["first", "second"])
+    }
+
+    @Test func aLateActionResponseCannotDowngradeTheHostsNewerDeliveredReply() async {
+        let item = reply("late")
+        let gate = QueueGate()
+        let model = ReplyQueueController(replies: [item], remove: { _ in .success(nil) }, sendNow: { stale in
+            await gate.pause()
+            var accepted = stale
+            accepted.actionPending = true
+            return .success(accepted)
+        })
+        let sending = Task { await model.sendNow(item) }
+        await gate.waitUntilEntered()
+        var delivered = item
+        delivered.state = .delivered
+        model.replaceReplies([delivered])
+        gate.release()
+        #expect(await sending.value.failure == nil)
+        #expect(model.replies == [delivered])
+        #expect(model.queued.isEmpty)
+    }
+
+    @Test func anEditDoesNotCopyWordsBackAfterTheHostSaysTheAgentTookThem() async {
+        let item = reply("taken")
+        let gate = QueueGate()
+        let model = ReplyQueueController(replies: [item], draft: "Keep this", remove: { _ in
+            await gate.pause()
+            return .success(nil)
+        })
+        let editing = Task { await model.edit(item) }
+        await gate.waitUntilEntered()
+        var delivered = item
+        delivered.state = .delivered
+        model.replaceReplies([delivered])
+        gate.release()
+        #expect(await editing.value.failure == .unavailable)
+        #expect(model.draft == "Keep this")
+        #expect(model.replies == [delivered])
+    }
+
     @Test func aDirectSendNowConsumesTheComposerIntentAndFailureCanBeRetried() async {
         let item = reply("direct")
         var calls = 0
