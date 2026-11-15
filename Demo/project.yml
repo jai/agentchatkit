@@ -10,6 +10,9 @@ options:
 packages:
   AgentChatKit:
     path: ..
+  DurableNetworking:
+    url: https://github.com/jai/durable-networking
+    from: 0.1.0
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -32,6 +35,8 @@ targets:
         product: AgentChatLive
       - package: AgentChatKit
         product: AgentChatLiveTesting
+      - package: DurableNetworking
+        product: DurableNetworking
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.govindani.agentchatdemo

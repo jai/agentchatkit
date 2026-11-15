@@ -135,6 +135,54 @@ final class DemoUITests: XCTestCase {
         waitFor(element(containing: "Merged, and tagged"), "the agent going on after the answer")
     }
 
+    /// The Live chat against a real ACP host: the server package on this Mac (`node Demo/server/dev-host.ts`), over
+    /// HTTP. Skipped unless `TEST_RUNNER_DEMO_SERVER` names it (the end-to-end walkthrough sets it; CI has no host).
+    /// Each step's reconnect time is kept on the result.
+    func testLiveChatAgainstARealHost() throws {
+        guard let server = ProcessInfo.processInfo.environment["DEMO_SERVER"] else {
+            throw XCTSkip("No DEMO_SERVER: run Demo/server/dev-host.ts and set TEST_RUNNER_DEMO_SERVER")
+        }
+        app = XCUIApplication()
+        app.launchArguments = ["-DemoChat", "live", "-DemoServer", server]
+        app.launch()
+        waitFor(element(containing: "real ACP host"), "the host's greeting")
+        let streaming = { (count: Int) in
+            self.app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier == 'demo-live-status' AND label CONTAINS %@", "stream \(count) ·"))
+                .firstMatch
+        }
+        let status = app.descendants(matching: .any)["demo-live-status"]
+        waitFor(streaming(1), "the first stream")
+        keepText("connect", status.label)
+
+        send("How does ChatView work?")
+        waitFor(app.descendants(matching: .any)["reply-ticks-2"], "delivered ticks")
+        waitFor(element(containing: "came over ACP"), "the answer, streamed from the host")
+
+        app.buttons["demo-live-drop"].tap()
+        waitFor(streaming(2), "a new stream after the drop")
+        keepText("after a dropped stream", status.label)
+
+        app.buttons["demo-live-restart"].tap()
+        waitFor(streaming(3), "a new connection after the host restarted")
+        keepText("after the host restarted", status.label)
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == %@", "How does ChatView work?")).count, 1,
+                       "A message showed twice after reconnecting")
+
+        send("Merge it")
+        waitFor(app.descendants(matching: .any)["demo-live-question"], "the host's question")
+        app.buttons["demo-live-option-merge"].tap()
+        waitFor(element(containing: "Merged, and tagged"), "the agent going on after the answer")
+        keep("real-host")
+    }
+
+    private func keepText(_ name: String, _ text: String) {
+        let note = XCTAttachment(string: text)
+        note.name = name
+        note.lifetime = .keepAlways
+        add(note)
+    }
+
     /// The README's pictures, with the agent slowed down to catch it at work. Kept as attachments on the result.
     func testReadmeScreenshots() {
         launch(chat: "tour", pace: "slow")

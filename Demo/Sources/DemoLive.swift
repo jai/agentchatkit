@@ -1,12 +1,14 @@
 import AgentChatKit
 import AgentChatLive
 import AgentChatLiveTesting
+import DurableNetworking
 import Foundation
 import Observation
 
 /// The Live chat: the scripted agent behind an ACP host (our profile, docs/live-protocol.md), followed with
-/// AgentChatLive as an app follows its host's. The host is `LiveLoopbackServer`, in memory: the toolbar drops its
-/// stream or takes its network away, so the chat can be watched reconnecting and catching up.
+/// AgentChatLive as an app follows its host's. The host is `LiveLoopbackServer`, in memory, unless the app was launched
+/// with `-DemoServer <url>`: then it is a real host over HTTP (`Demo/server/dev-host.ts`, the server package). The
+/// toolbar drops the stream or takes the network away, so the chat can be watched reconnecting and catching up.
 @MainActor
 @Observable
 final class DemoLiveChat {
@@ -19,14 +21,28 @@ final class DemoLiveChat {
     private(set) var sentCount = 0
     private(set) var isSending = false
     private let agent: DemoLiveAgent
+    /// The real host's address, with `-DemoServer`.
+    let remote: URL?
+    private let http: any HTTPTransport
 
     init(pace: DemoPace) {
+        agent = DemoLiveAgent(server: server, pace: pace)
+        remote = UserDefaults.standard.string(forKey: "DemoServer").flatMap(URL.init(string:))
+        if let remote {
+            let http = URLSessionTransport(policy: .quick)
+            self.http = http
+            model = LiveChatModel(
+                endpoint: LiveEndpoint(acp: remote, session: "live", bearer: { _ in "token-jai" }),
+                http: http, streams: URLSessionStreamingTransport(quietLimit: 40)
+            )
+            return
+        }
+        http = server
         model = LiveChatModel(
             endpoint: LiveEndpoint(acp: URL(string: "https://demo.invalid/acp")!, session: "live",
                                    bearer: { _ in "demo" }),
             http: server, streams: server
         )
-        agent = DemoLiveAgent(server: server, pace: pace)
         let agent = agent
         let server = server
         Task {
@@ -44,7 +60,9 @@ final class DemoLiveChat {
     var status: String {
         switch model.phase {
         case .idle, .connecting: "Connecting…"
-        case .live: "Live · stream \(model.streamsOpened)"
+        case .live:
+            "Live · stream \(model.streamsOpened)"
+                + (model.timings.last.map { " · \($0.total.formatted(.units(allowed: [.milliseconds])))" } ?? "")
         case .reconnecting: isOnline ? "Reconnecting…" : "Offline… reconnecting"
         case let .stopped(reason): "Stopped: \(reason)"
         }
@@ -74,12 +92,38 @@ final class DemoLiveChat {
 
     /// Ends the stream as a dropped connection does: the chat reconnects and resumes from its cursor.
     func dropStream() {
+        if remote != nil {
+            return control("drop")
+        }
         Task { await server.dropStreams() }
+    }
+
+    /// The host forgets every connection, as a restart does: the chat initializes again.
+    func restartHost() {
+        if remote != nil {
+            return control("restart")
+        }
+        Task { await server.forgetConnections() }
     }
 
     func setOnline(_ online: Bool) {
         isOnline = online
         Task { await server.setDown(!online) }
+    }
+
+    /// A control route of the dev host's (`Demo/server/dev-host.ts`).
+    private func control(_ name: String) {
+        guard let remote, var url = URLComponents(url: remote, resolvingAgainstBaseURL: false) else {
+            return
+        }
+        url.path = "/control/\(name)"
+        guard let target = url.url else {
+            return
+        }
+        var request = URLRequest(url: target)
+        request.httpMethod = "POST"
+        let http = http
+        Task { _ = try? await http.send(request) }
     }
 }
 

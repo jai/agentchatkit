@@ -48,13 +48,20 @@ struct DemoLiveScreen: View {
                     chat.dropStream()
                 }
                 .accessibilityIdentifier("demo-live-drop")
-                Button(
-                    chat.isOnline ? "Go offline" : "Go online",
-                    systemImage: chat.isOnline ? "wifi" : "wifi.slash"
-                ) {
-                    chat.setOnline(!chat.isOnline)
+                if chat.remote != nil {
+                    Button("Restart the host", systemImage: "arrow.clockwise.circle") {
+                        chat.restartHost()
+                    }
+                    .accessibilityIdentifier("demo-live-restart")
+                } else {
+                    Button(
+                        chat.isOnline ? "Go offline" : "Go online",
+                        systemImage: chat.isOnline ? "wifi" : "wifi.slash"
+                    ) {
+                        chat.setOnline(!chat.isOnline)
+                    }
+                    .accessibilityIdentifier("demo-live-network")
                 }
-                .accessibilityIdentifier("demo-live-network")
                 Menu("Theme", systemImage: "paintpalette") {
                     Picker("Theme", selection: $themeChoice) {
                         ForEach(DemoTheme.allCases) { Text($0.label).tag($0) }
