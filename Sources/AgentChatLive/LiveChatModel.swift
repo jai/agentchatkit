@@ -110,7 +110,9 @@ public final class LiveChatModel {
     public init(
         endpoint: LiveEndpoint, http: any HTTPTransport, streams: any StreamingTransport, kept: LiveChat = LiveChat(),
         timing: LiveTiming = .standard,
-        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        // DurableNetworking's named pause: `Task.sleep(for:)` passed as a closure aborts the test process on the
+        // macOS 26 runtime ("freed pointer was not the last allocation").
+        sleep: @escaping @Sendable (Duration) async throws -> Void = Outbox.pause,
         random: @escaping @Sendable () -> Double = { Double.random(in: 0...1) }
     ) {
         self.endpoint = endpoint
