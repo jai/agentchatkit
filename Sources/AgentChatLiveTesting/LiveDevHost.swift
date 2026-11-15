@@ -16,7 +16,8 @@ public actor LiveDevHost: HTTPTransport, StreamingTransport {
     private let http = URLSessionTransport(policy: .quick)
     private let streams = URLSessionStreamingTransport(quietLimit: 40)
     private var down = false
-    private var openStreams: [UUID: AsyncThrowingStream<String, any Error>.Continuation] = [:]
+    /// Each open stream's pump: the only one that ends its stream, so `setDown` cancels pumps, never a stream.
+    private var pumps: [UUID: Task<Void, Never>] = [:]
     /// What the client sent, as `POST <rpc method>` (`POST response` for an answer) or `GET stream`.
     public private(set) var requests: [String] = []
 
@@ -80,10 +81,10 @@ public actor LiveDevHost: HTTPTransport, StreamingTransport {
         guard down else {
             return
         }
-        for stream in openStreams.values {
-            stream.finish(throwing: URLError(.networkConnectionLost))
+        for pump in pumps.values {
+            pump.cancel()
         }
-        openStreams = [:]
+        pumps = [:]
     }
 
     private func knob(_ name: String, _ body: JSONValue = [:]) async {
@@ -112,28 +113,23 @@ public actor LiveDevHost: HTTPTransport, StreamingTransport {
         }
         let stream = try await streams.open(request)
         let (lines, continuation) = AsyncThrowingStream<String, any Error>.makeStream()
-        let id = UUID()
-        openStreams[id] = continuation
         let pump = Task {
             do {
                 for try await line in stream.lines {
                     continuation.yield(line)
                 }
+                try Task.checkCancellation()
                 continuation.finish()
             } catch {
-                continuation.finish(throwing: error)
+                // Cancelled by `setDown`, or the connection failed: the stream ends as a dropped connection does.
+                continuation.finish(throwing: URLError(.networkConnectionLost))
             }
         }
-        continuation.onTermination = { [weak self] _ in
-            pump.cancel()
-            Task { await self?.closed(id) }
-        }
+        pumps[UUID()] = pump
+        continuation.onTermination = { _ in pump.cancel() }
         return LineStream(response: stream.response, lines: lines)
     }
 
-    private func closed(_ id: UUID) {
-        openStreams[id] = nil
-    }
 }
 
 #if os(macOS)
