@@ -147,7 +147,7 @@ struct FollowTests {
         try await eventually("both live") { phone.phase == .live && mac.phase == .live }
 
         await server.ask("Merge now or wait?", options: [.init(id: "merge", label: "Merge now"),
-                                                          .init(id: "wait", label: "Wait")])
+                                                          .init(id: "wait", label: "Wait"), ])
         try await eventually("asked on both") { phone.chat.question != nil && mac.chat.question != nil }
         try await eventually("waits on the person") { phone.chat.state?.phase == .requiresAction }
 

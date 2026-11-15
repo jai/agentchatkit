@@ -86,7 +86,7 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
         }
         ours["status"] = .string(status.rawValue)
         publish(["sessionUpdate": "user_message", "messageId": .string(message),
-                 "_meta": ["agentchatkit": .object(ours)]])
+                 "_meta": ["agentchatkit": .object(ours)], ])
     }
 
     public func setState(_ phase: LiveState.Phase, activity: String? = nil, problem: String? = nil) {
@@ -200,7 +200,7 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
             connections[name] = Connection()
             let answer: JSONValue = ["jsonrpc": "2.0", "id": message["id"] ?? .null, "result": [
                 "protocolVersion": 2, "agentInfo": ["name": "LiveLoopbackServer", "version": "1"],
-            ]]
+            ], ]
             return (try answer.data(), response(request, 200, ["Acp-Connection-Id": name]))
         }
         guard let name = request.value(forHTTPHeaderField: "Acp-Connection-Id"), connections[name] != nil else {
@@ -300,7 +300,7 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
         let messageID = "u\(userMessages)"
         let images = blocks.filter { $0["type"]?.string == "image" }.indices.map { index -> JSONValue in
             ["type": "resource_link", "name": .string("screenshot-\(index + 1).jpg"),
-             "uri": .string("attachments/\(messageID)/\(index)"), "mimeType": "image/jpeg"]
+             "uri": .string("attachments/\(messageID)/\(index)"), "mimeType": "image/jpeg", ]
         }
         let words: [JSONValue] = text.isEmpty ? [] : [["type": "text", "text": .string(text)]]
         publish([
@@ -308,7 +308,7 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
             "_meta": ["agentchatkit": [
                 "at": .string(LiveDates.string(.now)), "sender": ["login": "jai", "name": "Jai"],
                 "status": phase == .running && !force ? "queued" : "pending", "clientRef": JSONValue(clientRef),
-            ]],
+            ], ],
         ])
         send(Self.result(id, ["messageId": .string(messageID)]), to: name)
         await prompted?(messageID, text, force)
@@ -339,7 +339,7 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
             "content": [["type": "text", "text": .string(text)]],
             "_meta": ["agentchatkit": [
                 "at": .string(LiveDates.string(.now)), "sender": ["login": "jai", "name": "Jai"], "status": "delivered",
-            ]],
+            ], ],
         ])
         setState(.running)
         await answered?(chosen, words)
@@ -387,14 +387,14 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
     public static func agentMessage(_ id: String, _ text: String, at: Date = .now) -> JSONValue {
         ["sessionUpdate": "agent_message", "messageId": .string(id),
          "content": [["type": "text", "text": .string(text)]],
-         "_meta": ["agentchatkit": ["at": .string(LiveDates.string(at))]]]
+         "_meta": ["agentchatkit": ["at": .string(LiveDates.string(at))]], ]
     }
 
     static func note(_ update: JSONValue, cursor: Int, session: String) -> JSONValue {
         ["jsonrpc": "2.0", "method": "session/update", "params": [
             "sessionId": .string(session), "update": update,
             "_meta": ["agentchatkit": ["cursor": .string("c:\(cursor)")]],
-        ]]
+        ], ]
     }
 
     static func questionMessage(_ id: JSONValue, _ params: JSONValue) -> JSONValue {
