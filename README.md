@@ -298,3 +298,49 @@ step; the parent owns the permitted CI run and rendered-image review.
 The demo is this repo's UI-test host: `AgentChatDemo-iOS`'s tests (`Demo/UITests`) walk the main flows on an iPhone, and
 `testReadmeScreenshots` takes the pictures above (they are kept on its test result).
 
+
+## Shared controls for ACP live chats
+
+Import `AgentChatLive` as well as `AgentChatKit`. The adapters live in AgentChatLive, which depends on the generic
+renderers; AgentChatKit has no reverse dependency. Own one `LiveChatControls(live: model)` per chat. It retains only
+request busy/error state. Messages, queue, working state, questions and attachments come from `model.chat`.
+
+```swift
+LiveQueuedReplies(controls: controls, draft: $draft, identifiers: queueIDs)
+LiveReplyStatus(controls: controls, messageID: message.id, identifiers: statusIDs,
+                retry: host.retryFailedReply) // Omit until the host has an authorized failed-reply retry API.
+LiveQuestionView(controls: controls, identifiers: questionIDs)
+LiveScreenshotStrip(live: model, messageID: message.id, identifiers: pictureIDs,
+                    load: host.loadAttachment)
+```
+
+Use `model.conversationMessages` with the strip: only `.queued` goes above the composer, once, in LiveChat's existing
+`at` order. The existing `chatMessages` projection retains queued bubbles for compatibility. Pending and delivering
+remain in the conversation; removed replies are absent. `state?.working` is the agent's authoritative working state.
+
+For `ChatView.extras`, mark the relevant `ChatMessage.hasExtras = true` to bypass its bare-bubble equality shortcut.
+When drawing `LiveReplyStatus` there, clear that projected user's `ticks` and `date` so its ticks/time render once;
+leave nil-status external messages' date on the bubble. The demo's `DemoLiveScreen.messages` shows this mapping.
+Other hosts may keep projected ticks and add only their own failed status/actions.
+
+Edit calls `live.remove` before prepending its words to the **current** draft. Remove calls `live.remove`; Send now
+calls `live.sendNow` (force-only edit). No local queue/status is overwritten on completion. Pending/queued Cancel
+uses remove; delivering/delivered/failed Cancel is absent. Failed Retry is absent without a host hook: the current
+profile's edit/remove reject failed messages and repeating a failed prompt's clientRef deduplicates it.
+
+Single-choice questions without free text send on tap. Questions allowing text or multiple choices retain local
+selection/text until Submit; choices go in schema order. Decline uses `live.decline`. The optional
+`singleChoiceSendsImmediately: true` keeps a one-tap single-choice flow even when free text is allowed (type any words
+before choosing); the original Live demo opts into this behavior. Request identity resets selection/text.
+
+`LiveAttachmentLoader` is `@Sendable (LiveAttachment) async -> Result<Data, ChatActionError>`. The host resolves
+relative URIs against its ACP endpoint, applies/renews authentication where appropriate, and returns image bytes or a
+safe user-facing error. This package does not infer credential or signed-URL policy. Never put a URI into IDs/logs.
+Image resources load in message content order; unsupported MIME types and undecodable slots retain their original
+indexes. A streamed attachment change cancels/reloads the strip for the same message id. The existing local/shared
+`SentScreenshotViewing` viewer and every `SentScreenshotIdentifiers` override are reused.
+
+Deterministic live fixtures use `LiveLoopbackServer`, not polling or independent UI snapshots. Launch with
+`-DemoFixture live-queue|live-status|live-question-single|live-question|live-question-multiple|live-question-text|live-screenshots|live-screenshots-local`.
+The both-platform `LiveControlsUITests` author interactions and real XCUIScreen light/dark/large captures using the
+existing capture infrastructure. See [Demo/ADOPTION.md](Demo/ADOPTION.md) for the exact handoff and validation limits.

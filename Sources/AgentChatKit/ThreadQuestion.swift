@@ -13,6 +13,7 @@ public struct ThreadQuestion<Option: Identifiable>: View {
     public var identifiers: ThreadQuestionIdentifiers<Option.ID>
     private let label: (Option) -> String
     private let answer: ((Option) -> Void)?
+    private let selected: ((Option) -> Bool)?
     private let reply: (() -> Void)?
     private let waitWhat: (() -> Void)?
 
@@ -21,7 +22,7 @@ public struct ThreadQuestion<Option: Identifiable>: View {
         isSending: Bool = false, showsQuestion: Bool = true, showsContext: Bool = true,
         label: @escaping (Option) -> String, answer: ((Option) -> Void)? = nil,
         reply: (() -> Void)? = nil, waitWhat: (() -> Void)? = nil,
-        identifiers: ThreadQuestionIdentifiers<Option.ID> = .init()
+        selected: ((Option) -> Bool)? = nil, identifiers: ThreadQuestionIdentifiers<Option.ID> = .init()
     ) {
         self.question = question
         self.context = context
@@ -31,6 +32,7 @@ public struct ThreadQuestion<Option: Identifiable>: View {
         self.showsContext = showsContext
         self.label = label
         self.answer = answer
+        self.selected = selected
         self.reply = reply
         self.waitWhat = waitWhat
         self.identifiers = identifiers
@@ -57,6 +59,7 @@ public struct ThreadQuestion<Option: Identifiable>: View {
                         }
                         .chatTextStyle(.control)
                         .chatIdentifier(identifiers.answer(option.id))
+                        .accessibilityAddTraits(selected?(option) == true ? .isSelected : [])
                         .controlSize(theme.controlSize)
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.capsule)

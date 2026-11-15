@@ -2,8 +2,18 @@ import AgentChatKit
 import Foundation
 
 public extension LiveChat {
-    /// The chat as `ChatView` draws it, in display order. A person's bubble takes its ticks from its status; a removed
-    /// one has no bubble.
+    /// With LiveQueuedReplies above the composer, queued messages appear only there. chatMessages keeps its
+    /// historical all-nonremoved behavior for hosts that have not adopted the strip.
+    var conversationMessages: [ChatMessage] {
+        chatMessages.filter { message($0.id)?.status != .queued }
+    }
+
+    /// Only the host's queued status belongs above the composer, already in the stream's display order.
+    var queuedReplies: [LiveMessage] {
+        messages.filter { $0.kind == .user && $0.status == .queued }
+    }
+
+    /// The legacy ChatView projection, in display order, including queued bubbles; removed messages are absent.
     var chatMessages: [ChatMessage] {
         messages.compactMap { message in
             switch message.kind {
@@ -40,4 +50,5 @@ public extension LiveMessage {
 
 public extension LiveChatModel {
     var chatMessages: [ChatMessage] { chat.chatMessages }
+    var conversationMessages: [ChatMessage] { chat.conversationMessages }
 }

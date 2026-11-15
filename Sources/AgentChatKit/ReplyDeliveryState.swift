@@ -50,11 +50,11 @@ public struct SentReplyStatus: View {
     }
 
     public var body: some View {
-        if let ticks = state.ticks {
-            DeliveryTicksLine(ticks: ticks, date: date, about: about,
-                              identifier: ticks == .sent ? identifiers.sentTicks : identifiers.deliveredTicks)
-        } else {
-            VStack(alignment: .trailing, spacing: theme.spacing.xs) {
+        VStack(alignment: .trailing, spacing: theme.spacing.xs) {
+            if let ticks = state.ticks {
+                DeliveryTicksLine(ticks: ticks, date: date, about: about,
+                                  identifier: ticks == .sent ? identifiers.sentTicks : identifiers.deliveredTicks)
+            } else {
                 Label {
                     Text(text)
                 } icon: {
@@ -66,22 +66,22 @@ public struct SentReplyStatus: View {
                 .multilineTextAlignment(.trailing)
                 .id(StatusKey(text: text, symbol: symbol, state: state))
                 .transition(.opacity)
-                if retry != nil || cancel != nil {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: theme.spacing.lg) { actionButtons }
-                        VStack(alignment: .trailing, spacing: theme.spacing.sm) { actionButtons }
-                    }
-                    .chatTextStyle(.control)
-                    .controlSize(theme.controlSize)
-                    .buttonStyle(.borderless)
-                    .disabled(isSending)
-                }
             }
-            .animation(ChatMotion.fold, value: text)
-            .accessibilityElement(children: .contain)
-            .chatIdentifier(identifiers.status)
-            .accessibilityValue(about ?? "")
+            if retry != nil || cancel != nil {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: theme.spacing.lg) { actionButtons }
+                    VStack(alignment: .trailing, spacing: theme.spacing.sm) { actionButtons }
+                }
+                .chatTextStyle(.control)
+                .controlSize(theme.controlSize)
+                .buttonStyle(.borderless)
+                .disabled(isSending)
+            }
         }
+        .animation(ChatMotion.fold, value: text)
+        .accessibilityElement(children: .contain)
+        .chatIdentifier(state.ticks == nil ? identifiers.status : nil)
+        .accessibilityValue(about ?? "")
     }
 
     @ViewBuilder private var actionButtons: some View {

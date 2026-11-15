@@ -7,6 +7,7 @@ struct DemoAdoptionFixtures: View {
     var body: some View {
         NavigationStack {
             switch fixture {
+            case let name where name.hasPrefix("live-"): DemoLiveControlsFixture(fixture: name)
             case "threads": DemoThreadList()
             case "host-threads": DemoHostThreadList()
             case "host-routes": DemoHostThreadList(usesValueNavigation: true)

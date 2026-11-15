@@ -10,13 +10,38 @@ struct DemoLiveScreen: View {
     @Binding var themeChoice: DemoTheme
     @State private var readsEnd = true
     @FocusState private var focused: Bool
+    @State private var controls: LiveChatControls
+    @State private var viewing = SentScreenshotViewing()
+
+    init(chat: DemoLiveChat, themeChoice: Binding<DemoTheme>) {
+        self.chat = chat
+        _themeChoice = themeChoice
+        _controls = State(initialValue: LiveChatControls(live: chat.model))
+    }
+
+    private var messages: [ChatMessage] {
+        chat.model.conversationMessages.map { original in
+            var message = original
+            if let live = chat.model.chat.message(message.id) {
+                message.hasExtras = live.kind == .user || !live.attachments.isEmpty
+                if live.kind == .user, live.status != nil {
+                    message.ticks = nil // LiveReplyStatus owns these, including its host IDs/actions.
+                    message.date = nil
+                }
+            }
+            return message
+        }
+    }
 
     var body: some View {
         ChatView(
-            messages: chat.model.chatMessages, sent: chat.sentCount, readsEnd: $readsEnd, focus: $focused,
+            messages: messages, sent: chat.sentCount, readsEnd: $readsEnd, focus: $focused,
             isSending: chat.isSending
-        ) { _ in
-            EmptyView()
+        ) { message in
+            LiveReplyStatus(controls: controls, messageID: message.id)
+            LiveScreenshotStrip(live: chat.model, messageID: message.id) { _ in
+                .failure(ChatActionError("The demo host does not serve attachment bytes."))
+            }
         } header: {
             Text(chat.status)
                 .font(theme.font(.footnote))
@@ -25,15 +50,27 @@ struct DemoLiveScreen: View {
                 .padding(.vertical, ChatSpace.xs)
                 .accessibilityIdentifier("demo-live-status")
         } footer: {
-            if let question = chat.model.chat.question {
-                QuestionCard(question: question, answer: chat.answer)
+            if chat.model.chat.question != nil {
+                LiveQuestionView(controls: controls, identifiers: .init(
+                    question: .init(answer: { "demo-live-option-\($0)" }),
+                    text: "demo-live-answer-text", submit: "demo-live-answer-submit", decline: "demo-live-decline"
+                ), singleChoiceSendsImmediately: true)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("demo-live-question")
             } else if let state = chat.model.chat.state, state.working {
                 WorkingLine(activity: state.activity ?? "Working")
             }
         } composer: {
-            SessionComposer(draft: $chat.draft, isSending: chat.isSending, send: chat.sendDraft, focused: $focused)
-                .composerBar()
+            VStack(spacing: theme.spacing.sm) {
+                LiveQueuedReplies(controls: controls, draft: $chat.draft, identifiers: { message in
+                    .init(row: "demo-live-queue-\(message.id)", edit: "demo-live-edit-\(message.id)",
+                          remove: "demo-live-remove-\(message.id)", sendNow: "demo-live-now-\(message.id)")
+                })
+                SessionComposer(draft: $chat.draft, isSending: chat.isSending, send: chat.sendDraft, focused: $focused)
+            }
+            .composerBar()
         }
+        .presentsSentScreenshots(viewing)
         .background(theme.groundPage)
         .navigationTitle("Live")
         #if os(iOS)
@@ -70,30 +107,5 @@ struct DemoLiveScreen: View {
                 }
             }
         }
-    }
-}
-
-/// The agent's open question (`elicitation/create`), with a button per option.
-private struct QuestionCard: View {
-    @Environment(\.chatTheme) private var theme
-    let question: LiveQuestion
-    let answer: (LiveQuestion.Option) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: ChatSpace.sm) {
-            Text(question.message)
-                .font(theme.font(.subheadline))
-            HStack(spacing: ChatSpace.sm) {
-                ForEach(question.options) { option in
-                    Button(option.label) { answer(option) }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier("demo-live-option-\(option.id)")
-                }
-            }
-        }
-        .padding(ChatSpace.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("demo-live-question")
     }
 }

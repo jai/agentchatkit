@@ -3,7 +3,6 @@ import SwiftUI
 /// Above the composer, not in the conversation. The host alone says whether Send now interrupts a turn.
 public struct ThreadQueuedReplies<ID: Hashable & Sendable>: View {
     @Environment(\.chatTheme) private var theme
-    @Environment(\.dynamicTypeSize) private var typeSize
     public let model: ReplyQueueController<ID>
     public var interrupts: Bool
     private let identifiers: (QueuedReply<ID>) -> QueuedReplyIdentifiers
@@ -26,66 +25,114 @@ public struct ThreadQueuedReplies<ID: Hashable & Sendable>: View {
     }
 
     private func row(_ reply: QueuedReply<ID>) -> some View {
-        let ids = identifiers(reply)
-        return VStack(alignment: .leading, spacing: theme.spacing.xs) {
-            Text(ChatQuickReply.shown(reply.text))
+        QueuedReplyRow(text: reply.text, status: model.errors[reply.id]?.message ?? reply.statusText,
+                       hasError: model.errors[reply.id] != nil, isBusy: model.isBusy(reply),
+                       interrupts: interrupts, identifiers: identifiers(reply),
+                       edit: { Task { await model.edit(reply) } },
+                       remove: { Task { await model.remove(reply) } },
+                       sendNow: model.canSendNow ? { Task { await model.sendNow(reply) } } : nil)
+    }
+}
+
+/// Stateless queue presentation shared by snapshot hosts and AgentChatLive. Actions own no reply state here.
+public struct QueuedReplyRow: View {
+    @Environment(\.chatTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
+    public var text: String
+    public var status: String
+    public var hasError: Bool
+    public var isBusy: Bool
+    public var interrupts: Bool
+    public var identifiers: QueuedReplyIdentifiers
+    private let edit: () -> Void
+    private let remove: () -> Void
+    private let sendNow: (() -> Void)?
+
+    public init(text: String, status: String, hasError: Bool = false, isBusy: Bool = false,
+                interrupts: Bool = false, identifiers: QueuedReplyIdentifiers = .init(),
+                edit: @escaping () -> Void, remove: @escaping () -> Void, sendNow: (() -> Void)? = nil) {
+        self.text = text
+        self.status = status
+        self.hasError = hasError
+        self.isBusy = isBusy
+        self.interrupts = interrupts
+        self.identifiers = identifiers
+        self.edit = edit
+        self.remove = remove
+        self.sendNow = sendNow
+    }
+
+    private var minimumHeight: CGFloat {
+        #if os(iOS)
+        44
+        #else
+        28
+        #endif
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+            Text(ChatQuickReply.shown(text))
                 .chatTextStyle(.body)
-                .chatIdentifier(ids.text)
+                .chatIdentifier(identifiers.text)
                 .lineLimit(2)
-            Text(model.errors[reply.id]?.message ?? reply.statusText)
+            Text(status)
                 .chatTextStyle(.meta)
-                .chatIdentifier(ids.status)
-                .foregroundStyle(model.errors[reply.id] == nil ? theme.inkQuiet : theme.toneBad)
+                .chatIdentifier(identifiers.status)
+                .foregroundStyle(hasError ? theme.toneBad : theme.inkQuiet)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: theme.spacing.sm) {
-                    editAndRemove(reply)
+                    editAndRemove
                     Spacer(minLength: 0)
-                    sendNow(reply)
+                    sendNowButton
                 }
                 VStack(alignment: .leading, spacing: theme.spacing.sm) {
-                    leftControls(reply)
-                    HStack { Spacer(minLength: 0); sendNow(reply) }
+                    leftControls
+                    HStack { Spacer(minLength: 0); sendNowButton }
                 }
             }
             .labelStyle(.titleAndIcon)
             .chatTextStyle(.control)
             .controlSize(theme.controlSize)
-            .disabled(model.isBusy(reply))
+            .disabled(isBusy)
         }
         .padding(theme.spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.groundCard, in: .rect(cornerRadius: ChatRadius.md))
         .accessibilityElement(children: .contain)
-        .chatIdentifier(ids.row)
+        .chatIdentifier(identifiers.row)
     }
 
-    @ViewBuilder private func leftControls(_ reply: QueuedReply<ID>) -> some View {
+    @ViewBuilder private var leftControls: some View {
         if typeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: theme.spacing.sm) { editAndRemove(reply) }
+            VStack(alignment: .leading, spacing: theme.spacing.sm) { editAndRemove }
         } else {
-            HStack(spacing: theme.spacing.sm) { editAndRemove(reply) }
+            HStack(spacing: theme.spacing.sm) { editAndRemove }
         }
     }
 
-    @ViewBuilder private func editAndRemove(_ reply: QueuedReply<ID>) -> some View {
-        Button("Edit", systemImage: theme.symbols.edit) { Task { await model.edit(reply) } }
-            .buttonStyle(.bordered)
-            .chatIdentifier(identifiers(reply).edit)
-        Button("Remove", systemImage: theme.symbols.delete, role: .destructive) {
-            Task { await model.remove(reply) }
+    @ViewBuilder private var editAndRemove: some View {
+        Button(action: edit) {
+            Label("Edit", systemImage: theme.symbols.edit).frame(minHeight: minimumHeight)
+        }
+        .buttonStyle(.bordered)
+        .chatIdentifier(identifiers.edit)
+        Button(role: .destructive, action: remove) {
+            Label("Remove", systemImage: theme.symbols.delete).frame(minHeight: minimumHeight)
         }
         .buttonStyle(.bordered)
         .tint(theme.toneBad)
-        .chatIdentifier(identifiers(reply).remove)
+        .chatIdentifier(identifiers.remove)
     }
 
-    @ViewBuilder private func sendNow(_ reply: QueuedReply<ID>) -> some View {
-        if model.canSendNow {
-            Button(interrupts ? "Send now · stops its turn" : "Send now", systemImage: theme.symbols.sendNow) {
-                Task { await model.sendNow(reply) }
+    @ViewBuilder private var sendNowButton: some View {
+        if let sendNow {
+            Button(action: sendNow) {
+                Label(interrupts ? "Send now · stops its turn" : "Send now", systemImage: theme.symbols.sendNow)
+                    .frame(minHeight: minimumHeight)
             }
             .buttonStyle(.borderedProminent)
-            .chatIdentifier(identifiers(reply).sendNow)
+            .chatIdentifier(identifiers.sendNow)
             .tint(interrupts ? theme.toneBad : .accentColor)
             .accessibilityHint(interrupts ? "Stops what the thread is doing and sends this now" : "")
         }

@@ -29,6 +29,9 @@ let package = Package(
             "AgentChatLive", .product(name: "DurableNetworking", package: "durable-networking"),
         ]),
         .testTarget(name: "AgentChatKitTests", dependencies: ["AgentChatKit"]),
-        .testTarget(name: "AgentChatLiveTests", dependencies: ["AgentChatLive", "AgentChatLiveTesting"]),
+        .testTarget(name: "AgentChatLiveTests", dependencies: [
+            "AgentChatLive", "AgentChatLiveTesting",
+            .product(name: "DurableNetworking", package: "durable-networking"),
+        ]),
     ]
 )
