@@ -44,13 +44,50 @@ RootView().chatTheme(ChatTheme(font: { .app($0) }, toneGood: .green))
 ```
 
 With none, `ChatTheme.standard` draws the system's: Dynamic Type on the phone, the Mac's sizes times its View menu's
-text size (`macTextScale`), the system's grounds, and the host's `ToneGood` and `ToneBad` colour sets. The chat's own
-measures (a bubble's insets, its widest share of a wide window) are `ChatStyle`'s.
+text size (`macTextScale`), the system's grounds, and the host's `ToneGood` and `ToneBad` colour sets. Bubble geometry
+remains in `ChatStyle`. Shared thread/queue/question/status/screenshot spacing uses `ChatTheme.spacing`.
+
+The new pieces use four semantic roles: `meta` (context/status/chips), `objectTitle`, `body` (About/queue words), and
+`control`. Each accepts the host font, font leading and line spacing; none picks a fixed point size. Unset roles
+continue to resolve through the current `theme.font` closure, including later mutations of that closure. Nil
+leading/lineSpacing preserve the font’s own leading and inherited line spacing:
+
+```swift
+var theme = ChatTheme(font: { .app($0) }) // existing hosts keep this initializer
+// Map the host's Graphical metrics here; these system styles illustrate the shape.
+theme.typography = ChatTypography(
+    meta: .init(font: .caption, lineSpacing: 2),
+    objectTitle: .init(font: .headline, leading: .tight),
+    body: .init(font: .body, lineSpacing: 6, leading: .loose),
+    control: .init(font: .body.weight(.semibold))
+)
+theme.spacing = ChatSpacing(xs: 4, sm: 8, md: 12, lg: 16,
+                            rowInsets: EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+theme.controlSize = .large // native semantic size; hosts may use .regular on Mac
+```
+
+Host accessory/chip views can also use `.chatTextStyle(.meta)` or the other roles. Explicit fonts on their own
+children still take precedence. Hosts own any scaling of custom line-spacing/spacing tokens.
 
 ## Thread rows and navigation
 
-`ChatThreadRow` accepts host-rendered status accessories and chips. Context, title and an optional `About:`
-description are shared on phone and Mac. Hosts can wrap a row in their own navigation or use the native list:
+`ChatThreadRow` orders context (`meta`), object title, `About:` body text, then chips. Its optional `titleMark`
+ViewBuilder sits immediately before the title. Status sits at the right of the context's **first baseline**, or the
+title's first baseline when context is nil/empty. Text wraps at Dynamic Type sizes rather than being truncated.
+The original two-slot initializer remains available; add the third slot when adopting a mark:
+
+```swift
+ChatThreadRow(title: thread.title, context: thread.context, about: thread.summary,
+              identifiers: .init(row: "thread-line", title: "thread-title")) {
+    HostAppMark(thread: thread) // titleMark
+} accessory: {
+    HostStatusAccessory(thread: thread)
+} chips: {
+    HostChips(thread: thread)
+}
+```
+
+Hosts can wrap a row in their own navigation or use the native list:
 
 ```swift
 NavigationStack {
@@ -74,8 +111,43 @@ NavigationStack {
 `chatThreadActions(title:actions:)` also attaches these actions to a host-owned row. Nil hooks omit their controls.
 Archive calls the supplied hook; local hiding is a host policy. Delete presents a confirmation, then invokes the
 host's hook. Both hooks return `Result<Void, ChatActionError>`, disable the row while awaiting completion, and show
-host errors without removing the row. The kit implements no vendor archive/delete endpoint. `ChatActionError`
+host errors without removing the row. Menu, trailing phone swipe (without full swipe), and Mac Delete all use the
+same tagged action controller per item ID: idle, confirming delete, pending operation, or failed operation. A
+confirmation, pending hook, or error cannot be replaced by a competing action. Right-click on Mac and long-press
+on phone share the same hooks. The kit implements no vendor archive/delete endpoint. `ChatActionError`
 lives in `AgentChatCore` and is re-exported by `AgentChatKit`.
+
+When a host already owns route values or a selected detail column, use the list's header/footer initializer. Its row
+closure contains the host's own `NavigationLink(value:)` or selection button, so returning to the list and restoring
+drafts remain host-owned. Header and footer hold its starting, empty and error states. The list uses native `List`
+rows and selection. It does not keep a second navigation path or register any
+`navigationDestination(for:)`, including for the host's `Item.ID` type:
+
+```swift
+ChatThreadList(items: threads, title: \.title, actions: hostActions,
+               selection: $selectedThreadID, open: openThread) { thread in
+    NavigationLink(value: HostRoute.thread(thread.id)) { hostRow(thread) }
+} header: {
+    startingOrNewThread
+} footer: {
+    emptyOrErrorState
+}
+```
+
+Both initializers accept optional `selection: Binding<Item.ID?>` and `open: (Item) -> Void`. On Mac, native arrows
+change selection and Return invokes `open` for the selected row. The host callback owns opening a detail column or
+updating its navigation path. A host may instead render a selection button; on Mac an undecorated row also uses
+native List selection. Without `open`, Return remains available to native navigation. Delete requests the selected
+row's host delete hook through the same confirmation/pending/error state as its row menu. Missing delete hooks do
+nothing. Selection clears when its item leaves the supplied collection. Do not also attach `chatThreadActions` to a
+row inside `ChatThreadList`; the list already owns its controller. The convenience destination initializer supplies
+a native disclosure indicator, so its row should not add an explicit navigation chevron.
+
+`Demo/Sources/DemoHostThreadList.swift` demonstrates a host route of type `String` (also its item-ID type),
+header/footer, external selection and Return callback. FeedbackKit can keep its current row/header/footer closures
+and add just `selection:`/`open:`; its host still owns routes and default-row chevrons.
+
+See [the adoption review handoff](Demo/ADOPTION.md) for authored coverage, screenshot output and files changed.
 
 ## Reply queue
 
@@ -106,6 +178,9 @@ Remove must mean the host accepted removal and it is safe to put its words back 
 pending, return that reply with `actionPending: true`. Edit prepends only after success, preserving words typed during
 the request. A failure leaves the draft alone and appears on the row; return a user-facing `ChatActionError`.
 Concurrent actions for the same reply are rejected while awaiting a hook or while `actionPending` is true.
+
+Queue controls use full icon-and-word native buttons: pencil Edit and red bin Remove on the left, prominent Send
+now on the right (red when it interrupts). Controls use the host control role/size and reflow when space is tight.
 
 Omit the Send now hook to omit its button. `interrupts` comes from host capabilities; the kit never assumes that
 sending stops a turn. Composer intents are consumed before the first request, including on failure, and repeated
@@ -149,6 +224,21 @@ runs off the main actor. Unreadable images are skipped while keeping original in
 load failures show the host's error. Changing the key cancels the old image load. Persisting files, mapping
 client refs to server reply IDs and refresh policy remain host responsibilities.
 
+All new shared pieces accept identifier configurations without a long list of initializer arguments:
+
+- `ChatThreadRowIdentifiers`: row, context, title, titleMark, About, status slot, chips slot. Nil slot IDs apply no
+  modifier, preserving explicit IDs on host views.
+- `ChatThreadActions.identifiers`: `ChatThreadActionIdentifiers` for archive/delete, confirm/cancel, error OK, pending.
+- `ThreadQueuedReplies(..., identifiers: { reply in QueuedReplyIdentifiers(...) })`: per-reply row, text, status,
+  Edit/Remove/Send now, using stable host IDs.
+- `SentReplyStatus(..., identifiers: ReplyStatusIdentifiers(retry: "finder-message-retry"))`: status, sent/delivered
+  ticks, Retry/Cancel. Standalone `DeliveryTicksLine` and `WaitWhatButton` also accept `identifier:`.
+- `ThreadQuestion(..., identifiers: ThreadQuestionIdentifiers(answer: { "answer-\($0)" }, reply: "question-reply"))`:
+  question/context, per-option answer, Reply, Wait what.
+- `SentScreenshotIdentifiers`: thumbnail key/original index closure, viewer, Close. Pass to a strip or a direct viewer.
+  A shared `.presentsSentScreenshots(viewing, identifiers: ids)` override takes precedence over the selected strip;
+  otherwise each strip carries its viewer IDs into either local or shared presentation.
+
 The original accessibility identifiers remain `queued-reply`, `reply-status`, `reply-ticks-1`, `reply-ticks-2`,
 `wait-what`, `sent-screenshot`, `sent-screenshot-viewer`, and `sent-screenshot-viewer-close`.
 
@@ -178,7 +268,10 @@ cd Demo && xcodegen && open AgentChatDemo.xcodeproj
 
 Run `AgentChatDemo-iOS` or `AgentChatDemo-macOS`. The package is a local dependency, so a change in `Sources/` shows in
 the demo at once. Launch arguments set it up: `-DemoChat tour|long|live`, `-DemoTheme prHub|terminal|paper`, and
-`-DemoPace fast|slow` for the agent's speed.
+`-DemoPace fast|slow` for the agent's speed. Deterministic standalone fixtures accept
+`-DemoFixture row|threads|host-threads|host-routes|queue|delivery|question|screenshots|screenshots-local`,
+`-DemoAppearance light|dark|large` and `-DemoCustomIDs YES|NO`. They use host semantic typography and line spacing;
+large text uses accessibility Dynamic Type on phone and larger semantic host fonts on Mac.
 
 The sidebar's **Shared pieces** (or `-DemoChat extraction`) opens independent fixtures for the shared thread list,
 queue, delivery status, question and sent screenshots. They show host callback counts, deliberate failures,
@@ -187,15 +280,16 @@ drives Archive/Delete and confirmation cancellation, queue Edit/Remove/Send now,
 adaptive answer stacking and screenshot viewer Close/swipe-down. Package unit tests cover queue failure/success,
 ordering and concurrent/send-once behavior, delivery tick mapping, and image decode/order/orientation.
 
+`AdoptionUITests` runs on both platforms and captures each piece plus the viewer in light, dark and large text.
+Screenshots are actual `XCUIScreen` renders, retained as test attachments and written to `CHATDEMO_SCREENSHOTS` when
+provided, named `ios-<fixture>-<appearance>.png` / `macos-<fixture>-<appearance>.png`. The Mac UI-test bundle/target is
+`AgentChatDemoMacUITests`, included in scheme `AgentChatDemo-macOS`. Its extra suite drives arrows/Return/Delete and
+right-click. These new tests and captures have been authored but not executed/generated in the delegated adoption
+step; the parent owns the permitted CI run and rendered-image review.
+
 ## Develop
 
 `swift test`. Swift 6, iOS 26 and macOS 26.
 
 The demo is this repo's UI-test host: `AgentChatDemo-iOS`'s tests (`Demo/UITests`) walk the main flows on an iPhone, and
 `testReadmeScreenshots` takes the pictures above (they are kept on its test result).
-
-
-When a host already owns route values or a selected detail column, use the list's header/footer initializer. Its row
-closure contains the host's own `NavigationLink(value:)` or selection button, so returning to the list and restoring
-drafts remain host-owned. Header and footer hold its starting, empty and error states. The list supplies lazy rows,
-scrolling, shared row menus and insertion/removal motion; it does not keep a second navigation path.

@@ -32,6 +32,11 @@ public struct ChatTheme: Sendable {
     public var toneBad: Color
     public var toneWaiting: Color
 
+    /// Semantic host typography; unset roles continue to use `font`, including later mutations of it.
+    public var typography: ChatTypography
+    public var spacing: ChatSpacing
+    public var controlSize: ControlSize
+
     public var symbols: Symbols
 
     /// The SF Symbols a chat draws, by what they mean.
@@ -57,6 +62,7 @@ public struct ChatTheme: Sendable {
         public var archive = "archivebox"
         public var delete = "trash"
         public var sendNow = "arrow.up"
+        public var edit = "pencil"
 
         public init() {}
     }
@@ -68,7 +74,9 @@ public struct ChatTheme: Sendable {
         groundPage: Color = ChatTheme.systemGroundPage, groundCard: Color = ChatTheme.systemGroundCard,
         groundFill: Color = ChatTheme.systemGroundFill, pictureGround: Color = .black, line: Color = ChatTheme.systemLine,
         toneGood: Color = Color("ToneGood"), toneBad: Color = Color("ToneBad"),
-        toneWaiting: Color = Color("ToneWaiting"), symbols: Symbols = Symbols()
+        toneWaiting: Color = Color("ToneWaiting"), symbols: Symbols = Symbols(),
+        typography: ChatTypography = ChatTypography(), spacing: ChatSpacing = ChatSpacing(),
+        controlSize: ControlSize = .large
     ) {
         self.font = font
         self.code = code
@@ -84,6 +92,9 @@ public struct ChatTheme: Sendable {
         self.toneBad = toneBad
         self.toneWaiting = toneWaiting
         self.symbols = symbols
+        self.typography = typography
+        self.spacing = spacing
+        self.controlSize = controlSize
     }
 
     public static let standard = ChatTheme()
@@ -174,13 +185,14 @@ extension LabelStyle where Self == ChatIconTextLabelStyle {
 }
 
 private struct ChatIconTextLine<Icon: View, Words: View>: View {
+    @Environment(\.chatTheme) private var theme
     let icon: Icon
     let words: Words
     /// The slot grows with the text, as the icon does.
     @ScaledMetric(relativeTo: .footnote) private var slot = ChatSpace.lg
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: ChatSpace.xs) {
+        HStack(alignment: .firstTextBaseline, spacing: theme.spacing.xs) {
             icon
                 .fixedSize()
                 .frame(minWidth: slot, alignment: .leading)

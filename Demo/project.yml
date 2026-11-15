@@ -53,7 +53,7 @@ targets:
   AgentChatDemoUITests:
     type: bundle.ui-testing
     platform: iOS
-    sources: [UITests]
+    sources: [UITests, SharedUITests]
     dependencies:
       - target: AgentChatDemo_iOS
     settings:
@@ -61,6 +61,17 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.govindani.agentchatdemo.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: AgentChatDemo_iOS
+  AgentChatDemoMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [MacUITests, SharedUITests]
+    dependencies:
+      - target: AgentChatDemo_macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.govindani.agentchatdemo.macuitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: AgentChatDemo_macOS
 schemes:
   AgentChatDemo-iOS:
     build:
@@ -72,3 +83,5 @@ schemes:
     build:
       targets:
         AgentChatDemo_macOS: all
+    test:
+      targets: [AgentChatDemoMacUITests]

@@ -23,15 +23,17 @@ public struct DeliveryTicksLine: View {
     public let date: Date?
     /// The message's words, as its value, so the line can be found by the message it is under.
     public var about: String?
+    public var identifier: String?
 
-    public init(ticks: DeliveryTicks, date: Date?, about: String? = nil) {
+    public init(ticks: DeliveryTicks, date: Date?, about: String? = nil, identifier: String? = nil) {
         self.ticks = ticks
         self.date = date
         self.about = about
+        self.identifier = identifier ?? "reply-ticks-\(ticks.rawValue)"
     }
 
     public var body: some View {
-        HStack(spacing: ChatSpace.xs) {
+        HStack(spacing: theme.spacing.xs) {
             if let date {
                 Text(date.formatted(date: .omitted, time: .shortened))
             }
@@ -42,12 +44,12 @@ public struct DeliveryTicksLine: View {
             }
             .foregroundStyle(ticks == .delivered ? theme.toneGood : theme.inkQuiet)
         }
-        .font(theme.font(.caption2))
+        .chatTextStyle(.meta)
         .foregroundStyle(theme.inkQuiet)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([date?.formatted(date: .omitted, time: .shortened), ticks.spoken].compactMap(\.self)
             .joined(separator: ", "))
         .accessibilityValue(about ?? "")
-        .accessibilityIdentifier("reply-ticks-\(ticks.rawValue)")
+        .chatIdentifier(identifier)
     }
 }

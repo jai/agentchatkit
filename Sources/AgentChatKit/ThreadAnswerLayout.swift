@@ -2,16 +2,18 @@ import SwiftUI
 
 /// Equal cells side by side only when every answer fits on one line, otherwise one per row.
 struct ThreadAnswerLayout: Layout {
+    var spacing: CGFloat = ChatSpace.sm
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
         guard !subviews.isEmpty else { return .zero }
         let ideal = subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
         let width = proposal.width ?? min(ChatStyle.answerMaxWidth, ideal) * CGFloat(subviews.count)
-            + ChatSpace.sm * CGFloat(subviews.count - 1)
+            + spacing * CGFloat(subviews.count - 1)
         let sideBySide = fits(in: width, subviews)
         let cell = sideBySide ? cellWidth(in: width, count: subviews.count) : width
         let heights = subviews.map { $0.sizeThatFits(.init(width: cell, height: nil)).height }
         return CGSize(width: width, height: sideBySide ? heights.max() ?? 0
-            : heights.reduce(0, +) + ChatSpace.sm * CGFloat(subviews.count - 1))
+            : heights.reduce(0, +) + spacing * CGFloat(subviews.count - 1))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
@@ -22,13 +24,13 @@ struct ThreadAnswerLayout: Layout {
         var origin = bounds.origin
         for subview in subviews {
             subview.place(at: origin, anchor: .topLeading, proposal: proposed)
-            if sideBySide { origin.x += cell + ChatSpace.sm }
-            else { origin.y += subview.sizeThatFits(proposed).height + ChatSpace.sm }
+            if sideBySide { origin.x += cell + spacing }
+            else { origin.y += subview.sizeThatFits(proposed).height + spacing }
         }
     }
 
     private func cellWidth(in width: CGFloat, count: Int) -> CGFloat {
-        min(ChatStyle.answerMaxWidth, max(0, (width - ChatSpace.sm * CGFloat(count - 1)) / CGFloat(count)))
+        min(ChatStyle.answerMaxWidth, max(0, (width - spacing * CGFloat(count - 1)) / CGFloat(count)))
     }
 
     private func fits(in width: CGFloat, _ subviews: Subviews) -> Bool {

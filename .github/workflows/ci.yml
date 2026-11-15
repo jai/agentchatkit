@@ -70,3 +70,32 @@ jobs:
           name: shared-chat-screens
           path: tmp/demo-screens
           if-no-files-found: ignore
+
+  mac-ui:
+    # Hosted Mac: this public package uses GitHub's free runners.
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen
+        working-directory: Demo
+      - name: Exercise native Mac chat controls
+        working-directory: Demo
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tmp"
+          xcodebuild test -project AgentChatDemo.xcodeproj -scheme AgentChatDemo-macOS \
+            -destination 'platform=macOS' -parallel-testing-enabled NO \
+            -resultBundlePath "$GITHUB_WORKSPACE/tmp/mac-ui.xcresult" -quiet
+      - name: Export rendered Mac pictures
+        if: always()
+        run: |
+          if [ -d tmp/mac-ui.xcresult ]; then
+            xcrun xcresulttool export attachments --path tmp/mac-ui.xcresult --output-path tmp/mac-ui-attachments
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-chat-mac-screens
+          path: tmp/mac-ui-attachments
+          if-no-files-found: ignore

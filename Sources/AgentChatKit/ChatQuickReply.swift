@@ -36,20 +36,23 @@ public struct WaitWhatButton: View {
     @Environment(\.chatTheme) private var theme
     public var isSending: Bool
     public let send: () -> Void
+    public var identifier: String
 
-    public init(isSending: Bool = false, send: @escaping () -> Void) {
+    public init(isSending: Bool = false, identifier: String = "wait-what", send: @escaping () -> Void) {
         self.isSending = isSending
         self.send = send
+        self.identifier = identifier
     }
 
     public var body: some View {
         Button(action: send) {
             Text("\(Image(systemName: theme.symbols.askAI)) \(ChatQuickReply.waitWhat.label)")
-                .font(theme.font(.footnote).weight(.semibold))
+                .chatTextStyle(.control)
         }
+        .controlSize(theme.controlSize)
         .buttonStyle(.borderless)
         .disabled(isSending)
         .accessibilityLabel(ChatQuickReply.waitWhat.label)
-        .accessibilityIdentifier("wait-what")
+        .accessibilityIdentifier(identifier)
     }
 }

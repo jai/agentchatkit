@@ -1,22 +1,39 @@
 import AgentChatCore
 import SwiftUI
 
-/// Host mutations only. Archive may hide locally; Delete means only what the supplied hook implements.
+/// Host mutations only. Archive and Delete mean only what their supplied hooks implement.
 public struct ChatThreadActions {
     public typealias Action = @MainActor () async -> Result<Void, ChatActionError>
     public var archive: Action?
     public var delete: Action?
+    public var identifiers: ChatThreadActionIdentifiers
 
-    public init(archive: Action? = nil, delete: Action? = nil) {
+    public init(archive: Action? = nil, delete: Action? = nil, identifiers: ChatThreadActionIdentifiers = .init()) {
         self.archive = archive
         self.delete = delete
+        self.identifiers = identifiers
     }
 }
 
 extension View {
-    /// Optional contextual/swipe actions. Missing hooks omit controls. Delete always asks before calling the host.
+    /// Standalone host row. Inside ChatThreadList the list already supplies this modifier and its controller.
     public func chatThreadActions(title: String, actions: ChatThreadActions) -> some View {
-        modifier(ChatThreadActionModifier(title: title, actions: actions))
+        modifier(OwnedChatThreadActions(title: title, actions: actions))
+    }
+
+    func chatThreadActions(title: String, actions: ChatThreadActions,
+                           controller: ChatThreadActionController) -> some View {
+        modifier(ChatThreadActionModifier(title: title, actions: actions, controller: controller))
+    }
+}
+
+private struct OwnedChatThreadActions: ViewModifier {
+    let title: String
+    let actions: ChatThreadActions
+    @State private var controller = ChatThreadActionController()
+
+    func body(content: Content) -> some View {
+        content.modifier(ChatThreadActionModifier(title: title, actions: actions, controller: controller))
     }
 }
 
@@ -24,62 +41,61 @@ private struct ChatThreadActionModifier: ViewModifier {
     @Environment(\.chatTheme) private var theme
     let title: String
     let actions: ChatThreadActions
-    private enum ActionState {
-        case idle
-        case confirmingDelete
-        case pending
-        case failed(ChatActionError)
-    }
-    @State private var state: ActionState = .idle
-    private var pending: Bool {
-        if case .pending = state { true } else { false }
-    }
-    private var error: ChatActionError? {
-        if case let .failed(error) = state { error } else { nil }
-    }
+    let controller: ChatThreadActionController
 
     func body(content: Content) -> some View {
-        content
+        swipeContent(content)
             .contextMenu { buttons }
-            .disabled(pending)
+            .disabled(controller.isPending)
             .overlay(alignment: .trailing) {
-                if pending { ProgressView().padding(ChatSpace.sm).accessibilityLabel("Updating thread") }
+                if controller.isPending {
+                    ProgressView().padding(theme.spacing.sm)
+                        .accessibilityLabel("Updating thread")
+                        .chatIdentifier(actions.identifiers.progress)
+                }
             }
             .confirmationDialog("Delete \(title)?", isPresented: Binding(
-                get: { if case .confirmingDelete = state { true } else { false } },
-                set: { if !$0, case .confirmingDelete = state { state = .idle } }
+                get: { controller.isConfirmingDelete },
+                set: { if !$0 { controller.dismissConfirmation() } }
             ), titleVisibility: .visible) {
-                Button("Delete", role: .destructive) { run(actions.delete) }
-                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) { controller.confirmDelete(actions) }
+                    .chatTextStyle(.control)
+                    .chatIdentifier(actions.identifiers.confirmDelete)
+                Button("Cancel", role: .cancel) { controller.dismissConfirmation() }
+                    .chatTextStyle(.control)
+                    .chatIdentifier(actions.identifiers.cancelDelete)
             }
             .alert("Couldn’t update \(title)", isPresented: Binding(
-                get: { error != nil }, set: { if !$0, case .failed = state { state = .idle } }
+                get: { controller.error != nil }, set: { if !$0 { controller.dismissError() } }
             )) {
-                Button("OK") { state = .idle }
+                Button("OK") { controller.dismissError() }
+                    .chatTextStyle(.control)
+                    .chatIdentifier(actions.identifiers.dismissError)
             } message: {
-                Text(error?.message ?? "")
+                Text(controller.error?.message ?? "")
             }
+    }
+
+    @ViewBuilder private func swipeContent(_ content: Content) -> some View {
+        #if os(iOS)
+        content.swipeActions(edge: .trailing, allowsFullSwipe: false) { buttons }
+        #else
+        content
+        #endif
     }
 
     @ViewBuilder private var buttons: some View {
         if actions.archive != nil {
-            Button("Archive", systemImage: theme.symbols.archive) { run(actions.archive) }
-                .disabled(pending)
+            Button("Archive", systemImage: theme.symbols.archive) { controller.archive(actions) }
+                .chatTextStyle(.control)
+                .chatIdentifier(actions.identifiers.archive)
+                .disabled(!controller.isIdle)
         }
         if actions.delete != nil {
-            Button("Delete", systemImage: theme.symbols.delete, role: .destructive) { state = .confirmingDelete }
-                .disabled(pending)
-        }
-    }
-
-    private func run(_ action: ChatThreadActions.Action?) {
-        guard !pending, let action else { return }
-        state = .pending
-        Task {
-            switch await action() {
-            case .success: state = .idle
-            case let .failure(problem): state = .failed(problem)
-            }
+            Button("Delete", systemImage: theme.symbols.delete, role: .destructive) { controller.requestDelete(actions) }
+                .chatTextStyle(.control)
+                .chatIdentifier(actions.identifiers.delete)
+                .disabled(!controller.isIdle)
         }
     }
 }

@@ -42,6 +42,19 @@ struct DemoRoot: View {
     }
 
     var body: some View {
+        Group {
+            if let fixture = DemoAdoptionSettings.fixture {
+                DemoAdoptionFixtures(fixture: fixture)
+            } else {
+                mainContent
+            }
+        }
+        .chatTheme(DemoAdoptionSettings.theme(themeChoice.chat))
+        .tint(themeChoice.tint)
+        .preferredColorScheme(DemoAdoptionSettings.colorScheme ?? themeChoice.colorScheme)
+    }
+
+    private var mainContent: some View {
         NavigationSplitView(preferredCompactColumn: $column) {
             List(selection: $selection) {
                 ForEach(chats) { chat in
@@ -62,7 +75,7 @@ struct DemoRoot: View {
             if selection == "live" {
                 DemoLiveScreen(chat: live, themeChoice: $themeChoice)
             } else if selection == "extraction" {
-                DemoExtractionHome()
+                NavigationStack { DemoExtractionHome() }
             } else if let chat = chats.first(where: { $0.id == selection }) {
                 DemoChatScreen(chat: chat, themeChoice: $themeChoice)
                     .id(chat.id)
@@ -70,8 +83,5 @@ struct DemoRoot: View {
                 ContentUnavailableView("Pick a chat", systemImage: "bubble.left.and.bubble.right")
             }
         }
-        .chatTheme(themeChoice.chat)
-        .tint(themeChoice.tint)
-        .preferredColorScheme(themeChoice.colorScheme)
     }
 }

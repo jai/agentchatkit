@@ -1,53 +1,85 @@
 import SwiftUI
 
-/// Shared phone/Mac thread heading. Hosts supply status, chips and navigation without vendor semantics.
+/// Context and its right-hand status, marked object title, About body, then host chips.
 public struct ChatThreadRow<Accessory: View, Chips: View>: View {
     @Environment(\.chatTheme) private var theme
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     public var title: String
     public var context: String?
     public var about: String?
+    public var identifiers: ChatThreadRowIdentifiers
+    private let titleMark: AnyView?
     private let accessory: Accessory
     private let chips: Chips
 
     public init(
         title: String, context: String? = nil, about: String? = nil,
+        identifiers: ChatThreadRowIdentifiers = .init(),
         @ViewBuilder accessory: () -> Accessory, @ViewBuilder chips: () -> Chips
     ) {
         self.title = title
         self.context = context
         self.about = about
+        self.identifiers = identifiers
+        titleMark = nil
+        self.accessory = accessory()
+        self.chips = chips()
+    }
+
+    public init<Mark: View>(
+        title: String, context: String? = nil, about: String? = nil,
+        identifiers: ChatThreadRowIdentifiers = .init(),
+        @ViewBuilder titleMark: () -> Mark,
+        @ViewBuilder accessory: () -> Accessory, @ViewBuilder chips: () -> Chips
+    ) {
+        self.title = title
+        self.context = context
+        self.about = about
+        self.identifiers = identifiers
+        self.titleMark = AnyView(titleMark())
         self.accessory = accessory()
         self.chips = chips()
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: ChatSpace.xs) {
-            if let context {
-                Text(context).font(theme.font(.caption)).foregroundStyle(theme.inkQuiet)
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+            if let context, !context.isEmpty {
+                HStack(alignment: .firstTextBaseline, spacing: theme.spacing.sm) {
+                    Text(context)
+                        .chatTextStyle(.meta)
+                        .foregroundStyle(theme.inkQuiet)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .chatIdentifier(identifiers.context)
+                    status
+                }
             }
-            headingLayout {
+            HStack(alignment: .firstTextBaseline, spacing: theme.spacing.sm) {
+                if let titleMark { titleMark.chatIdentifier(identifiers.titleMark) }
                 Text(title)
-                    .font(theme.font(.headline))
                     .foregroundStyle(theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .layoutPriority(1)
-                accessory
+                    .chatIdentifier(identifiers.title)
+                if context == nil || context?.isEmpty == true { status }
             }
+            .chatTextStyle(.objectTitle)
             if let about {
                 Text("About: \(about)")
-                    .font(theme.font(.subheadline)).foregroundStyle(theme.inkQuiet)
+                    .chatTextStyle(.body)
+                    .foregroundStyle(theme.inkQuiet)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .chatIdentifier(identifiers.about)
             }
-            chips
+            chips.chatTextStyle(.meta).chatIdentifier(identifiers.chips)
         }
-        .padding(.vertical, ChatSpace.xs)
+        .padding(.vertical, theme.spacing.xs)
         .accessibilityElement(children: .contain)
+        .chatIdentifier(identifiers.row)
     }
 
-    private var headingLayout: AnyLayout {
-        dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: ChatSpace.xs))
-            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: ChatSpace.sm))
+    private var status: some View {
+        accessory.chatTextStyle(.meta)
+            .fixedSize(horizontal: false, vertical: true)
+            .chatIdentifier(identifiers.status)
     }
 }

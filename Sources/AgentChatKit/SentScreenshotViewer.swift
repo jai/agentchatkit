@@ -4,10 +4,12 @@ public struct SentScreenshotViewer: View {
     @Environment(\.chatTheme) private var theme
     public let picture: SentPicture
     public let close: () -> Void
+    public var identifiers: SentScreenshotIdentifiers
 
-    public init(picture: SentPicture, close: @escaping () -> Void) {
+    public init(picture: SentPicture, identifiers: SentScreenshotIdentifiers = .init(), close: @escaping () -> Void) {
         self.picture = picture
         self.close = close
+        self.identifiers = identifiers
     }
 
     public var body: some View {
@@ -17,13 +19,15 @@ public struct SentScreenshotViewer: View {
                 .resizable().scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel("Screenshot")
-                .accessibilityIdentifier("sent-screenshot-viewer")
+                .chatIdentifier(identifiers.viewer)
             Button("Close", systemImage: theme.symbols.close, action: close)
+                .chatTextStyle(.control)
+                .controlSize(theme.controlSize)
                 .labelStyle(.iconOnly)
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
-                .padding(ChatSpace.lg)
-                .accessibilityIdentifier("sent-screenshot-viewer-close")
+                .padding(theme.spacing.lg)
+                .chatIdentifier(identifiers.close)
         }
         #if os(macOS)
         .frame(minWidth: ChatStyle.screenshotViewerMinWidth, minHeight: ChatStyle.screenshotViewerMinHeight)

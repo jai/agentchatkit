@@ -53,7 +53,12 @@ struct DemoQueueScreen: View {
         @Bindable var model = model
         ScrollView {
             VStack(alignment: .leading, spacing: ChatSpace.md) {
-                ThreadQueuedReplies(model: model, interrupts: true)
+                ThreadQueuedReplies(model: model, interrupts: true, identifiers: { reply in
+                    DemoAdoptionSettings.customIDs ? QueuedReplyIdentifiers(
+                        row: "queue-\(reply.id)", text: "queue-text-\(reply.id)", status: "queue-status-\(reply.id)",
+                        edit: "edit-\(reply.id)", remove: "remove-\(reply.id)", sendNow: "send-\(reply.id)"
+                    ) : .init()
+                })
                 TextEditor(text: $model.draft)
                     .frame(minHeight: ChatStyle.attachmentSize)
                     .accessibilityLabel("Draft")

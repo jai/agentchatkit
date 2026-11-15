@@ -14,15 +14,22 @@ struct DemoDeliveryScreen: View {
                 state: state, text: state == .removed ? "Cancelled" : "Fixture delivery failed",
                 about: "A fixture reply", isSending: busy,
                 retry: state == .failed ? retry : nil,
-                cancel: state == .failed ? cancel : nil
+                cancel: state == .failed ? cancel : nil,
+                identifiers: ids
             )
             Button("Reset delivery") { state = .failed }
-            SentReplyStatus(state: .pending(), text: "Sent", about: "Gateway received it")
-            SentReplyStatus(state: .delivered, text: "Delivered", about: "Agent received it")
+            SentReplyStatus(state: .pending(), text: "Sent", about: "Gateway received it", identifiers: ids)
+            SentReplyStatus(state: .delivered, text: "Delivered", about: "Agent received it", identifiers: ids)
             DemoFixtureNotice(text: "Retry calls: \(retries), Cancel calls: \(cancels)")
         }
         .padding(ChatSpace.md)
         .navigationTitle("Delivery status")
+    }
+
+    private var ids: ReplyStatusIdentifiers {
+        DemoAdoptionSettings.customIDs
+            ? .init(status: "host-reply-status", sentTicks: "host-sent", deliveredTicks: "host-delivered",
+                    retry: "finder-message-retry", cancel: "finder-message-cancel") : .init()
     }
 
     private func retry() {

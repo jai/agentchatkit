@@ -12,19 +12,24 @@ struct DemoQuestionScreen: View {
     @State private var notice = "No callback yet"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ChatSpace.md) {
-            ThreadQuestion(
-                question: "Which fixture should run?", context: "Both answers use the same emphasis.",
-                options: options,
-                isSending: sending, label: \.label,
-                answer: { option in invoke("Answer: \(option.id)") },
-                reply: { invoke("Reply opened") }, waitWhat: { invoke(ChatQuickReply.waitWhat.text) }
-            )
-            Toggle("Hold sending", isOn: $sending)
-            Toggle("Long answers", isOn: $longAnswers)
-            DemoFixtureNotice(text: notice)
+        ScrollView {
+            VStack(alignment: .leading, spacing: ChatSpace.md) {
+                ThreadQuestion(
+                    question: "Which fixture should run?", context: "Both answers use the same emphasis.",
+                    options: options,
+                    isSending: sending, label: \.label,
+                    answer: { option in invoke("Answer: \(option.id)") },
+                    reply: { invoke("Reply opened") }, waitWhat: { invoke(ChatQuickReply.waitWhat.text) },
+                    identifiers: DemoAdoptionSettings.customIDs
+                        ? .init(question: "host-question", context: "host-question-context",
+                                answer: { "answer-\($0)" }, reply: "host-reply", waitWhat: "host-wait-what") : .init()
+                )
+                Toggle("Hold sending", isOn: $sending)
+                Toggle("Long answers", isOn: $longAnswers)
+                DemoFixtureNotice(text: notice)
+            }
+            .padding(ChatSpace.md)
         }
-        .padding(ChatSpace.md)
         .navigationTitle("Question")
     }
 

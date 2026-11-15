@@ -31,10 +31,12 @@ public struct SentReplyStatus: View {
     public var isSending: Bool
     public var retry: (() -> Void)?
     public var cancel: (() -> Void)?
+    public var identifiers: ReplyStatusIdentifiers
 
     public init(
         state: ReplyDeliveryState, text: String, date: Date? = nil, symbol: String? = nil,
-        about: String? = nil, isSending: Bool = false, retry: (() -> Void)? = nil, cancel: (() -> Void)? = nil
+        about: String? = nil, isSending: Bool = false, retry: (() -> Void)? = nil, cancel: (() -> Void)? = nil,
+        identifiers: ReplyStatusIdentifiers = .init()
     ) {
         self.state = state
         self.text = text
@@ -44,38 +46,48 @@ public struct SentReplyStatus: View {
         self.isSending = isSending
         self.retry = retry
         self.cancel = cancel
+        self.identifiers = identifiers
     }
 
     public var body: some View {
         if let ticks = state.ticks {
-            DeliveryTicksLine(ticks: ticks, date: date, about: about)
+            DeliveryTicksLine(ticks: ticks, date: date, about: about,
+                              identifier: ticks == .sent ? identifiers.sentTicks : identifiers.deliveredTicks)
         } else {
-            VStack(alignment: .trailing, spacing: ChatSpace.xs) {
+            VStack(alignment: .trailing, spacing: theme.spacing.xs) {
                 Label {
                     Text(text)
                 } icon: {
                     if let symbol { Image(systemName: symbol) }
                 }
                 .labelStyle(.chatIconText)
-                .font(theme.font(.caption))
+                .chatTextStyle(.meta)
                 .foregroundStyle(state == .failed ? theme.toneBad : theme.inkQuiet)
                 .multilineTextAlignment(.trailing)
                 .id(StatusKey(text: text, symbol: symbol, state: state))
                 .transition(.opacity)
                 if retry != nil || cancel != nil {
-                    HStack(spacing: ChatSpace.lg) {
-                        if let retry { Button("Retry", action: retry) }
-                        if let cancel { Button("Cancel", role: .destructive, action: cancel) }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: theme.spacing.lg) { actionButtons }
+                        VStack(alignment: .trailing, spacing: theme.spacing.sm) { actionButtons }
                     }
-                    .font(theme.font(.footnote).weight(.semibold))
+                    .chatTextStyle(.control)
+                    .controlSize(theme.controlSize)
                     .buttonStyle(.borderless)
                     .disabled(isSending)
                 }
             }
             .animation(ChatMotion.fold, value: text)
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("reply-status")
+            .chatIdentifier(identifiers.status)
             .accessibilityValue(about ?? "")
+        }
+    }
+
+    @ViewBuilder private var actionButtons: some View {
+        if let retry { Button("Retry", action: retry).chatIdentifier(identifiers.retry) }
+        if let cancel {
+            Button("Cancel", role: .destructive, action: cancel).chatIdentifier(identifiers.cancel)
         }
     }
 

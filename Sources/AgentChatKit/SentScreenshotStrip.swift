@@ -8,24 +8,30 @@ public struct SentScreenshotStrip: View {
     @Environment(\.chatTheme) private var theme
     @Environment(SentScreenshotViewing.self) private var viewing: SentScreenshotViewing?
     public let key: String
+    public var identifiers: SentScreenshotIdentifiers
     private let load: Loader
     @State private var pictures: [SentPicture] = []
     @State private var total = 0
     @State private var problem: ChatActionError?
     @State private var localViewing = SentScreenshotViewing()
 
-    public init(key: String, load: @escaping Loader) {
+    public init(key: String, identifiers: SentScreenshotIdentifiers = .init(), load: @escaping Loader) {
         self.key = key
+        self.identifiers = identifiers
         self.load = load
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: ChatSpace.xs) {
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
             if !pictures.isEmpty {
                 ScrollView(.horizontal) {
-                    HStack(spacing: ChatSpace.xs) {
+                    HStack(spacing: theme.spacing.xs) {
                         ForEach(pictures) { picture in
-                            Button { (viewing ?? localViewing).picture = picture } label: {
+                            Button {
+                                let target = viewing ?? localViewing
+                                target.identifiers = identifiers
+                                target.picture = picture
+                            } label: {
                                 picture.image
                                     .resizable().scaledToFill()
                                     .frame(width: ChatStyle.attachmentSize, height: ChatStyle.attachmentSize)
@@ -34,7 +40,7 @@ public struct SentScreenshotStrip: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Screenshot \(picture.index + 1) of \(total)")
-                            .accessibilityIdentifier("sent-screenshot")
+                            .chatIdentifier(identifiers.thumbnail(key, picture.index))
                         }
                     }
                 }
@@ -42,7 +48,7 @@ public struct SentScreenshotStrip: View {
                 .frame(height: ChatStyle.attachmentSize)
             }
             if let problem {
-                Text(problem.message).font(theme.font(.caption)).foregroundStyle(theme.toneBad)
+                Text(problem.message).chatTextStyle(.meta).foregroundStyle(theme.toneBad)
             }
         }
         // A strip works alone too; a conversation may supply one shared viewer for all its strips.
@@ -72,27 +78,31 @@ public struct SentScreenshotStrip: View {
 @Observable
 public final class SentScreenshotViewing {
     public var picture: SentPicture?
+    var identifiers: SentScreenshotIdentifiers = .init()
+
     public init() {}
 }
 
 extension View {
     /// A single viewer shared by all of a conversation's strips. Selection is presentation only.
-    public func presentsSentScreenshots(_ viewing: SentScreenshotViewing) -> some View {
-        environment(viewing).modifier(SentScreenshotPresentation(viewing: viewing))
+    public func presentsSentScreenshots(_ viewing: SentScreenshotViewing,
+                                       identifiers: SentScreenshotIdentifiers? = nil) -> some View {
+        environment(viewing).modifier(SentScreenshotPresentation(viewing: viewing, identifiers: identifiers))
     }
 }
 
 struct SentScreenshotPresentation: ViewModifier {
     @Bindable var viewing: SentScreenshotViewing
+    var identifiers: SentScreenshotIdentifiers? = nil
 
     func body(content: Content) -> some View {
         #if os(iOS)
         content.fullScreenCover(item: $viewing.picture) { picture in
-            SentScreenshotViewer(picture: picture) { viewing.picture = nil }
+            SentScreenshotViewer(picture: picture, identifiers: identifiers ?? viewing.identifiers) { viewing.picture = nil }
         }
         #else
         content.sheet(item: $viewing.picture) { picture in
-            SentScreenshotViewer(picture: picture) { viewing.picture = nil }
+            SentScreenshotViewer(picture: picture, identifiers: identifiers ?? viewing.identifiers) { viewing.picture = nil }
         }
         #endif
     }

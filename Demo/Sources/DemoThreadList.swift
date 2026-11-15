@@ -18,13 +18,15 @@ struct DemoThreadList: View {
 
     var body: some View {
         ChatThreadList(items: threads, title: \.title, actions: actions) { thread in
-            ChatThreadRow(title: thread.title, context: "Fixture · local host", about: "Shared row and navigation") {
-                Text("Waiting")
+            ChatThreadRow(title: thread.title, context: "Fixture · local host", about: "Shared row and navigation",
+                          identifiers: DemoAdoptionSettings.rowIDs(thread.id)) {
+                Text("◈").accessibilityLabel("Host title mark")
+            } accessory: {
+                Text("Waiting").accessibilityIdentifier("slot-status-\(thread.id)")
             } chips: {
-                Text("Demo").font(.caption)
+                Text("Demo").accessibilityIdentifier("slot-chip-\(thread.id)")
             }
-            .padding(.horizontal, ChatSpace.lg)
-            .accessibilityIdentifier("fixture-thread-\(thread.id)")
+            .accessibilityIdentifier(DemoAdoptionSettings.customIDs ? "sessionRow-\(thread.id)" : "fixture-thread-\(thread.id)")
         } destination: { thread in
             Text("Opened \(thread.title)").navigationTitle(thread.title)
         }
@@ -58,6 +60,6 @@ struct DemoThreadList: View {
             }
             threads.removeAll { $0.id == thread.id }
             return .success(())
-        })
+        }, identifiers: DemoAdoptionSettings.actionIDs(thread.id))
     }
 }
