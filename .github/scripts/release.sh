@@ -39,3 +39,5 @@ echo "Release $next at $sha (after ${last:-nothing})."
 printf '%s\n' "$notes"
 if [[ "${DRY_RUN:-}" == 1 ]]; then exit 0; fi
 gh release create "$next" --target "$sha" --title "$next" --notes "$notes"
+# The steps after this one (server/'s package) attach to the release it made.
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then echo "tag=$next" >> "$GITHUB_OUTPUT"; fi

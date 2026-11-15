@@ -13,12 +13,35 @@ jobs:
   release:
     # GitHub's own runner: free for a public repo.
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-      - run: .github/scripts/release.sh
+      - id: release
+        run: .github/scripts/release.sh
         env:
           GH_TOKEN: ${{ github.token }}
+      # server/'s package goes on the release as its npm pack tarball, version = the tag. Hosts install it by URL:
+      # https://github.com/jai/agentchatkit/releases/download/vX.Y.Z/jai-agentchat-live-X.Y.Z.tgz
+      - if: steps.release.outputs.tag != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Attach the server package
+        if: steps.release.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          git fetch --tags --force
+          git checkout "$TAG"
+          cd server
+          version="${TAG#v}"
+          npm ci
+          npm version "$version" --no-git-tag-version
+          sed -i "s/PACKAGE_VERSION = \"0.0.0\"/PACKAGE_VERSION = \"$version\"/" src/handler.ts
+          npm run build
+          npm pack
+          gh release upload "$TAG" "jai-agentchat-live-$version.tgz"
