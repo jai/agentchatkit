@@ -2,88 +2,137 @@ import AgentChatLive
 import DurableNetworking
 import Foundation
 
-/// One chat's live server, in memory: the protocol's server side (docs/live-protocol.md) as an `HTTPTransport` and a
+/// One chat's host, in memory: the profile's agent side (docs/live-protocol.md) as an `HTTPTransport` and a
 /// `StreamingTransport`, so a `LiveChatModel` follows it with no network. Tests, previews and the demo script the
-/// agent's side through it, and take the network away with `setDown(true)` to watch a client reconnect.
+/// agent through it, and take the network away with `setDown(true)` to watch a client reconnect.
 public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
-    public let chatID: String
-    /// What a write to `messages` or `answer` made: the demo's agent answers it.
-    public typealias Sent = @Sendable (LiveReply) async -> Void
+    public let session: String
+    /// A prompt the person sent: its message id, words and whether they asked for it now.
+    public typealias Prompted = @Sendable (_ message: String, _ text: String, _ force: Bool) async -> Void
+    /// The answer to the open question: the chosen option ids and the words.
+    public typealias Answered = @Sendable (_ options: [String], _ text: String?) async -> Void
 
+    private struct Connection {
+        var stream: AsyncThrowingStream<String, any Error>.Continuation?
+    }
+
+    private var log: [(seq: Int, update: JSONValue)] = []
     private var order: [String] = []
-    private var messages: [String: LiveMessage] = [:]
-    private var replies: [String: LiveReply] = [:]
-    private var replyOrder: [String] = []
-    private var state: LiveState
+    private var current: [String: JSONValue] = [:]
+    private var state: JSONValue = ["sessionUpdate": "state_update", "state": "idle"]
     private var seq = 0
-    /// Each change's frame, oldest first: what a cursor resumes from.
-    private var changes: [LiveFrame] = []
-    /// A cursor before this `seq` can no longer be resumed: the client gets a snapshot.
     private var forgottenBefore = 0
-    private var streams: [UUID: AsyncThrowingStream<String, any Error>.Continuation] = [:]
+    private var connections: [String: Connection] = [:]
+    private var question: (id: JSONValue, params: JSONValue)?
+    private var questions = 0
     private var down = false
     private var bearer: String?
-    private var sent: Sent?
-    private var lastSendingReply = 0
+    private var prompted: Prompted?
+    private var answered: Answered?
+    private var userMessages = 0
 
-    /// Every request, as `METHOD path?query`: what tests count.
+    /// Every request, as `POST <rpc method>` or `GET stream`: what tests count.
     public private(set) var requests: [String] = []
 
-    public init(chatID: String = "chat-1", bearer: String? = nil) {
-        self.chatID = chatID
+    public init(session: String = "chat-1", bearer: String? = nil) {
+        self.session = session
         self.bearer = bearer
-        state = LiveState(seq: 0, working: false)
     }
 
-    // MARK: - The host's side
+    // MARK: - The agent's side
 
-    public func onSent(_ sent: Sent?) {
-        self.sent = sent
-    }
+    public func onPrompt(_ prompted: Prompted?) { self.prompted = prompted }
+    public func onAnswer(_ answered: Answered?) { self.answered = answered }
 
     /// Only this bearer is let in from now; `nil` lets any in.
-    public func accept(bearer: String?) {
-        self.bearer = bearer
-    }
+    public func accept(bearer: String?) { self.bearer = bearer }
 
-    /// Adds a message, or a new version of one with the same id.
-    @discardableResult
-    public func put(_ message: LiveMessage) -> LiveMessage {
-        var message = message
-        message.seq = next()
-        if messages[message.id] == nil {
-            order.append(message.id)
+    /// Adds or changes a message: a `user_message`, `agent_message` or `tool_call_update` update.
+    public func publish(_ update: JSONValue) {
+        guard let id = update["messageId"]?.string ?? update["toolCallId"]?.string else {
+            return
         }
-        messages[message.id] = message
-        publish(.message(message, cursor: cursor(seq), seq: seq))
-        return message
-    }
-
-    @discardableResult
-    public func put(_ reply: LiveReply) -> LiveReply {
-        var reply = reply
-        reply.seq = next()
-        if replies[reply.id] == nil {
-            replyOrder.append(reply.id)
+        var merged = current[id]?.object ?? [:]
+        for (key, value) in update.object ?? [:] {
+            if key == "_meta", let patch = value.object, let held = merged["_meta"]?.object {
+                merged["_meta"] = .object(held.merging(patch) { _, new in new })
+            } else {
+                merged[key] = value
+            }
         }
-        replies[reply.id] = reply
-        publish(.reply(reply, cursor: cursor(seq), seq: seq))
-        return reply
+        if current[id] == nil {
+            order.append(id)
+        }
+        current[id] = .object(merged)
+        record(update)
     }
 
-    public func set(_ state: LiveState) {
-        var state = state
-        state.seq = next()
-        self.state = state
-        publish(.state(state, cursor: cursor(seq), seq: seq))
+    public func agentSays(_ id: String, _ text: String, at: Date = .now) {
+        publish(Self.agentMessage(id, text, at: at))
     }
 
-    public var currentState: LiveState { state }
+    public func tool(_ id: String, _ title: String, name: String, at: Date = .now) {
+        publish([
+            "sessionUpdate": "tool_call_update", "toolCallId": .string(id), "title": .string(title),
+            "name": .string(name), "kind": "execute", "status": "completed",
+            "_meta": ["agentchatkit": ["at": .string(LiveDates.string(at))]],
+        ])
+    }
 
-    public func reply(_ id: String) -> LiveReply? { replies[id] }
+    /// Moves one of the person's messages on: `delivering`, `delivered`, `failed`.
+    public func setStatus(_ message: String, _ status: LiveMessage.Status) {
+        guard var ours = current[message]?.at("_meta", "agentchatkit")?.object else {
+            return
+        }
+        ours["status"] = .string(status.rawValue)
+        publish(["sessionUpdate": "user_message", "messageId": .string(message),
+                 "_meta": ["agentchatkit": .object(ours)]])
+    }
 
-    /// Takes the network away: open streams drop, and every request fails as with no connection. `false` brings it
-    /// back.
+    public func setState(_ phase: LiveState.Phase, activity: String? = nil, problem: String? = nil) {
+        var update: [String: JSONValue] = [
+            "sessionUpdate": "state_update", "state": .string(phase.rawValue),
+            "_meta": ["agentchatkit": ["activity": JSONValue(activity), "problem": JSONValue(problem)]],
+        ]
+        if phase == .idle {
+            update["stopReason"] = "end_turn"
+        }
+        state = .object(update)
+        record(state)
+    }
+
+    public var phase: LiveState.Phase {
+        LiveState.Phase(rawValue: state["state"]?.string ?? "") ?? .unknown
+    }
+
+    /// The agent asks: `elicitation/create` to every connection, and the state waits on the person.
+    public func ask(_ message: String, options: [LiveQuestion.Option], multiple: Bool = false, freeText: Bool = true) {
+        questions += 1
+        let ids = JSONValue.array(options.map { .string($0.id) })
+        let names = JSONValue.array(options.map { .string($0.label) })
+        var properties: [String: JSONValue] = [:]
+        let choice: JSONValue = ["type": "string", "enum": ids, "enumNames": names]
+        if multiple {
+            properties["choices"] = ["type": "array", "items": choice]
+        } else if !options.isEmpty {
+            properties["choice"] = choice
+        }
+        if freeText {
+            properties["text"] = ["type": "string"]
+        }
+        let id = JSONValue.string("q\(questions)")
+        let params: JSONValue = [
+            "sessionId": .string(session), "mode": "form", "message": .string(message),
+            "requestedSchema": ["type": "object", "properties": .object(properties)],
+        ]
+        question = (id, params)
+        for name in connections.keys {
+            send(Self.questionMessage(id, params), to: name)
+        }
+        setState(.requiresAction)
+    }
+
+    /// Takes the network away: open streams drop, and every request fails as with no connection.
     public func setDown(_ down: Bool) {
         self.down = down
         if down {
@@ -91,291 +140,269 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
         }
     }
 
-    /// Ends every open stream without a `close` frame, as a dropped connection does.
+    /// Ends every open stream, as a dropped connection does.
     public func dropStreams() {
-        for stream in streams.values {
-            stream.finish(throwing: URLError(.networkConnectionLost))
+        for name in connections.keys {
+            connections[name]?.stream?.finish(throwing: URLError(.networkConnectionLost))
+            connections[name]?.stream = nil
         }
-        streams = [:]
     }
 
-    /// Ends every open stream with a `close` frame.
-    public func close(_ close: LiveClose) {
-        for stream in streams.values {
-            stream.yield(contentsOf: Self.lines(.close(close)))
-            stream.finish()
-        }
-        streams = [:]
+    /// Forgets every connection, as a restarted host does: the next stream gets `404`.
+    public func forgetConnections() {
+        dropStreams()
+        connections = [:]
     }
 
-    /// Forgets history: a cursor from before now gets a snapshot.
+    /// Forgets history: a cursor from before now gets `-32602`.
     public func forgetHistory() {
-        forgottenBefore = seq + 1
-        changes = []
+        forgottenBefore = seq
+        log = []
     }
 
-    public var openStreams: Int { streams.count }
+    public var openStreams: Int { connections.values.filter { $0.stream != nil }.count }
 
     // MARK: - StreamingTransport
 
     public func open(_ request: URLRequest) async throws -> LineStream {
-        let route = try route(request)
-        guard route.path == "live" else {
-            return LineStream(response: response(request, 404), lines: Self.body(Self.refusal("not_found")))
+        requests.append("GET stream")
+        if down {
+            throw URLError(.notConnectedToInternet)
         }
-        if let refusal = refuse(request, route) {
-            return LineStream(response: response(request, refusal.status), lines: Self.body(refusal.body))
+        if let refusal = refused(request) {
+            return LineStream(response: response(request, refusal), lines: Self.empty())
+        }
+        guard let name = request.value(forHTTPHeaderField: "Acp-Connection-Id"), connections[name] != nil,
+              request.value(forHTTPHeaderField: "Acp-Session-Id") == session else {
+            return LineStream(response: response(request, 404), lines: Self.empty())
         }
         let (lines, continuation) = AsyncThrowingStream<String, any Error>.makeStream()
-        let id = UUID()
-        let after = route.query["after"] ?? request.value(forHTTPHeaderField: "Last-Event-ID")
-        let resumable = after.flatMap(resumeSeq)
-        continuation.yield(contentsOf: Self.lines(.hello(
-            v: 1, chat: chatID, cursor: cursor(seq), seq: seq, resumed: resumable != nil
-        )))
-        for frame in frames(after: resumable, limit: 100) {
-            continuation.yield(contentsOf: Self.lines(frame))
-        }
-        streams[id] = continuation
-        continuation.onTermination = { [weak self] _ in
-            Task { await self?.ended(id) }
-        }
+        connections[name]?.stream?.finish()
+        connections[name]?.stream = continuation
         return LineStream(response: response(request, 200), lines: lines)
-    }
-
-    private func ended(_ id: UUID) {
-        streams[id] = nil
     }
 
     // MARK: - HTTPTransport
 
     public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let route = try route(request)
-        if let refusal = refuse(request, route) {
-            return (Data(refusal.body.utf8), response(request, refusal.status))
+        guard let body = request.httpBody, let message = try? JSONValue.decode(body) else {
+            return (Data(), response(request, 400))
         }
-        let method = request.httpMethod ?? "GET"
-        let body = request.httpBody.flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) }
-        let parts = route.path.split(separator: "/").map(String.init)
-        let replyID = parts.count >= 3 && parts[1] == "replies" ? parts[2] : nil
-        switch (method, parts.dropFirst().first ?? "", parts.count) {
-        case ("GET", "read", 2):
-            return try json(request, 200, ReadAnswer(frames: read(route.query)))
-        case ("POST", "messages", 2):
-            return try await sendMessage(request, body)
-        case ("POST", "replies", 4) where parts[3] == "force":
-            guard let reply = replyID.flatMap({ replies[$0] }), reply.status == LiveReply.Status.queued else {
-                return refusal(request, 409, "conflict")
-            }
-            return try json(request, 200, move(reply, to: .delivering))
-        case ("DELETE", "replies", 3):
-            guard let reply = replyID.flatMap({ replies[$0] }),
-                  reply.status == .pending || reply.status == .queued else {
-                return refusal(request, 409, "conflict")
-            }
-            return try json(request, 200, move(reply, to: .removed))
-        case ("POST", "answer", 2):
-            return try await answer(request, body)
+        requests.append("POST \(message["method"]?.string ?? "response")")
+        if down {
+            throw URLError(.notConnectedToInternet)
+        }
+        if let refusal = refused(request) {
+            return (Data(), response(request, refusal))
+        }
+        if message["method"]?.string == "initialize" {
+            let name = UUID().uuidString
+            connections[name] = Connection()
+            let answer: JSONValue = ["jsonrpc": "2.0", "id": message["id"] ?? .null, "result": [
+                "protocolVersion": 2, "agentInfo": ["name": "LiveLoopbackServer", "version": "1"],
+            ]]
+            return (try answer.data(), response(request, 200, ["Acp-Connection-Id": name]))
+        }
+        guard let name = request.value(forHTTPHeaderField: "Acp-Connection-Id"), connections[name] != nil else {
+            return (Data(), response(request, 404))
+        }
+        if message["method"] == nil {
+            await take(answer: message, from: name)
+        } else {
+            await handle(message, from: name)
+        }
+        return (Data(), response(request, 202))
+    }
+
+    // MARK: - Methods
+
+    private func handle(_ message: JSONValue, from name: String) async {
+        let id = message["id"] ?? .null
+        let params = message["params"] ?? .null
+        switch message["method"]?.string {
+        case "session/resume":
+            resume(params, id: id, on: name)
+        case "session/prompt":
+            await prompt(params, id: id, on: name)
+        case "_agentchatkit/edit", "_agentchatkit/remove":
+            await change(message["method"]?.string ?? "", params, id: id, on: name)
         default:
-            return refusal(request, 404, "not_found")
+            send(Self.error(id, AcpError.methodNotFound, "method not found"), to: name)
         }
     }
 
-    // MARK: - Routes
-
-    private func sendMessage(_ request: URLRequest, _ body: JSONValue?) async throws -> (Data, HTTPURLResponse) {
-        guard case let .object(fields) = body, case let .string(clientRef)? = fields["client_ref"] else {
-            return refusal(request, 400, "bad_request")
+    private func change(_ method: String, _ params: JSONValue, id: JSONValue, on name: String) async {
+        guard let target = params["messageId"]?.string,
+              var ours = current[target]?.at("_meta", "agentchatkit")?.object,
+              ["pending", "queued"].contains(ours["status"]?.string ?? "") else {
+            return send(Self.error(id, AcpError.conflict, "conflict"), to: name)
         }
-        if let repeated = replies.values.first(where: { $0.clientRef == clientRef }) {
-            return try json(request, 200, repeated)
+        let forced = params["force"] == .bool(true)
+        var update: [String: JSONValue] = ["sessionUpdate": "user_message", "messageId": .string(target)]
+        if method == "_agentchatkit/remove" {
+            ours["status"] = "removed"
+        } else {
+            if let prompt = params["prompt"] {
+                update["content"] = prompt
+            }
+            if forced {
+                ours["status"] = "pending"
+            }
         }
-        let text = fields["text"].flatMap { if case let .string(text) = $0 { text } else { nil } } ?? ""
-        let images = fields["images"].flatMap { if case let .array(list) = $0 { list.count } else { nil } } ?? 0
-        guard !text.isEmpty || images > 0 else {
-            return refusal(request, 400, "bad_request")
+        update["_meta"] = ["agentchatkit": .object(ours)]
+        publish(.object(update))
+        send(Self.result(id, ["messageId": .string(target)]), to: name)
+        if forced, let text = current[target]?["content"]?.array?.first?["text"]?.string {
+            await prompted?(target, text, true)
         }
-        let force = fields["force"] == .bool(true)
-        let reply = put(LiveReply(
-            id: "rpl_\(replyOrder.count + 1)", seq: 0, clientRef: clientRef,
-            status: state.working && !force ? .queued : .pending, text: text,
-            at: LiveDates.string(.now), sender: LiveSender(login: "jai", name: "Jai"),
-            images: (0..<images).map { LiveImage(id: "img\($0)", url: "images/img\($0)") }
-        ))
-        await sent?(reply)
-        return try json(request, 201, replies[reply.id] ?? reply)
     }
 
-    private func answer(_ request: URLRequest, _ body: JSONValue?) async throws -> (Data, HTTPURLResponse) {
-        guard case let .object(fields) = body, case let .string(question)? = fields["question_id"],
-              case let .string(clientRef)? = fields["client_ref"] else {
-            return refusal(request, 400, "bad_request")
+    private func resume(_ params: JSONValue, id: JSONValue, on name: String) {
+        let replay = params["replayFrom"]
+        if replay?["type"]?.string == "_cursor" {
+            guard let cursor = replay?["cursor"]?.string, cursor.hasPrefix("c:"),
+                  let after = Int(cursor.dropFirst(2)), after <= seq, after >= forgottenBefore else {
+                return send(Self.error(id, AcpError.invalidParams, "cursor expired"), to: name)
+            }
+            for entry in log where entry.seq > after && entry.update["sessionUpdate"]?.string != "state_update" {
+                send(Self.note(entry.update, cursor: entry.seq, session: session), to: name)
+            }
+        } else {
+            for message in order.suffix(200).compactMap({ current[$0] }) {
+                send(Self.note(message, cursor: seq, session: session), to: name)
+            }
         }
-        guard let waiting = state.waiting, waiting.id == question else {
-            return refusal(request, 409, "conflict")
+        send(Self.note(state, cursor: seq, session: session), to: name)
+        if let question {
+            send(Self.questionMessage(question.id, question.params), to: name)
         }
-        var chosen: [String] = []
-        if case let .array(ids)? = fields["option_ids"] {
-            chosen = ids.compactMap { if case let .string(id) = $0 { id } else { nil } }
-        }
-        var words = waiting.options.filter { chosen.contains($0.id) }.map(\.label).joined(separator: ", ")
-        if case let .string(text)? = fields["text"], !text.isEmpty {
-            words = words.isEmpty ? text : "\(words): \(text)"
-        }
-        let reply = put(LiveReply(
-            id: "rpl_\(replyOrder.count + 1)", seq: 0, clientRef: clientRef, status: .pending, text: words,
-            at: LiveDates.string(.now), sender: LiveSender(login: "jai", name: "Jai")
-        ))
-        var cleared = state
-        cleared.waiting = nil
-        set(cleared)
-        await sent?(reply)
-        return try json(request, 201, replies[reply.id] ?? reply)
+        send(Self.result(id, [:]), to: name)
     }
 
-    private func move(_ reply: LiveReply, to status: LiveReply.Status) -> LiveReply {
-        var reply = reply
-        reply.status = status
-        return put(reply)
+    private func prompt(_ params: JSONValue, id: JSONValue, on name: String) async {
+        let ours = params.at("_meta", "agentchatkit")
+        let clientRef = ours?["clientRef"]?.string
+        if let clientRef, let first = order.first(where: {
+            current[$0]?.at("_meta", "agentchatkit", "clientRef")?.string == clientRef
+        }) {
+            return send(Self.result(id, ["messageId": .string(first)]), to: name)
+        }
+        let blocks = params["prompt"]?.array ?? []
+        let text = blocks.compactMap { $0["text"]?.string }.joined(separator: "\n\n")
+        guard !blocks.isEmpty else {
+            return send(Self.error(id, AcpError.invalidParams, "nothing to send"), to: name)
+        }
+        let force = ours?["force"] == .bool(true)
+        userMessages += 1
+        let messageID = "u\(userMessages)"
+        let images = blocks.filter { $0["type"]?.string == "image" }.indices.map { index -> JSONValue in
+            ["type": "resource_link", "name": .string("screenshot-\(index + 1).jpg"),
+             "uri": .string("attachments/\(messageID)/\(index)"), "mimeType": "image/jpeg"]
+        }
+        let words: [JSONValue] = text.isEmpty ? [] : [["type": "text", "text": .string(text)]]
+        publish([
+            "sessionUpdate": "user_message", "messageId": .string(messageID), "content": .array(words + images),
+            "_meta": ["agentchatkit": [
+                "at": .string(LiveDates.string(.now)), "sender": ["login": "jai", "name": "Jai"],
+                "status": phase == .running && !force ? "queued" : "pending", "clientRef": JSONValue(clientRef),
+            ]],
+        ])
+        send(Self.result(id, ["messageId": .string(messageID)]), to: name)
+        await prompted?(messageID, text, force)
     }
 
-    private func read(_ query: [String: String]) -> [LiveFrame] {
-        let limit = query["limit"].flatMap(Int.init) ?? 100
-        if let before = query["before"], let index = order.firstIndex(of: before) {
-            let start = max(0, index - limit)
-            return [.earlier(messages: order[start..<index].compactMap { messages[$0] }, moreBefore: start > 0)]
+    private func take(answer message: JSONValue, from name: String) async {
+        guard let open = question, message["id"] == open.id else {
+            return
         }
-        return frames(after: query["after"].flatMap(resumeSeq), limit: limit)
+        question = nil
+        cancelQuestion(open.id, except: name)
+        guard message.at("result", "action")?.string == "accept" else {
+            setState(.running)
+            return
+        }
+        let content = message.at("result", "content")
+        let chosen = content?["choices"]?.array?.compactMap(\.string) ?? [content?["choice"]?.string].compactMap(\.self)
+        let words = content?["text"]?.string
+        let properties = open.params.at("requestedSchema", "properties")
+        let schema = properties?["choice"] ?? properties?.at("choices", "items")
+        let ids = schema?["enum"]?.array?.compactMap(\.string) ?? []
+        let names = schema?["enumNames"]?.array?.compactMap(\.string) ?? []
+        let shown = chosen.map { id in ids.firstIndex(of: id).map { $0 < names.count ? names[$0] : id } ?? id }
+        let text = [shown.joined(separator: ", "), words ?? ""].filter { !$0.isEmpty }.joined(separator: ": ")
+        userMessages += 1
+        publish([
+            "sessionUpdate": "user_message", "messageId": .string("u\(userMessages)"),
+            "content": [["type": "text", "text": .string(text)]],
+            "_meta": ["agentchatkit": [
+                "at": .string(LiveDates.string(.now)), "sender": ["login": "jai", "name": "Jai"], "status": "delivered",
+            ]],
+        ])
+        setState(.running)
+        await answered?(chosen, words)
     }
 
-    /// The frames after a resumable `seq`, or a snapshot.
-    private func frames(after resumed: Int?, limit: Int) -> [LiveFrame] {
-        if let resumed {
-            return changes.filter { Self.seq(of: $0) > resumed }
+    private func cancelQuestion(_ id: JSONValue, except name: String) {
+        for other in connections.keys where other != name {
+            send(["jsonrpc": "2.0", "method": "$/cancel_request", "params": ["requestId": id]], to: other)
         }
-        let held = order.compactMap { messages[$0] }
-        return [.snapshot(LiveSnapshot(
-            cursor: cursor(seq), seq: seq, messages: Array(held.suffix(limit)),
-            replies: replyOrder.compactMap { replies[$0] }.filter { $0.status != .delivered },
-            state: state, moreBefore: held.count > limit
-        ))]
-    }
-
-    private func refuse(_ request: URLRequest, _ route: Route) -> (status: Int, body: String)? {
-        if let bearer, request.value(forHTTPHeaderField: "Authorization") != "Bearer \(bearer)" {
-            return (401, Self.refusal("unauthorized"))
-        }
-        if route.query["v"] != "1" {
-            return (400, Self.refusal("unsupported_version"))
-        }
-        if route.query["after"] != nil, route.query["before"] != nil {
-            return (400, Self.refusal("bad_request"))
-        }
-        return nil
     }
 
     // MARK: - Plumbing
 
-    private struct Route {
-        var path: String
-        var query: [String: String]
-    }
-
-    private func route(_ request: URLRequest) throws -> Route {
-        guard let url = request.url else {
-            throw URLError(.badURL)
-        }
-        requests.append("\(request.httpMethod ?? "GET") \(url.path())\(url.query().map { "?\($0)" } ?? "")")
-        if down {
-            throw URLError(.notConnectedToInternet)
-        }
-        // The route is the first `live` segment that what follows makes a route of: a chat may be named `live`.
-        let segments = url.path().split(separator: "/").map(String.init)
-        let start = segments.indices.first { segments[$0] == "live" && Self.isRoute(Array(segments[($0 + 1)...])) }
-        let path0 = start.map { segments[$0...].joined(separator: "/") } ?? url.path()
-        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        return Route(path: path0, query: Dictionary(items.map { ($0.name, $0.value ?? "") }) { _, last in last })
-    }
-
-    private static func isRoute(_ rest: [String]) -> Bool {
-        switch rest.count {
-        case 0: true
-        case 1: ["read", "messages", "answer"].contains(rest[0])
-        case 2: rest[0] == "replies"
-        case 3: rest[0] == "replies" && rest[2] == "force"
-        default: false
-        }
-    }
-
-    private func next() -> Int {
+    private func record(_ update: JSONValue) {
         seq += 1
-        return seq
+        log.append((seq, update))
+        for name in connections.keys {
+            send(Self.note(update, cursor: seq, session: session), to: name)
+        }
     }
 
-    private func cursor(_ seq: Int) -> String { "c:\(seq)" }
+    private func send(_ message: JSONValue, to name: String) {
+        guard let data = try? message.data() else {
+            return
+        }
+        connections[name]?.stream?.yield("data: " + String(decoding: data, as: UTF8.self))
+    }
 
-    private func resumeSeq(_ cursor: String) -> Int? {
-        guard cursor.hasPrefix("c:"), let seq = Int(cursor.dropFirst(2)), seq <= self.seq,
-              seq >= forgottenBefore - 1 || forgottenBefore == 0 else {
+    private func refused(_ request: URLRequest) -> Int? {
+        guard let bearer else {
             return nil
         }
-        return seq
+        return request.value(forHTTPHeaderField: "Authorization") == "Bearer \(bearer)" ? nil : 401
     }
 
-    private func publish(_ frame: LiveFrame) {
-        changes.append(frame)
-        let lines = Self.lines(frame)
-        for stream in streams.values {
-            stream.yield(contentsOf: lines)
-        }
+    private func response(_ request: URLRequest, _ status: Int, _ headers: [String: String] = [:]) -> HTTPURLResponse {
+        HTTPURLResponse(url: request.url ?? URL(filePath: "/"), statusCode: status, httpVersion: "HTTP/2",
+                        headerFields: headers) ?? HTTPURLResponse()
     }
 
-    private static func seq(of frame: LiveFrame) -> Int {
-        switch frame {
-        case let .message(_, _, seq), let .reply(_, _, seq), let .state(_, _, seq): seq
-        default: 0
-        }
+    private static func empty() -> LineStream.Lines {
+        AsyncThrowingStream { $0.finish() }
     }
 
-    /// A frame's SSE text as a line stream hands it over: without the blank line.
-    private static func lines(_ frame: LiveFrame) -> [String] {
-        ((try? frame.sse()) ?? "").split(separator: "\n").map(String.init)
+    public static func agentMessage(_ id: String, _ text: String, at: Date = .now) -> JSONValue {
+        ["sessionUpdate": "agent_message", "messageId": .string(id),
+         "content": [["type": "text", "text": .string(text)]],
+         "_meta": ["agentchatkit": ["at": .string(LiveDates.string(at))]]]
     }
 
-    private static func body(_ text: String) -> LineStream.Lines {
-        AsyncThrowingStream { continuation in
-            continuation.yield(text)
-            continuation.finish()
-        }
+    static func note(_ update: JSONValue, cursor: Int, session: String) -> JSONValue {
+        ["jsonrpc": "2.0", "method": "session/update", "params": [
+            "sessionId": .string(session), "update": update,
+            "_meta": ["agentchatkit": ["cursor": .string("c:\(cursor)")]],
+        ]]
     }
 
-    private static func refusal(_ error: String) -> String {
-        #"{"error":"\#(error)","message":"\#(error)"}"#
+    static func questionMessage(_ id: JSONValue, _ params: JSONValue) -> JSONValue {
+        ["jsonrpc": "2.0", "id": id, "method": "elicitation/create", "params": params]
     }
 
-    private func refusal(_ request: URLRequest, _ status: Int, _ error: String) -> (Data, HTTPURLResponse) {
-        (Data(Self.refusal(error).utf8), response(request, status))
+    static func result(_ id: JSONValue, _ result: JSONValue) -> JSONValue {
+        ["jsonrpc": "2.0", "id": id, "result": result]
     }
 
-    private func json(_ request: URLRequest, _ status: Int, _ value: some Encodable) throws -> (Data, HTTPURLResponse) {
-        (try JSONEncoder().encode(value), response(request, status))
-    }
-
-    private func response(_ request: URLRequest, _ status: Int) -> HTTPURLResponse {
-        HTTPURLResponse(url: request.url ?? URL(filePath: "/"), statusCode: status, httpVersion: "HTTP/1.1",
-                        headerFields: [:]) ?? HTTPURLResponse()
-    }
-
-    private struct ReadAnswer: Encodable {
-        let v = 1
-        let frames: [LiveFrame]
-    }
-}
-
-private extension AsyncThrowingStream.Continuation where Element == String {
-    func yield(contentsOf lines: [String]) {
-        for line in lines {
-            yield(line)
-        }
+    static func error(_ id: JSONValue, _ code: Int, _ message: String) -> JSONValue {
+        ["jsonrpc": "2.0", "id": id, "error": ["code": .number(Double(code)), "message": .string(message)]]
     }
 }

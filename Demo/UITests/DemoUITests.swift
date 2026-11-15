@@ -95,8 +95,9 @@ final class DemoUITests: XCTestCase {
         XCTAssertTrue(lastPart.isHittable, "The chat stopped following the answer")
     }
 
-    /// The Live chat (AgentChatLive on the in-memory server): an answer arrives as it is written; a dropped stream
-    /// reconnects from its cursor; offline, the agent keeps writing and the chat catches up once back, nothing twice.
+    /// The Live chat (AgentChatLive over ACP, on the in-memory host): an answer arrives as it is written; a dropped
+    /// stream resumes from its cursor; offline, the agent keeps writing and the chat catches up once back, nothing
+    /// twice; the agent's question is answered with a tap.
     func testLiveChatReconnects() {
         launch(chat: "live")
         waitFor(element(containing: "This chat is"), "live greeting")
@@ -125,6 +126,13 @@ final class DemoUITests: XCTestCase {
         waitFor(streaming(3), "a new stream once back online")
         XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == %@", "How do themes work?")).count, 1,
                        "A message showed twice after reconnecting")
+
+        // The agent asks before it merges (elicitation/create); a tap answers, and the answer shows as his message.
+        send("Merge it")
+        waitFor(app.descendants(matching: .any)["demo-live-question"], "the agent's question")
+        app.buttons["demo-live-option-merge"].tap()
+        waitFor(app.staticTexts["Merge now"], "the answer as his message")
+        waitFor(element(containing: "Merged, and tagged"), "the agent going on after the answer")
     }
 
     /// The README's pictures, with the agent slowed down to catch it at work. Kept as attachments on the result.

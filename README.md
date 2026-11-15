@@ -13,8 +13,8 @@ chats with it. It knows nothing of pull requests or of any app's Worker: a host 
 |---|---|---|
 | `AgentChatCore` | `MessageImage` (a screenshot as a Worker takes it) and `ScreenshotLine` | Foundation. Safe in an app extension. |
 | `AgentChatKit` | `ChatView`, `ChatMessage`, `SessionBubble`, `SessionComposer`, `ComposerAttachments`, `ModelReasoningChip` and `ModelPicker`, `DeliveryTicks`, `ChatQuickReply` and `WaitWhatButton`, `MarkdownText`, `ChatScroll` and `followsChatEnd`, `ReturnKey`, `Pasteboard`, `FoldSet`, `ChatStyle`, `ChatTheme` | SwiftUI, and `AgentChatCore`, re-exported. |
-| `AgentChatLive` | `LiveChatModel` follows a chat live ([protocol](docs/live-protocol.md)): stream, reconnect with back-off, read while down, one cursor, the writes; `LiveChat` and its `chatMessages` | `AgentChatKit`, [DurableNetworking](https://github.com/jai/durable-networking) |
-| `AgentChatLiveTesting` | `LiveLoopbackServer`: the protocol's server in memory, for tests, previews and demos | `AgentChatLive` |
+| `AgentChatLive` | `LiveChatModel` follows a chat over [our ACP v2 profile](docs/live-protocol.md): initialize, the session stream, resume from a cursor, reconnect with back-off, the writes (send, edit, send now, remove) and the agent's questions; `LiveChat` and its `chatMessages` | `AgentChatKit`, [DurableNetworking](https://github.com/jai/durable-networking) |
+| `AgentChatLiveTesting` | `LiveLoopbackServer`: an ACP host in memory, for tests, previews and demos | `AgentChatLive` |
 | `@jai/agentchat-live` (npm, [`server/`](server/README.md)) | The protocol's server for a Cloudflare Worker: `<base>/acp`, the room Durable Object, replay and broadcast; a conformance suite every host runs; an in-memory host | none; installed from each release's tarball |
 
 ## Use it
@@ -52,8 +52,8 @@ measures (a bubble's insets, its widest share of a wide window) are `ChatStyle`'
 `Demo/` is an iPhone and Mac app that shows the chat at work with a scripted agent: replies that stream in
 Markdown after quiet tool-call rows, the working line, delivery ticks, "Wait, what?", screenshots sent from the reply
 box, the model and reasoning chip, a long chat that keeps to its end, three themes set by the host (PR Hub,
-Terminal, Paper), and a Live chat followed with AgentChatLive, whose toolbar drops the stream or takes the network away
-to show it reconnect. Everything runs in the app: no network, no account.
+Terminal, Paper), and a Live chat followed with AgentChatLive over ACP, whose toolbar drops the stream or takes the network
+away to show it reconnect, and whose agent asks before it merges. Everything runs in the app: no network, no account.
 
 <p>
   <img src="Demo/Screenshots/working.png" width="250" alt="The agent at work after a screenshot, in the PR Hub theme">

@@ -36,12 +36,13 @@ enum DemoScript {
     /// The Live chat's first message.
     static let liveGreeting = """
         This chat is **live**: I sit behind a chat server (in memory, on this device), and the app follows it with \
-        AgentChatLive, as Agent Pager and FeedbackKit follow theirs.
+        AgentChatLive over ACP, as Agent Pager and FeedbackKit follow theirs.
 
         - Ask me anything and watch my answer arrive as I write it.
-        - While I answer, tap **Drop the stream** (⚡︎): the app reads every 2 s, reconnects from its cursor, and \
-        nothing shows twice.
+        - While I answer, tap **Drop the stream** (⚡︎): the app reconnects, resumes from its cursor, \
+        and nothing shows twice.
         - **Go offline** (Wi-Fi) for a while, then back: it catches up on everything I wrote meanwhile.
+        - Ask me to *merge*: I ask you first, with buttons.
         """
 
     /// The reply to a message of his, by what it asks about.

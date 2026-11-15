@@ -4,13 +4,13 @@ import AgentChatLiveTesting
 import Foundation
 import Observation
 
-/// The Live chat: the scripted agent behind a live chat server, followed with AgentChatLive as an app follows its
-/// host's (docs/live-protocol.md). The server is `LiveLoopbackServer`, in memory: the toolbar drops its stream or takes
-/// its network away, so the chat can be watched reconnecting and catching up.
+/// The Live chat: the scripted agent behind an ACP host (our profile, docs/live-protocol.md), followed with
+/// AgentChatLive as an app follows its host's. The host is `LiveLoopbackServer`, in memory: the toolbar drops its
+/// stream or takes its network away, so the chat can be watched reconnecting and catching up.
 @MainActor
 @Observable
 final class DemoLiveChat {
-    let server = LiveLoopbackServer(chatID: "live")
+    let server = LiveLoopbackServer(session: "live")
     let model: LiveChatModel
     var draft = ""
     /// The network, as the toolbar switches it.
@@ -22,18 +22,20 @@ final class DemoLiveChat {
 
     init(pace: DemoPace) {
         model = LiveChatModel(
-            endpoint: LiveEndpoint(chat: URL(string: "https://demo.invalid/chats/live")!, bearer: { _ in "demo" }),
+            endpoint: LiveEndpoint(acp: URL(string: "https://demo.invalid/acp")!, session: "live",
+                                   bearer: { _ in "demo" }),
             http: server, streams: server
         )
         agent = DemoLiveAgent(server: server, pace: pace)
         let agent = agent
         let server = server
         Task {
-            await server.put(LiveMessage(
-                id: "greeting", seq: 0, role: .assistant, text: DemoScript.liveGreeting, at: LiveDates.string(.now)
-            ))
-            await server.onSent { reply in
-                Task { await agent.answer(reply) }
+            await server.agentSays("greeting", DemoScript.liveGreeting)
+            await server.onPrompt { message, text, _ in
+                Task { await agent.answer(message, text) }
+            }
+            await server.onAnswer { _, _ in
+                Task { await agent.afterAnswer() }
             }
         }
     }
@@ -43,7 +45,7 @@ final class DemoLiveChat {
         switch model.phase {
         case .idle, .connecting: "Connecting…"
         case .live: "Live · stream \(model.streamsOpened)"
-        case .reading: isOnline ? "Reconnecting… reading every 2 s" : "Offline… reading every 2 s"
+        case .reconnecting: isOnline ? "Reconnecting…" : "Offline… reconnecting"
         case let .stopped(reason): "Stopped: \(reason)"
         }
     }
@@ -62,7 +64,15 @@ final class DemoLiveChat {
         }
     }
 
-    /// Ends the stream as a dropped connection does: the chat reads while it reconnects.
+    func answer(_ option: LiveQuestion.Option) {
+        guard let question = model.chat.question else {
+            return
+        }
+        sentCount += 1
+        Task { try? await model.answer(question, options: [option.id]) }
+    }
+
+    /// Ends the stream as a dropped connection does: the chat reconnects and resumes from its cursor.
     func dropStream() {
         Task { await server.dropStreams() }
     }
@@ -73,8 +83,8 @@ final class DemoLiveChat {
     }
 }
 
-/// The scripted agent on the server's side: it takes each reply, says it is working, calls its tools and writes its
-/// answer a few words at a time, as partial versions of one message, then the final one.
+/// The scripted agent on the host's side: it takes each message, says it is working, calls its tools and writes its
+/// answer a few words at a time (each a new version of one message), then goes idle. Asked to merge, it asks first.
 actor DemoLiveAgent {
     private let server: LiveLoopbackServer
     private let pace: DemoPace
@@ -86,61 +96,67 @@ actor DemoLiveAgent {
         self.pace = pace
     }
 
-    /// One reply at a time: one sent while it works waits for the answer before it.
-    func answer(_ reply: LiveReply) {
+    /// One message at a time: one sent while it works waits for the answer before it.
+    func answer(_ message: String, _ text: String) {
         let before = last
         last = Task {
             await before?.value
-            await run(reply)
+            await run(message, text)
         }
     }
 
-    private func run(_ reply: LiveReply) async {
-        try? await pace.wait(pace.delivery)
-        let message = await server.put(LiveMessage(
-            id: "you-\(reply.id)", seq: 0, role: .user, text: reply.text, at: reply.at, replyID: reply.id,
-            sender: reply.sender
-        ))
-        var delivered = reply
-        delivered.status = .delivered
-        delivered.messageID = message.id
-        await server.put(delivered)
+    func afterAnswer() {
+        let before = last
+        last = Task {
+            await before?.value
+            await server.setState(.running, activity: "Merging")
+            try? await pace.wait(pace.step)
+            await write("Merged, and tagged. CI is running on main.")
+            await server.setState(.idle)
+        }
+    }
 
-        let script = DemoScript.reply(to: reply.text, screenshots: 0, model: "Claude Opus 5.5")
-        await working("Thinking")
+    private func run(_ message: String, _ text: String) async {
+        await server.setStatus(message, .delivering)
+        try? await pace.wait(pace.delivery)
+        await server.setStatus(message, .delivered)
+        if text.lowercased().contains("merge") {
+            await server.setState(.running, activity: "Checking CI")
+            try? await pace.wait(pace.step)
+            await server.ask("CI is green. Merge now, or wait for review?", options: [
+                .init(id: "merge", label: "Merge now"), .init(id: "wait", label: "Wait for review"),
+            ])
+            return
+        }
+        let script = DemoScript.reply(to: text, screenshots: 0, model: "Claude Opus 5.5")
+        await server.setState(.running, activity: "Thinking")
         for step in script.steps {
             switch step {
             case let .think(doing):
-                await working(doing)
+                await server.setState(.running, activity: doing)
                 try? await pace.wait(pace.step)
             case let .tool(name, summary, doing):
-                await working(doing)
+                await server.setState(.running, activity: doing)
                 try? await pace.wait(pace.step)
-                await server.put(LiveMessage(
-                    id: next("tool"), seq: 0, role: .tool, text: summary, at: LiveDates.string(.now), tool: name
-                ))
-            case let .say(text):
-                await working("Writing")
-                await write(text)
+                await server.tool(next("tool"), summary, name: name)
+            case let .say(words):
+                await server.setState(.running, activity: "Writing")
+                await write(words)
             }
         }
-        await server.set(LiveState(seq: 0, working: false))
-    }
-
-    private func working(_ activity: String) async {
-        await server.set(LiveState(seq: 0, working: true, activity: activity))
+        await server.setState(.idle)
     }
 
     private func write(_ text: String) async {
         let id = next("them")
-        let at = LiveDates.string(.now)
+        let at = Date.now
         var written = ""
         for chunk in DemoChat.chunks(of: text, size: pace.chunk * 4) {
             try? await pace.wait(pace.word * 4)
             written += chunk
-            await server.put(LiveMessage(id: id, seq: 0, role: .assistant, text: written, at: at, partial: true))
+            await server.agentSays(id, written, at: at)
         }
-        await server.put(LiveMessage(id: id, seq: 0, role: .assistant, text: text, at: at))
+        await server.agentSays(id, text, at: at)
     }
 
     private func next(_ kind: String) -> String {

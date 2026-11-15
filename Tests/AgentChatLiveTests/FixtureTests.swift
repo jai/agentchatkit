@@ -2,199 +2,131 @@ import Foundation
 import Testing
 @testable import AgentChatLive
 
-/// The golden fixtures (protocol/fixtures, docs/live-protocol.md): the same files the server's conformance suite runs.
+/// The profile's golden fixtures (protocol/fixtures, docs/live-protocol.md): the same files the server's conformance
+/// suite runs. Here, each scenario's `client` half.
 enum Fixtures {
     static let directory = URL(filePath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .appending(path: "protocol/fixtures")
 
-    static func load(_ name: String) throws -> [String: JSONValue] {
-        let data = try Data(contentsOf: directory.appending(path: name))
-        guard case let .object(fields) = try JSONDecoder().decode(JSONValue.self, from: data) else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        return fields
+    static func load(_ name: String) throws -> JSONValue {
+        try JSONValue.decode(Data(contentsOf: directory.appending(path: name)))
     }
 
-    static func data(_ value: JSONValue) throws -> Data {
-        try JSONEncoder().encode(value)
-    }
-
-    static func decode<T: Decodable>(_ type: T.Type, _ value: JSONValue) throws -> T {
-        try JSONDecoder().decode(type, from: data(value))
-    }
-
-    /// The scenarios with a `client` section that runs frames.
-    static let clientScenarios = [
-        "connect-fresh.json", "reconnect-resume.json", "cursor-expired.json", "duplicate.json", "out-of-order.json",
-        "snapshot-reset.json", "message-update.json", "reply-lifecycle.json", "earlier.json", "display-order.json",
+    static let scenarios = [
+        "resume-start.json", "resume-cursor.json", "display-order.json", "prompt-lifecycle.json", "question.json",
     ]
 }
 
-extension JSONValue {
-    subscript(key: String) -> JSONValue? {
-        if case let .object(fields) = self { fields[key] } else { nil }
-    }
-
-    var array: [JSONValue] {
-        if case let .array(list) = self { list } else { [] }
-    }
-
-    var string: String? {
-        if case let .string(text) = self { text } else { nil }
-    }
-
-    var int: Int? {
-        if case let .number(number) = self { Int(number) } else { nil }
-    }
-
-    var isNull: Bool { self == .null }
-}
-
-/// Disabled: the protocol moved to ACP v2 (docs/live-protocol.md) and these read the earlier fixtures. AgentChatLive is
-/// being rebuilt on ACP; its new fixture tests replace these.
-@Suite(.disabled("AgentChatLive is being rebuilt on the ACP v2 profile; these read the earlier fixtures"))
 struct FixtureTests {
-    @Test(arguments: Fixtures.clientScenarios)
+    @Test(arguments: Fixtures.scenarios)
     func theClientEndsWhereTheFixtureSays(_ name: String) throws {
-        let client = try #require(Fixtures.load(name)["client"])
-        var chat = try Self.start(client["start"])
-        for input in client["inputs"]?.array ?? [] {
-            chat.take(try LiveFrame.decode(Fixtures.data(try #require(input["frame"]))))
+        let client = try #require(try Fixtures.load(name)["client"])
+        var chat = Self.start(client["start"])
+        for message in client["messages"]?.array ?? [] {
+            chat.take(AcpIncoming.parse(message))
         }
-        try Self.expect(chat, matches: try #require(client["expect"]), name)
-        if case let .object(ticks)? = client["ticks"] {
-            for (id, count) in ticks {
-                #expect(chat.reply(id)?.ticks?.rawValue == count.int, "\(name): ticks of \(id)")
+        try Self.check(chat, client["expect"], name)
+        if let then = client["then"]?.array {
+            for message in then {
+                chat.take(AcpIncoming.parse(message))
             }
+            try Self.check(chat, client["expect_then"], name + " then")
+        }
+        if let bubbles = client["bubbles"]?.array {
+            #expect(chat.chatMessages.map(\.id) == bubbles.compactMap(\.string), "\(name): bubbles")
+        }
+        for (id, count) in client["ticks"]?.object ?? [:] {
+            #expect(chat.message(id)?.ticks?.rawValue == count.int, "\(name): ticks of \(id)")
         }
     }
 
-    @Test func everyFrameDecodesAndEncodesToItsSSEText() throws {
-        let frames = try #require(Fixtures.load("frames.json")["frames"]).array
-        #expect(frames.count >= 8)
-        let parser = LiveEventParser()
-        for entry in frames {
-            let json = try #require(entry["json"])
-            let frame = try LiveFrame.decode(Fixtures.data(json))
-            #expect(frame.type == json["type"]?.string)
-            let sse = try #require(entry["sse"]?.string)
-            // Parsed from its SSE text, it is the same frame.
-            let parsed = sse.split(separator: "\n").compactMap { parser.frame(from: String($0)) }
-            #expect(parsed == [frame])
-            // Encoded again, it reads back the same.
-            let again = try LiveFrame.decode(JSONEncoder().encode(frame))
-            #expect(again == frame)
-            // And its SSE lines are the fixture's, but for key order inside the JSON.
-            let ours = try frame.sse().split(separator: "\n")
-            let theirs = sse.split(separator: "\n")
-            #expect(ours.count == theirs.count)
-            #expect(ours.first == theirs.first)
+    @Test func anExpiredCursorsReplayReplacesEverything() throws {
+        let client = try #require(try Fixtures.load("resume-expired.json")["client"])
+        let held = Self.start(client["start"])
+        #expect(!held.messages.isEmpty)
+        // The resume answered -32602; the client resumed from start into a fresh chat, which replaces the held one.
+        var replay = LiveChat()
+        for message in client["replay"]?.array ?? [] {
+            replay.take(AcpIncoming.parse(message))
         }
+        try Self.check(replay, client["expect"], "resume-expired")
     }
 
-    @Test func framesAndFieldsItDoesNotKnowAreIgnored() throws {
-        let unknown = try #require(Fixtures.load("frames.json")["unknown"])
-        var chat = LiveChat()
-        let parser = LiveEventParser()
-        for line in try #require(unknown["sse"]?.string).split(separator: "\n") {
-            if let frame = parser.frame(from: String(line)) {
-                chat.take(frame)
-            }
+    @Test func everyHostMessageIsReadAndEveryRequestIsWrittenAsTheFixtureSays() throws {
+        let fixture = try Fixtures.load("messages.json")
+        for entry in fixture["host_to_client"]?.array ?? [] {
+            let parsed = AcpIncoming.parse(try #require(entry["message"]))
+            #expect(parsed != .other, "\(entry["name"]?.string ?? ""): not read")
         }
-        try Self.expect(chat, matches: try #require(unknown["expect"]), "unknown")
+        let requests = Dictionary(uniqueKeysWithValues: (fixture["client_to_host"]?.array ?? []).compactMap { entry in
+            entry["name"]?.string.map { ($0, entry["message"] ?? .null) }
+        })
+        let initialize = Acp.initialize(1, client: "AgentChatLive", version: "0.3.0")
+        #expect(initialize.at("params", "clientCapabilities") == requests["initialize"]?.at("params", "clientCapabilities"))
+        #expect(initialize.at("params", "protocolVersion") == requests["initialize"]?.at("params", "protocolVersion"))
+        #expect(Acp.resume(2, session: "chat-1", cursor: nil) == requests["resume from start"])
+        #expect(Acp.resume(3, session: "chat-1", cursor: "c:2") == requests["resume from a cursor"])
+        let words = Acp.prompt("Merge it.", images: [])
+        #expect(words.array?.first == requests["prompt"]?.at("params", "prompt")?.array?.first)
     }
 
-    @Test func refusalsAndClosesTellTheClientWhatToDo() throws {
-        let fixture = try Fixtures.load("refusals.json")
-        for entry in fixture["http"]?.array ?? [] {
-            let action = LiveAction.forStatus(
-                try #require(entry["status"]?.int), error: entry["error"]?.string,
-                retryAfterSeconds: entry["retry_after"]?.int
-            )
-            #expect(Self.name(action) == entry["action"]?.string, "HTTP \(entry["status"]?.int ?? 0)")
+    @Test func theQuestionReadsItsOptionsAndWhatItTakes() throws {
+        let entry = try #require(try Fixtures.load("messages.json")["host_to_client"]?.array?.first {
+            $0["name"]?.string == "question"
+        })
+        guard case let .question(question) = AcpIncoming.parse(try #require(entry["message"])) else {
+            Issue.record("not a question")
+            return
         }
-        for entry in fixture["close"]?.array ?? [] {
-            let close = LiveClose(
-                code: try #require(entry["code"]?.int), reason: entry["reason"]?.string ?? "",
-                retryAfterMs: entry["retry_after_ms"]?.int ?? 0
-            )
-            #expect(Self.name(LiveAction.forClose(close)) == entry["action"]?.string, "close \(close.code)")
-        }
-        let backoff = (fixture["backoff_ms"]?.array ?? []).compactMap(\.int)
-        for (attempt, ms) in backoff.enumerated() {
+        #expect(question.message == "Merge now or wait for review?")
+        #expect(question.options.map(\.label) == ["Merge now", "Wait for review"])
+        #expect(!question.multiple)
+        #expect(question.freeText)
+    }
+
+    @Test func theTransportFixtureIsTheModelsTiming() throws {
+        let transport = try Fixtures.load("transport.json")
+        for (attempt, ms) in (transport["backoff_ms"]?.array ?? []).compactMap(\.int).enumerated() {
             #expect(LiveTiming.standard.backoff(attempt: attempt) == .milliseconds(ms))
         }
-        #expect(LiveTiming.standard.readInterval == .milliseconds(fixture["read_interval_ms"]?.int ?? 0))
-        #expect(LiveTiming.standard.backoffResetsAfter == .milliseconds(fixture["backoff_resets_after_ms"]?.int ?? 0))
-    }
-
-    @Test func aWriteAnswerIsTakenByItsSeqLikeAFrame() throws {
-        let writes = try #require(Fixtures.load("writes.json")["writes"]).array
-        for write in writes {
-            var answer = try #require(write["answer"])
-            if case var .object(fields) = answer {
-                fields["seq"] = .number(1)
-                answer = .object(fields)
-            }
-            let reply = try Fixtures.decode(LiveReply.self, answer)
-            var chat = LiveChat()
-            chat.take(reply)
-            #expect(chat.reply(reply.id)?.status == reply.status)
-        }
+        #expect(LiveTiming.standard.backoffResetsAfter == .milliseconds(transport["backoff_resets_after_ms"]?.int ?? 0))
     }
 
     // MARK: -
 
-    static func start(_ value: JSONValue?) throws -> LiveChat {
+    static func start(_ value: JSONValue?) -> LiveChat {
         guard let value, !value.isNull else {
             return LiveChat()
         }
-        return LiveChat(
-            cursor: value["cursor"]?.string, seq: value["seq"]?.int ?? 0,
-            messages: try Fixtures.decode([LiveMessage].self, value["messages"] ?? .array([])),
-            replies: try Fixtures.decode([LiveReply].self, value["replies"] ?? .array([])),
-            state: try value["state"].flatMap { $0.isNull ? nil : try Fixtures.decode(LiveState.self, $0) },
-            moreBefore: value["more_before"] == .bool(true)
-        )
+        var chat = LiveChat()
+        for update in value["messages"]?.array ?? [] {
+            chat.take(.update(update, cursor: nil))
+        }
+        if let state = value["state"], !state.isNull {
+            chat.take(.update(state, cursor: nil))
+        }
+        chat.take(.update(.null, cursor: value["cursor"]?.string))
+        return chat
     }
 
-    static func expect(_ chat: LiveChat, matches expect: JSONValue, _ name: String) throws {
+    static func check(_ chat: LiveChat, _ expect: JSONValue?, _ name: String) throws {
+        let expect = try #require(expect)
         #expect(chat.cursor == expect["cursor"]?.string, "\(name): cursor")
-        #expect(chat.seq == expect["seq"]?.int, "\(name): seq")
-        #expect(chat.moreBefore == (expect["more_before"] == .bool(true)), "\(name): more_before")
         let messages = expect["messages"]?.array ?? []
-        #expect(chat.messages.map(\.id) == messages.compactMap { $0["id"]?.string }, "\(name): message order")
+        #expect(chat.messages.map(\.id) == messages.compactMap { $0["id"]?.string }, "\(name): order")
         for (held, want) in zip(chat.messages, messages) {
-            #expect(held.seq == want["seq"]?.int, "\(name): \(held.id) seq")
+            #expect(held.kind.rawValue == want["kind"]?.string, "\(name): \(held.id) kind")
             #expect(held.text == want["text"]?.string, "\(name): \(held.id) text")
-            #expect(held.partial == (want["partial"] == .bool(true)), "\(name): \(held.id) partial")
-        }
-        let replies = expect["replies"]?.array ?? []
-        #expect(chat.replies.map(\.id) == replies.compactMap { $0["id"]?.string }, "\(name): replies")
-        for (held, want) in zip(chat.replies, replies) {
-            #expect(held.seq == want["seq"]?.int, "\(name): \(held.id) seq")
-            #expect(held.status.rawValue == want["status"]?.string, "\(name): \(held.id) status")
-            #expect(held.messageID == want["message_id"]?.string, "\(name): \(held.id) message_id")
+            #expect(held.status?.rawValue == want["status"]?.string, "\(name): \(held.id) status")
         }
         if let state = expect["state"], !state.isNull {
-            #expect(chat.state?.seq == state["seq"]?.int, "\(name): state seq")
-            #expect(chat.state?.working == (state["working"] == .bool(true)), "\(name): working")
+            #expect(chat.state?.phase.rawValue == state["state"]?.string, "\(name): state")
             #expect(chat.state?.activity == state["activity"]?.string, "\(name): activity")
-            #expect(chat.state?.waiting?.id == state["waiting"]?.string, "\(name): waiting")
         } else {
             #expect(chat.state == nil, "\(name): no state")
         }
-    }
-
-    static func name(_ action: LiveAction) -> String {
-        switch action {
-        case .stop: "stop"
-        case .reauth: "reauth"
-        case .read: "read"
-        case .backoff: "backoff"
-        case .now: "now"
-        case .after: "after"
-        }
+        let question: JSONValue? = expect["question"]?.isNull == false ? expect["question"] : Optional.none
+        #expect(chat.question?.requestID == question, "\(name): question")
     }
 }

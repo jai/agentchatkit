@@ -1,105 +1,251 @@
 import Foundation
 
-/// One chat as the live protocol builds it: what the views show, and the one cursor it resumes from. A value: frames
-/// from the stream and from reads go through `take`, in whatever order they arrive, and the rules of
-/// docs/live-protocol.md ("The client's rules", "Display order") keep it right.
+/// Who wrote one of the people's messages: a chat can have several people.
+public struct LiveSender: Equatable, Sendable {
+    public var login: String
+    public var name: String?
+
+    public init(login: String, name: String? = nil) {
+        self.login = login
+        self.name = name
+    }
+}
+
+/// A file on a message: a screenshot, a video. The host signs `uri`, or makes it relative to its `/acp`.
+public struct LiveAttachment: Equatable, Sendable {
+    public var name: String
+    public var uri: String
+    public var mimeType: String?
+    public var width: Int?
+    public var height: Int?
+    public var durationMs: Int?
+}
+
+public struct LiveMessage: Equatable, Sendable, Identifiable {
+    public enum Kind: String, Sendable {
+        /// A person's words: `user_message`.
+        case user
+        /// The agent's words: `agent_message`.
+        case agent
+        /// A tool the agent called: `tool_call_update`.
+        case tool
+    }
+
+    /// How far one of the person's messages got, as the host reports it.
+    public enum Status: String, Sendable {
+        case pending, queued, delivering, delivered, failed, removed
+    }
+
+    public let id: String
+    public var kind: Kind
+    public var text: String
+    public var at: String?
+    public var toolName: String?
+    public var status: Status?
+    public var sender: LiveSender?
+    public var clientRef: String?
+    public var detail: String?
+    public var attachments: [LiveAttachment] = []
+    public var extra: JSONValue?
+
+    public init(id: String, kind: Kind, text: String = "", at: String? = nil) {
+        self.id = id
+        self.kind = kind
+        self.text = text
+        self.at = at
+    }
+
+    public var date: Date? { at.flatMap(LiveDates.parse) }
+}
+
+/// The agent's turn, as `state_update` reports it.
+public struct LiveState: Equatable, Sendable {
+    public enum Phase: String, Sendable {
+        case running, idle
+        case requiresAction = "requires_action"
+        case unknown
+    }
+
+    public var phase: Phase
+    public var stopReason: String?
+    /// What it is doing now, in a few words.
+    public var activity: String?
+    /// Why it stopped short of an answer.
+    public var problem: String?
+    public var extra: JSONValue?
+
+    public init(phase: Phase, stopReason: String? = nil, activity: String? = nil, problem: String? = nil) {
+        self.phase = phase
+        self.stopReason = stopReason
+        self.activity = activity
+        self.problem = problem
+    }
+
+    public var working: Bool { phase == .running }
+}
+
+/// The agent's open question (`elicitation/create`): it waits on the person.
+public struct LiveQuestion: Equatable, Sendable {
+    public struct Option: Equatable, Sendable, Identifiable {
+        public var id: String
+        public var label: String
+
+        public init(id: String, label: String) {
+            self.id = id
+            self.label = label
+        }
+    }
+
+    /// The JSON-RPC id of the request: the answer is its response.
+    public var requestID: JSONValue
+    public var message: String
+    public var options: [Option]
+    /// More than one option may be chosen.
+    public var multiple: Bool
+    /// Words may be sent instead of, or with, options.
+    public var freeText: Bool
+
+    public init(requestID: JSONValue, message: String, options: [Option], multiple: Bool, freeText: Bool) {
+        self.requestID = requestID
+        self.message = message
+        self.options = options
+        self.multiple = multiple
+        self.freeText = freeText
+    }
+}
+
+/// One chat as the profile builds it from ACP updates: what the views show, and the cursor it resumes from. A value:
+/// every message from the session stream goes through `take`.
 public struct LiveChat: Equatable, Sendable {
-    /// In display order: by `at`, not by arrival.
+    /// In display order: by `at`, not by arrival (docs/live-protocol.md, "Display order").
     public private(set) var messages: [LiveMessage] = []
-    /// In the order first taken. A `removed` one stays, so its status is known; views leave it out.
-    public private(set) var replies: [LiveReply] = []
     public private(set) var state: LiveState?
-    /// What the next stream or read resumes from. `nil`: nothing taken yet, so the server starts with a snapshot.
+    public private(set) var question: LiveQuestion?
+    /// The session's config options by id, as `config_option_update` sets them: `model`, `effort`.
+    public private(set) var options: [String: String] = [:]
+    /// What the next resume continues from; `nil`: resume from start.
     public private(set) var cursor: String?
-    public private(set) var seq = 0
-    /// Older messages exist: a read with `before` fetches them.
-    public private(set) var moreBefore = false
-    /// Where each message sorts: its `at`, or the `at` of the message before it when it was first taken.
     private var sortDates: [String: Date] = [:]
 
     public init() {}
 
-    /// A chat as kept from before: what a host stored with its cursor, shown at once and resumed from.
-    public init(
-        cursor: String?, seq: Int, messages: [LiveMessage], replies: [LiveReply] = [], state: LiveState? = nil,
-        moreBefore: Bool = false
-    ) {
-        reset(to: LiveSnapshot(
-            cursor: cursor ?? "", seq: seq, messages: messages, replies: replies, state: state, moreBefore: moreBefore
-        ))
+    /// A chat as kept from before, resumed from `cursor`.
+    public init(cursor: String?, messages: [LiveMessage], state: LiveState? = nil) {
         self.cursor = cursor
+        self.state = state
+        for message in messages {
+            insert(message)
+        }
     }
 
-    public mutating func take(_ frame: LiveFrame) {
-        switch frame {
-        case let .snapshot(snapshot):
-            reset(to: snapshot)
-        case let .message(message, cursor, seq):
-            take(message)
-            advance(cursor, seq)
-        case let .reply(reply, cursor, seq):
-            take(reply)
-            advance(cursor, seq)
-        case let .state(state, cursor, seq):
-            if state.seq > (self.state?.seq ?? Int.min) {
-                self.state = state
+    public var model: String? { options["model"] }
+    public var effort: String? { options["effort"] ?? options["reasoning"] }
+
+    public func message(_ id: String) -> LiveMessage? {
+        messages.first { $0.id == id }
+    }
+
+    /// Takes one message from the session stream.
+    public mutating func take(_ incoming: AcpIncoming) {
+        switch incoming {
+        case let .update(update, cursor):
+            apply(update)
+            if let cursor {
+                self.cursor = cursor
             }
-            advance(cursor, seq)
-        case let .earlier(messages, moreBefore):
-            prepend(messages)
-            self.moreBefore = moreBefore
-        case .hello, .ping, .close, .unknown:
+        case let .question(question):
+            self.question = question
+        case let .cancel(id):
+            if question?.requestID == id {
+                question = nil
+            }
+        case .result, .error, .other:
             break
         }
     }
 
-    /// A reply, from a frame or a write's answer: kept only if newer than the one held.
-    public mutating func take(_ reply: LiveReply) {
-        if let index = replies.firstIndex(where: { $0.id == reply.id }) {
-            if reply.seq > replies[index].seq {
-                replies[index] = reply
+    /// The question was answered here.
+    mutating func answered(_ requestID: JSONValue) {
+        if question?.requestID == requestID {
+            question = nil
+        }
+    }
+
+    // MARK: - Updates
+
+    private mutating func apply(_ update: JSONValue) {
+        let ours = update.at("_meta", "agentchatkit")
+        switch update["sessionUpdate"]?.string {
+        case "user_message", "agent_message":
+            guard let id = update["messageId"]?.string else {
+                return
             }
+            let kind: LiveMessage.Kind = update["sessionUpdate"]?.string == "user_message" ? .user : .agent
+            upsert(id, kind) { message in
+                if let content = update["content"] {
+                    message.text = Self.text(content)
+                    message.attachments = Self.attachments(content)
+                }
+                if let ours {
+                    Self.patch(&message, with: ours)
+                }
+            }
+        case "user_message_chunk", "agent_message_chunk":
+            guard let id = update["messageId"]?.string, let block = update["content"] else {
+                return
+            }
+            let kind: LiveMessage.Kind = update["sessionUpdate"]?.string == "user_message_chunk" ? .user : .agent
+            upsert(id, kind) { message in
+                message.text += block["text"]?.string ?? ""
+            }
+        case "tool_call_update":
+            guard let id = update["toolCallId"]?.string else {
+                return
+            }
+            upsert(id, .tool) { message in
+                if let title = update["title"]?.string {
+                    message.text = title
+                }
+                if let name = update["name"]?.string {
+                    message.toolName = name
+                }
+                if let ours {
+                    Self.patch(&message, with: ours)
+                }
+            }
+        case "state_update":
+            var state = LiveState(
+                phase: LiveState.Phase(rawValue: update["state"]?.string ?? "") ?? .unknown,
+                stopReason: update["stopReason"]?.string, activity: ours?["activity"]?.string,
+                problem: ours?["problem"]?.string
+            )
+            state.extra = ours?["extra"]
+            self.state = state
+        case "config_option_update":
+            for option in update["configOptions"]?.array ?? [] {
+                if let id = option["id"]?.string {
+                    options[id] = option["currentValue"]?.string
+                }
+            }
+        default:
+            break
+        }
+    }
+
+    private mutating func upsert(_ id: String, _ kind: LiveMessage.Kind, _ change: (inout LiveMessage) -> Void) {
+        if let index = messages.firstIndex(where: { $0.id == id }) {
+            change(&messages[index])
         } else {
-            replies.append(reply)
+            var message = LiveMessage(id: id, kind: kind)
+            change(&message)
+            insert(message)
         }
     }
 
-    public func reply(_ id: String) -> LiveReply? {
-        replies.first { $0.id == id }
-    }
-
-    /// The reply a message of the person's is.
-    public func reply(for message: LiveMessage) -> LiveReply? {
-        message.replyID.flatMap(reply) ?? replies.first { $0.messageID == message.id }
-    }
-
-    /// Replies not yet in the chat as a message, and not taken back: the host draws them after the messages.
-    public var outstanding: [LiveReply] {
-        replies.filter { reply in
-            reply.status != .removed && reply.messageID.map { id in !messages.contains { $0.id == id } } ?? true
-                && !messages.contains { $0.replyID == reply.id }
-        }
-    }
-
-    // MARK: - Rules
-
-    private mutating func advance(_ cursor: String, _ seq: Int) {
-        if seq > self.seq || self.cursor == nil {
-            self.cursor = cursor
-            self.seq = seq
-        }
-    }
-
-    private mutating func take(_ message: LiveMessage) {
-        if let index = messages.firstIndex(where: { $0.id == message.id }) {
-            if message.seq > messages[index].seq {
-                messages[index] = message
-            }
-            return
-        }
+    /// A message first taken: after every message that sorts at or before it, so equal `at` keeps the order taken.
+    private mutating func insert(_ message: LiveMessage) {
         let date = message.date ?? messages.last.flatMap { sortDates[$0.id] } ?? .distantPast
         sortDates[message.id] = date
-        // After every message that sorts at or before it: equal `at` keeps the order taken.
         var index = messages.endIndex
         while index > messages.startIndex, (sortDates[messages[index - 1].id] ?? .distantPast) > date {
             index -= 1
@@ -107,39 +253,45 @@ public struct LiveChat: Equatable, Sendable {
         messages.insert(message, at: index)
     }
 
-    private mutating func reset(to snapshot: LiveSnapshot) {
-        messages = []
-        sortDates = [:]
-        for message in snapshot.messages where !messages.contains(where: { $0.id == message.id }) {
-            sortDates[message.id] = message.date ?? messages.last.flatMap { sortDates[$0.id] } ?? .distantPast
-            messages.append(message)
+    /// `_meta.agentchatkit` replaces ours whole: `_meta` patches by top-level key, and ours is one key.
+    private static func patch(_ message: inout LiveMessage, with ours: JSONValue) {
+        message.at = ours["at"]?.string ?? message.at
+        message.status = ours["status"]?.string.flatMap(LiveMessage.Status.init)
+        message.clientRef = ours["clientRef"]?.string
+        message.detail = ours["detail"]?.string
+        message.extra = ours["extra"]
+        if let sender = ours["sender"], let login = sender["login"]?.string {
+            message.sender = LiveSender(login: login, name: sender["name"]?.string)
+        } else {
+            message.sender = nil
         }
-        replies = []
-        snapshot.replies.forEach { take($0) }
-        state = snapshot.state
-        cursor = snapshot.cursor
-        seq = snapshot.seq
-        moreBefore = snapshot.moreBefore
     }
 
-    private mutating func prepend(_ earlier: [LiveMessage]) {
-        var front: [LiveMessage] = []
-        for message in earlier where !messages.contains(where: { $0.id == message.id })
-            && !front.contains(where: { $0.id == message.id }) {
-            sortDates[message.id] = message.date ?? front.last.flatMap { sortDates[$0.id] } ?? .distantPast
-            front.append(message)
+    private static func text(_ content: JSONValue) -> String {
+        (content.array ?? []).compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }
+            .joined(separator: "\n\n")
+    }
+
+    private static func attachments(_ content: JSONValue) -> [LiveAttachment] {
+        (content.array ?? []).compactMap { block in
+            guard block["type"]?.string == "resource_link", let uri = block["uri"]?.string else {
+                return nil
+            }
+            let ours = block.at("_meta", "agentchatkit")
+            return LiveAttachment(
+                name: block["name"]?.string ?? "", uri: uri, mimeType: block["mimeType"]?.string,
+                width: ours?["width"]?.int, height: ours?["height"]?.int, durationMs: ours?["durationMs"]?.int
+            )
         }
-        messages.insert(contentsOf: front, at: 0)
     }
 }
 
-/// Turns a stream's lines into frames. A frame's `data` is one line of JSON (the protocol says so), so each `data:`
-/// line is a whole frame: the blank line between events is not needed, which matters because a line stream drops it.
+/// Splits a stream's lines into JSON-RPC messages: each `data:` line is one (the profile keeps them on one line, and a
+/// line stream drops the blank line between events). Comments, `event:` and `id:` lines carry none.
 public struct LiveEventParser: Sendable {
     public init() {}
 
-    /// The frame a line completes, if any. Comments, `event:`, `id:` and blank lines complete none.
-    public func frame(from line: String) -> LiveFrame? {
+    public func message(from line: String) -> JSONValue? {
         guard line.hasPrefix("data:") else {
             return nil
         }
@@ -147,6 +299,6 @@ public struct LiveEventParser: Sendable {
         if payload.first == " " {
             payload = payload.dropFirst()
         }
-        return try? LiveFrame.decode(Data(payload.utf8))
+        return try? JSONValue.decode(Data(payload.utf8))
     }
 }

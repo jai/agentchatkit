@@ -1,48 +1,97 @@
-import AgentChatKit
+import AgentChatCore
 import DurableNetworking
 import Foundation
 import Observation
 
-/// Where a chat lives, and the host's bearer for it. The live routes are under `chat`: `chat/live`, `chat/live/read`.
+/// Where a chat lives: the host's ACP endpoint, the chat's session id, and the host's bearer.
 public struct LiveEndpoint: Sendable {
-    public var chat: URL
+    /// `<base>/acp`.
+    public var acp: URL
+    public var session: String
     /// The bearer. `renew` true: the last one was refused; get a new one.
     public var bearer: @Sendable (_ renew: Bool) async throws -> String
 
-    public init(chat: URL, bearer: @escaping @Sendable (_ renew: Bool) async throws -> String) {
-        self.chat = chat
+    public init(acp: URL, session: String, bearer: @escaping @Sendable (_ renew: Bool) async throws -> String) {
+        self.acp = acp
+        self.session = session
         self.bearer = bearer
     }
 }
 
-/// A refused write.
-public struct LiveWriteError: Error, Equatable, Sendable {
-    public var status: Int
-    public var error: String
-    public var message: String
+/// Why a chat stopped following.
+public enum LiveStop: Equatable, Sendable {
+    case unauthorized, forbidden, notFound
 }
 
-/// Follows one chat live (docs/live-protocol.md): holds its stream while `follow()` runs, reconnects with back-off,
-/// reads every 2 s while the stream is down, and takes every frame once into `chat`. AgentChatKit's views read
-/// `chatMessages`, `chat.state` and `phase`. The host runs `follow()` while the chat is on screen and the app is in
-/// front, and keeps `chat` (its cursor with it) where it likes, to open on it next time.
+/// A request the host refused, or whose answer never came.
+public enum LiveRequestError: Error, Equatable, Sendable {
+    /// A JSON-RPC error: `AcpError.conflict` for an edit of a message already on its way.
+    case refused(code: Int, message: String)
+    case http(Int)
+    /// The stream the answer would have come on is down, or the answer took too long. A send with the same
+    /// `clientRef` is safe to repeat.
+    case noAnswer
+}
+
+/// How long one (re)connect took, step by step: the profile's reconnect costs four requests where plain SSE costs one,
+/// so hosts report these from real phones (docs/live-protocol.md, "To measure").
+public struct LiveConnectTiming: Equatable, Sendable {
+    /// `initialize`; `nil` when the connection id was still good.
+    public var initialize: Duration?
+    public var stream: Duration
+    /// `session/resume` until its answer, replay included.
+    public var resume: Duration
+    public var fromStart: Bool
+
+    public var total: Duration { (initialize ?? .zero) + stream + resume }
+}
+
+/// The protocol's timings. `standard` is the profile's; tests shorten them.
+public struct LiveTiming: Sendable {
+    public var backoff: [Duration]
+    public var jitter: Double
+    /// A stream open this long starts the back-off again from the first step.
+    public var backoffResetsAfter: Duration
+    /// How long a request waits for its answer on the stream.
+    public var answerLimit: Duration
+
+    public init(backoff: [Duration], jitter: Double, backoffResetsAfter: Duration, answerLimit: Duration) {
+        self.backoff = backoff
+        self.jitter = jitter
+        self.backoffResetsAfter = backoffResetsAfter
+        self.answerLimit = answerLimit
+    }
+
+    public static let standard = LiveTiming(
+        backoff: [.seconds(1), .seconds(2), .seconds(4), .seconds(8), .seconds(15)], jitter: 0.2,
+        backoffResetsAfter: .seconds(10), answerLimit: .seconds(20)
+    )
+
+    public func backoff(attempt: Int) -> Duration {
+        backoff[min(attempt, backoff.count - 1)]
+    }
+}
+
+/// Follows one chat over the profile (docs/live-protocol.md): initializes, holds the session stream, resumes from its
+/// cursor (or from start, replacing what it held), reconnects with back-off, and sends the person's writes as
+/// JSON-RPC requests whose answers come on the stream. AgentChatKit's views read `chatMessages`, `chat` and `phase`.
+/// The host runs `follow()` while the chat is on screen and the app is in front, and keeps `chat` to open on next time.
 @MainActor
 @Observable
 public final class LiveChatModel {
     public enum Phase: Equatable, Sendable {
-        case idle
-        case connecting
-        /// The stream is open.
-        case live
-        /// The stream is down; reads every 2 s keep the chat fresh until it is back.
-        case reading
+        case idle, connecting, live, reconnecting
         case stopped(LiveStop)
     }
 
     public private(set) var chat: LiveChat
     public private(set) var phase: Phase = .idle
-    /// Streams opened since `follow()` began: the demo and the tests count reconnects with it.
+    /// Session streams opened since this model was made.
     public private(set) var streamsOpened = 0
+    /// The newest (re)connects, newest last, at most 20.
+    public private(set) var timings: [LiveConnectTiming] = []
+    /// Told of each (re)connect's timing, for the host to log or report.
+    @ObservationIgnored public var onTiming: (@MainActor (LiveConnectTiming) -> Void)?
 
     @ObservationIgnored private let endpoint: LiveEndpoint
     @ObservationIgnored private let http: any HTTPTransport
@@ -52,6 +101,11 @@ public final class LiveChatModel {
     @ObservationIgnored private let random: @Sendable () -> Double
     @ObservationIgnored private let parser = LiveEventParser()
     @ObservationIgnored private var bearer: String?
+    @ObservationIgnored private var connection: String?
+    @ObservationIgnored private var nextID = 1
+    @ObservationIgnored private var waiting: [Int: CheckedContinuation<JSONValue, any Error>] = [:]
+    /// While a resume from start replays: the chat it builds, which replaces `chat` once the resume answers.
+    @ObservationIgnored private var replacing: (id: Int, chat: LiveChat)?
 
     public init(
         endpoint: LiveEndpoint, http: any HTTPTransport, streams: any StreamingTransport, kept: LiveChat = LiveChat(),
@@ -70,281 +124,316 @@ public final class LiveChatModel {
 
     // MARK: - Following
 
-    /// Follows the chat until the calling task is cancelled or the server says to stop.
+    private enum Outcome {
+        case stop(LiveStop)
+        case reauth
+        case reinitialize
+        case dropped(after: Duration)
+    }
+
+    /// Follows the chat until the calling task is cancelled or the host says to stop.
     public func follow() async {
-        if case .stopped = phase {
-            phase = .idle
-        }
+        phase = .connecting
         var attempt = 0
         var reauthed = false
+        var reinitialized = false
         while !Task.isCancelled {
-            let opened = ContinuousClock.now
-            let streamsBefore = streamsOpened
-            let action = await streamOnce()
-            if ContinuousClock.now - opened >= timing.backoffResetsAfter {
-                attempt = 0
-            }
-            if streamsOpened > streamsBefore {
-                reauthed = false
-            }
+            let outcome = await connectOnce()
             if Task.isCancelled {
                 break
             }
-            switch action {
+            switch outcome {
             case let .stop(reason):
                 phase = .stopped(reason)
+                failWaiting()
                 return
             case .reauth:
-                if reauthed {
+                guard !reauthed else {
                     phase = .stopped(.unauthorized)
                     return
                 }
                 reauthed = true
                 bearer = try? await endpoint.bearer(true)
-                continue
-            case .now:
-                break
-            case let .after(wait):
-                phase = .connecting
-                try? await sleep(wait)
-            case let .read(after: wait):
-                await readWhileDown(for: wait)
-            case .backoff:
+            case .reinitialize:
+                guard !reinitialized else {
+                    phase = .stopped(.notFound)
+                    return
+                }
+                reinitialized = true
+                connection = nil
+            case let .dropped(open):
+                if open > .zero {
+                    reauthed = false
+                    reinitialized = false
+                }
+                if open >= timing.backoffResetsAfter {
+                    attempt = 0
+                }
+                phase = .reconnecting
                 let base = timing.backoff(attempt: attempt)
                 attempt += 1
-                await readWhileDown(for: base * (1 + timing.jitter * (random() * 2 - 1)))
+                try? await sleep(base * (1 + timing.jitter * (random() * 2 - 1)))
             }
         }
+        failWaiting()
         if case .stopped = phase {} else {
             phase = .idle
         }
     }
 
-    /// One stream, from open to end: what to do next.
-    private func streamOnce() async -> LiveAction {
-        phase = .connecting
+    private func connectOnce() async -> Outcome {
+        let clock = ContinuousClock()
+        var initialized: Duration?
         do {
-            let stream = try await streams.open(request(path: "live", query: query(after: chat.cursor)))
-            guard stream.status == 200 else {
-                var body = ""
-                for try await line in stream.lines {
-                    body += line
+            if connection == nil {
+                let started = clock.now
+                let (_, response) = try await post(Acp.initialize(take(), client: "AgentChatLive", version: "1"))
+                switch response.statusCode {
+                case 200: break
+                case 401: return .reauth
+                case 403: return .stop(.forbidden)
+                case 404: return .stop(.notFound)
+                default: return .dropped(after: .zero)
                 }
-                return LiveAction.forStatus(
-                    stream.status, error: Self.errorCode(Data(body.utf8)),
-                    retryAfterSeconds: stream.response.value(forHTTPHeaderField: "Retry-After").flatMap { Int($0) }
-                )
+                guard let id = response.value(forHTTPHeaderField: "Acp-Connection-Id") else {
+                    return .dropped(after: .zero)
+                }
+                connection = id
+                initialized = clock.now - started
             }
+            let opening = clock.now
+            let stream = try await streams.open(request(method: "GET", accept: "text/event-stream"))
+            switch stream.status {
+            case 200: break
+            case 401: return .reauth
+            case 403: return .stop(.forbidden)
+            case 404: return .reinitialize
+            default: return .dropped(after: .zero)
+            }
+            let opened = clock.now
             streamsOpened += 1
-            phase = .live
-            for try await line in stream.lines {
-                guard let frame = parser.frame(from: line) else {
-                    continue
-                }
-                if case let .close(close) = frame {
-                    return LiveAction.forClose(close)
-                }
-                chat.take(frame)
+            let reader = Task { @MainActor [weak self] in
+                do {
+                    for try await line in stream.lines {
+                        guard let self, let message = self.parser.message(from: line) else {
+                            continue
+                        }
+                        self.receive(message)
+                    }
+                } catch {}
             }
-            return .backoff
+            await resume(clock: clock, initialized: initialized, stream: opened - opening)
+            await withTaskCancellationHandler {
+                await reader.value
+            } onCancel: {
+                reader.cancel()
+            }
+            failWaiting()
+            return .dropped(after: clock.now - opened)
         } catch {
-            return .backoff
+            failWaiting()
+            return .dropped(after: .zero)
         }
     }
 
-    /// Reads every `readInterval` for `wait`, then returns to stream again.
-    private func readWhileDown(for wait: Duration) async {
-        phase = .reading
-        var left = wait
-        while !Task.isCancelled {
-            if case .stop = await read() {
-                return
-            }
-            if left <= .zero {
-                return
-            }
-            let pause = min(left, timing.readInterval)
-            do {
-                try await sleep(pause)
-            } catch {
-                return
-            }
-            left -= pause
-        }
-    }
-
-    private enum ReadOutcome { case read, failed, stop }
-
-    /// One read after the held cursor. A `401` gets a new bearer and is tried once more.
-    @discardableResult
-    private func read(renewed: Bool = false) async -> ReadOutcome {
+    /// `session/resume` from the held cursor; from start when there is none or the host can't resume from it.
+    private func resume(clock: ContinuousClock, initialized: Duration?, stream: Duration) async {
+        let started = clock.now
+        var fromStart = chat.cursor == nil
         do {
-            let (data, response) = try await http.send(request(path: "live/read", query: query(after: chat.cursor)))
-            switch response.statusCode {
-            case 200:
-                for frame in try JSONDecoder().decode(LiveReadAnswer.self, from: data).frames {
-                    chat.take(frame)
-                }
-                return .read
-            case 401 where !renewed:
-                bearer = try? await endpoint.bearer(true)
-                return await read(renewed: true)
-            case 403, 404:
-                return .stop
-            default:
-                return .failed
-            }
+            _ = try await resumeCall()
+        } catch LiveRequestError.refused(AcpError.invalidParams, _) {
+            fromStart = true
+            _ = try? await resumeCall(fromStart: true)
         } catch {
-            return .failed
-        }
-    }
-
-    /// Fetches the messages before the oldest held ("Load earlier").
-    public func loadEarlier(limit: Int = 100) async throws {
-        guard let first = chat.messages.first else {
             return
         }
-        var items = query(after: nil)
-        items.append(URLQueryItem(name: "before", value: first.id))
-        items.append(URLQueryItem(name: "limit", value: String(limit)))
-        let data = try await write(request(path: "live/read", query: items), expect: [200])
-        for frame in try JSONDecoder().decode(LiveReadAnswer.self, from: data).frames {
-            chat.take(frame)
+        phase = .live
+        let measured = LiveConnectTiming(
+            initialize: initialized, stream: stream, resume: clock.now - started, fromStart: fromStart
+        )
+        timings = Array((timings + [measured]).suffix(20))
+        onTiming?(measured)
+    }
+
+    private func resumeCall(fromStart: Bool = false) async throws -> JSONValue {
+        let id = take()
+        let cursor = fromStart ? nil : chat.cursor
+        if cursor == nil {
+            replacing = (id, LiveChat())
+        }
+        return try await send(Acp.resume(id, session: endpoint.session, cursor: cursor), id: id)
+    }
+
+    private func receive(_ message: JSONValue) {
+        let incoming = AcpIncoming.parse(message)
+        switch incoming {
+        case let .result(id, result):
+            if let replacing, replacing.id == id {
+                chat = replacing.chat
+                self.replacing = nil
+            }
+            waiting.removeValue(forKey: id)?.resume(returning: result)
+        case let .error(id, code, text):
+            if replacing?.id == id {
+                replacing = nil
+            }
+            waiting.removeValue(forKey: id)?.resume(throwing: LiveRequestError.refused(code: code, message: text))
+        default:
+            if replacing != nil {
+                replacing?.chat.take(incoming)
+            } else {
+                chat.take(incoming)
+            }
         }
     }
 
     // MARK: - Writes
 
-    /// Sends a message. `force` nil: forced while the chat waits on the person, since a queued reply would wait for
-    /// good. `clientRef` is the idempotency key: send again with the same one after a failure.
+    /// Sends a message. Its `user_message` comes on the stream at once (`pending`, or `queued` behind the agent's
+    /// turn); the answer is its id. `force`: go now instead of after the turn. Repeat with the same `clientRef` after a
+    /// failure: the host answers the first message's id.
     @discardableResult
     public func send(
-        _ text: String, images: [MessageImage] = [], force: Bool? = nil, clientRef: String = UUID().uuidString
-    ) async throws -> LiveReply {
-        let body = SendBody(
-            text: text, clientRef: clientRef, force: force ?? (chat.state?.waiting != nil), images: images
-        )
-        return try await reply(request(path: "live/messages", method: "POST", body: body, key: clientRef))
+        _ text: String, images: [MessageImage] = [], force: Bool = false, clientRef: String = UUID().uuidString
+    ) async throws -> String {
+        let pictures = images.compactMap { Data(base64Encoded: $0.data) }
+        let result = try await call("session/prompt", [
+            "sessionId": .string(endpoint.session), "prompt": Acp.prompt(text, images: pictures),
+            "_meta": ["agentchatkit": ["clientRef": .string(clientRef), "force": .bool(force)]],
+        ])
+        return result["messageId"]?.string ?? ""
     }
 
-    /// Whether a send now would be forced: the chat waits on the person.
-    public var sendsForced: Bool { chat.state?.waiting != nil }
-
-    /// A queued reply goes now.
+    /// Sends a queued message now: it goes to the agent instead of waiting for the turn to end.
     @discardableResult
-    public func force(_ reply: String) async throws -> LiveReply {
-        try await self.reply(request(path: "live/replies/\(reply)/force", method: "POST"))
+    public func sendNow(_ message: String) async throws -> String {
+        try await edit(message, force: true)
     }
 
-    /// Takes back a reply not yet passed on.
+    /// Changes a message still `pending` or `queued`. `LiveRequestError.refused(AcpError.conflict)` once it is on its way.
     @discardableResult
-    public func remove(_ reply: String) async throws -> LiveReply {
-        try await self.reply(request(path: "live/replies/\(reply)", method: "DELETE"))
+    public func edit(_ message: String, text: String? = nil, force: Bool? = nil) async throws -> String {
+        var params: [String: JSONValue] = ["sessionId": .string(endpoint.session), "messageId": .string(message)]
+        if let text {
+            params["prompt"] = Acp.prompt(text, images: [])
+        }
+        if let force {
+            params["force"] = .bool(force)
+        }
+        return try await call("_agentchatkit/edit", .object(params))["messageId"]?.string ?? message
     }
 
-    /// Answers the agent's open question.
+    /// Takes back a message still `pending` or `queued`.
     @discardableResult
-    public func answer(
-        _ question: String, options: [String], text: String? = nil, clientRef: String = UUID().uuidString
-    ) async throws -> LiveReply {
-        let body = AnswerBody(questionID: question, optionIDs: options, text: text, clientRef: clientRef)
-        return try await reply(request(path: "live/answer", method: "POST", body: body, key: clientRef))
+    public func remove(_ message: String) async throws -> String {
+        try await call("_agentchatkit/remove", [
+            "sessionId": .string(endpoint.session), "messageId": .string(message),
+        ])["messageId"]?.string ?? message
     }
 
-    private func reply(_ request: URLRequest) async throws -> LiveReply {
-        let data = try await write(request, expect: [200, 201])
-        let reply = try JSONDecoder().decode(LiveReply.self, from: data)
-        chat.take(reply)
-        return reply
+    /// Answers the agent's open question: the chosen options' ids, and words when it takes them.
+    public func answer(_ question: LiveQuestion, options: [String], text: String? = nil) async throws {
+        var content: [String: JSONValue] = [:]
+        if question.multiple {
+            content["choices"] = .array(options.map(JSONValue.string))
+        } else if let first = options.first {
+            content["choice"] = .string(first)
+        }
+        if let text, !text.isEmpty {
+            content["text"] = .string(text)
+        }
+        let (_, response) = try await post(Acp.response(
+            question.requestID, result: ["action": "accept", "content": .object(content)]
+        ))
+        guard (200..<300).contains(response.statusCode) else {
+            throw LiveRequestError.http(response.statusCode)
+        }
+        chat.answered(question.requestID)
     }
 
-    private func write(_ request: URLRequest, expect: Set<Int>, renewed: Bool = false) async throws -> Data {
+    /// Declines the agent's open question.
+    public func decline(_ question: LiveQuestion) async throws {
+        _ = try await post(Acp.response(question.requestID, result: ["action": "decline"]))
+        chat.answered(question.requestID)
+    }
+
+    private func call(_ method: String, _ params: JSONValue) async throws -> JSONValue {
+        let id = take()
+        return try await send(Acp.request(id, method, params), id: id)
+    }
+
+    /// Posts a request and waits for its answer on the stream.
+    private func send(_ message: JSONValue, id: Int) async throws -> JSONValue {
+        guard connection != nil else {
+            throw LiveRequestError.noAnswer
+        }
+        let limit = timing.answerLimit
+        let sleep = sleep
+        let timer = Task { @MainActor [weak self] in
+            try? await sleep(limit)
+            self?.waiting.removeValue(forKey: id)?.resume(throwing: LiveRequestError.noAnswer)
+        }
+        defer { timer.cancel() }
+        return try await withCheckedThrowingContinuation { continuation in
+            waiting[id] = continuation
+            Task { @MainActor in
+                do {
+                    let (data, response) = try await post(message)
+                    if response.statusCode == 200, let answer = try? JSONValue.decode(data), answer["id"] != nil {
+                        receive(answer) // A host may answer in the POST itself.
+                    } else if response.statusCode != 202, response.statusCode != 200 {
+                        waiting.removeValue(forKey: id)?.resume(throwing: LiveRequestError.http(response.statusCode))
+                    }
+                } catch {
+                    waiting.removeValue(forKey: id)?.resume(throwing: LiveRequestError.noAnswer)
+                }
+            }
+        }
+    }
+
+    private func failWaiting() {
+        let lost = waiting
+        waiting = [:]
+        replacing = nil
+        for continuation in lost.values {
+            continuation.resume(throwing: LiveRequestError.noAnswer)
+        }
+    }
+
+    // MARK: - HTTP
+
+    private func take() -> Int {
+        defer { nextID += 1 }
+        return nextID
+    }
+
+    private func post(_ message: JSONValue, renewed: Bool = false) async throws -> (Data, HTTPURLResponse) {
+        var request = try await request(method: "POST", accept: "application/json, text/event-stream")
+        request.httpBody = try message.data()
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let (data, response) = try await http.send(request)
         if response.statusCode == 401, !renewed {
             bearer = try await endpoint.bearer(true)
-            var again = request
-            again.setValue("Bearer \(bearer ?? "")", forHTTPHeaderField: "Authorization")
-            return try await write(again, expect: expect, renewed: true)
+            return try await post(message, renewed: true)
         }
-        guard expect.contains(response.statusCode) else {
-            let refusal = try? JSONDecoder().decode([String: String].self, from: data)
-            throw LiveWriteError(
-                status: response.statusCode, error: refusal?["error"] ?? "internal", message: refusal?["message"] ?? ""
-            )
-        }
-        return data
+        return (data, response)
     }
 
-    // MARK: - Requests
-
-    private func query(after cursor: String?) -> [URLQueryItem] {
-        var items = [URLQueryItem(name: "v", value: "1")]
-        if let cursor {
-            items.append(URLQueryItem(name: "after", value: cursor))
-        }
-        return items
-    }
-
-    private func request(
-        path: String, method: String = "GET", query: [URLQueryItem]? = nil, body: (any Encodable)? = nil,
-        key: String? = nil
-    ) async throws -> URLRequest {
+    private func request(method: String, accept: String) async throws -> URLRequest {
         if bearer == nil {
             bearer = try await endpoint.bearer(false)
         }
-        var url = endpoint.chat.appending(path: path)
-        url.append(queryItems: query ?? self.query(after: nil))
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: endpoint.acp)
         request.httpMethod = method
         request.setValue("Bearer \(bearer ?? "")", forHTTPHeaderField: "Authorization")
-        if path == "live" {
-            request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+        if let connection {
+            request.setValue(connection, forHTTPHeaderField: "Acp-Connection-Id")
         }
-        if let body {
-            request.httpBody = try JSONEncoder().encode(body)
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-        if let key {
-            request.setValue(key, forHTTPHeaderField: "Idempotency-Key")
+        if method == "GET" {
+            request.setValue(endpoint.session, forHTTPHeaderField: "Acp-Session-Id")
         }
         return request
-    }
-
-    private static func errorCode(_ data: Data) -> String? {
-        (try? JSONDecoder().decode([String: String].self, from: data))?["error"]
-    }
-}
-
-struct SendBody: Encodable {
-    let text: String
-    let clientRef: String
-    let force: Bool
-    let images: [MessageImage]
-
-    enum CodingKeys: String, CodingKey {
-        case text, force, images
-        case clientRef = "client_ref"
-    }
-}
-
-struct AnswerBody: Encodable {
-    let questionID: String
-    let optionIDs: [String]
-    let text: String?
-    let clientRef: String
-
-    enum CodingKeys: String, CodingKey {
-        case text
-        case questionID = "question_id"
-        case optionIDs = "option_ids"
-        case clientRef = "client_ref"
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(questionID, forKey: .questionID)
-        try container.encode(optionIDs, forKey: .optionIDs)
-        try container.encode(text, forKey: .text) // `null`, not left out
-        try container.encode(clientRef, forKey: .clientRef)
     }
 }

@@ -25,7 +25,9 @@ struct DemoLiveScreen: View {
                 .padding(.vertical, ChatSpace.xs)
                 .accessibilityIdentifier("demo-live-status")
         } footer: {
-            if let state = chat.model.chat.state, state.working {
+            if let question = chat.model.chat.question {
+                QuestionCard(question: question, answer: chat.answer)
+            } else if let state = chat.model.chat.state, state.working {
                 WorkingLine(activity: state.activity ?? "Working")
             }
         } composer: {
@@ -61,5 +63,30 @@ struct DemoLiveScreen: View {
                 }
             }
         }
+    }
+}
+
+/// The agent's open question (`elicitation/create`), with a button per option.
+private struct QuestionCard: View {
+    @Environment(\.chatTheme) private var theme
+    let question: LiveQuestion
+    let answer: (LiveQuestion.Option) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ChatSpace.sm) {
+            Text(question.message)
+                .font(theme.font(.subheadline))
+            HStack(spacing: ChatSpace.sm) {
+                ForEach(question.options) { option in
+                    Button(option.label) { answer(option) }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("demo-live-option-\(option.id)")
+                }
+            }
+        }
+        .padding(ChatSpace.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("demo-live-question")
     }
 }
