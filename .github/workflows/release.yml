@@ -15,6 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # The jai-agents GitHub App token can create a tag over commits that change
+      # .github/workflows; github.token cannot (no workflows permission).
+      - id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: 5757830
+          private-key: ${{ secrets.JAI_AGENTS_PRIVATE_KEY }}
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -22,7 +29,7 @@ jobs:
       - id: release
         run: .github/scripts/release.sh
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
       # server/'s package goes on the release as its npm pack tarball, version = the tag. Hosts install it by URL:
       # https://github.com/jai/agentchatkit/releases/download/vX.Y.Z/jai-agentchat-live-X.Y.Z.tgz
       - if: steps.release.outputs.tag != ''
@@ -32,7 +39,7 @@ jobs:
       - name: Attach the server package
         if: steps.release.outputs.tag != ''
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TAG: ${{ steps.release.outputs.tag }}
         run: |
           git fetch --tags --force
