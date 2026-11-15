@@ -139,6 +139,23 @@ struct FollowTests {
         try await eventually("two ticks") { live.chat.message(queued)?.ticks == .delivered }
     }
 
+    @Test func aFailedMessageIsRetriedWithItsIdAndThenRemoved() async throws {
+        let live = model()
+        let following = follow(live)
+        defer { following.cancel() }
+        try await eventually("live") { live.phase == .live }
+        let sent = try await live.send("Tag it.", clientRef: "t")
+        await server.setStatus(sent, .failed)
+        try await eventually("failed") { live.chat.message(sent)?.status == .failed }
+        #expect(live.chat.message(sent)?.ticks == nil)
+        #expect(try await live.retry(sent) == sent)
+        try await eventually("pending again") { live.chat.message(sent)?.status == .pending }
+        await server.setStatus(sent, .failed)
+        try await eventually("failed again") { live.chat.message(sent)?.status == .failed }
+        try await live.remove(sent)
+        try await eventually("removed") { live.chat.message(sent)?.status == .removed }
+    }
+
     @Test func aQuestionGoesToBothClientsAndTheFirstAnswerWins() async throws {
         let phone = model()
         let mac = model()

@@ -191,13 +191,21 @@ q2 = user("u7", "Merge it, then tag.", 10, "queued", "ref-7")
 qf = user("u7", "Merge it, then tag.", 10, "pending", "ref-7")
 q3 = user("u7", "Merge it, then tag.", 10, "delivering", "ref-7")
 q4 = user("u7", "Merge it, then tag.", 10, "delivered", "ref-7")
+f1 = user("u9", "Tag it.", 12, "pending", "ref-9")
+f2 = user("u9", "Tag it.", 12, "failed", "ref-9", detail="The builder stopped while passing this on.")
+f3 = user("u9", "Tag it.", 12, "pending", "ref-9")
+# What the host sends when only the status moves: a patch, per ACP (fields left out are kept).
+failed_patch = {"sessionUpdate": "user_message", "messageId": "u9",
+                "_meta": ours(status="failed", detail="The builder stopped while passing this on.")}
+f4 = user("u9", "Tag it.", 12, "delivered", "ref-9")
 r1 = user("u8", "Never mind.", 11, "queued", "ref-8")
 r2 = user("u8", "Never mind.", 11, "removed", "ref-8")
 write("prompt-lifecycle.json", {
     "about": "Prompts sent while the agent works: inserted at once as queued, edited, then forced (send it now: "
              "queued becomes pending), delivered; another "
              "removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held "
-             "(its status is known) but has no bubble.",
+             "(its status is known) but has no bubble. A message that failed (the host says so: a `host` step) is "
+             "retried with edit {force: true}: failed becomes pending, same id and clientRef; it can also be removed.",
     "server": {
         "before": [m1, state("running", "Running tests")], "resume": "@2",
         "writes": [
@@ -220,13 +228,28 @@ write("prompt-lifecycle.json", {
              "result": {"messageId": "@u8"}, "stream": [r2]},
             {"request": {"method": "_agentchatkit/remove", "params": {"sessionId": SID, "messageId": "@u8"}},
              "error": -32009, "stream": []},
+            {"request": {"method": "session/prompt", "params": {"sessionId": SID, "prompt": text("Tag it."),
+                                                                "_meta": ours(clientRef="ref-9", force=True)}},
+             "result": {"messageId": "@u9"}, "stream": [f1]},
+            {"host": {"sessionUpdate": "user_message", "messageId": "@u9",
+                      "_meta": ours(status="failed", detail="The builder stopped while passing this on.")},
+             "stream": [failed_patch]},
+            {"request": {"method": "_agentchatkit/edit", "params": {"sessionId": SID, "messageId": "@u9",
+                                                                    "force": True}},
+             "retry": True, "result": {"messageId": "@u9"}, "stream": [f3]},
+            {"host": {"sessionUpdate": "user_message", "messageId": "@u9",
+                      "_meta": ours(status="failed", detail="The builder stopped while passing this on.")},
+             "stream": [failed_patch]},
+            {"request": {"method": "_agentchatkit/remove", "params": {"sessionId": SID, "messageId": "@u9"}},
+             "result": {"messageId": "@u9"}, "stream": [dict(f2, _meta={"agentchatkit": dict(f2["_meta"]["agentchatkit"], status="removed")})]},
         ],
     },
     "client": {"start": {"cursor": "c:2", "messages": [m1], "state": None},
                "messages": [note(q1, "c:3"), note(q2, "c:4"), note(qf, "c:5"), note(q3, "c:6"), note(q4, "c:7"),
-                            note(r1, "c:8"), note(r2, "c:9")],
-               "expect": expect("c:9", [m1, q4, r2]),
-               "bubbles": ["m1", "u7"], "ticks": {"u7": 2}},
+                            note(r1, "c:8"), note(r2, "c:9"), note(f1, "c:10"), note(f2, "c:11"),
+                            note(f3, "c:12"), note(f4, "c:13")],
+               "expect": expect("c:13", [m1, q4, r2, f4]),
+               "bubbles": ["m1", "u7", "u9"], "ticks": {"u7": 2, "u9": 2}},
 })
 
 # --- question

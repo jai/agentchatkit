@@ -215,7 +215,7 @@ export class MemorySessions {
         return refuse(404, "no such message");
       }
       const status = ours(held).status;
-      if (status !== "pending" && status !== "queued") {
+      if (status !== "pending" && status !== "queued" && status !== "failed") {
         return refuse(409, `the message is ${status ?? "not one sent here"}: it has gone`);
       }
       return held;
@@ -271,7 +271,9 @@ export class MemorySessions {
         if ("refusal" in held) {
           return held;
         }
-        const status = body.force && ours(held).status === "queued" ? "pending" : (ours(held).status as MessageStatus);
+        // Force sends a queued message now, and retries a failed one: both become pending.
+        const was = ours(held).status;
+        const status = body.force && (was === "queued" || was === "failed") ? "pending" : (was as MessageStatus);
         this.setUser(id, held, { ...(body.prompt ? { content: body.prompt } : {}), status });
         return messageId;
       },

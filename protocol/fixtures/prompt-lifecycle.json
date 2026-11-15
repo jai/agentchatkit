@@ -1,5 +1,5 @@
 {
-  "about": "Prompts sent while the agent works: inserted at once as queued, edited, then forced (send it now: queued becomes pending), delivered; another removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held (its status is known) but has no bubble.",
+  "about": "Prompts sent while the agent works: inserted at once as queued, edited, then forced (send it now: queued becomes pending), delivered; another removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held (its status is known) but has no bubble. A message that failed (the host says so: a `host` step) is retried with edit {force: true}: failed becomes pending, same id and clientRef; it can also be removed.",
   "server": {
     "before": [
       {
@@ -274,6 +274,173 @@
         },
         "error": -32009,
         "stream": []
+      },
+      {
+        "request": {
+          "method": "session/prompt",
+          "params": {
+            "sessionId": "chat-1",
+            "prompt": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "clientRef": "ref-9",
+                "force": true
+              }
+            }
+          }
+        },
+        "result": {
+          "messageId": "@u9"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:12.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "pending",
+                "clientRef": "ref-9"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "host": {
+          "sessionUpdate": "user_message",
+          "messageId": "@u9",
+          "_meta": {
+            "agentchatkit": {
+              "status": "failed",
+              "detail": "The builder stopped while passing this on."
+            }
+          }
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "_meta": {
+              "agentchatkit": {
+                "status": "failed",
+                "detail": "The builder stopped while passing this on."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "request": {
+          "method": "_agentchatkit/edit",
+          "params": {
+            "sessionId": "chat-1",
+            "messageId": "@u9",
+            "force": true
+          }
+        },
+        "retry": true,
+        "result": {
+          "messageId": "@u9"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:12.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "pending",
+                "clientRef": "ref-9"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "host": {
+          "sessionUpdate": "user_message",
+          "messageId": "@u9",
+          "_meta": {
+            "agentchatkit": {
+              "status": "failed",
+              "detail": "The builder stopped while passing this on."
+            }
+          }
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "_meta": {
+              "agentchatkit": {
+                "status": "failed",
+                "detail": "The builder stopped while passing this on."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "request": {
+          "method": "_agentchatkit/remove",
+          "params": {
+            "sessionId": "chat-1",
+            "messageId": "@u9"
+          }
+        },
+        "result": {
+          "messageId": "@u9"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:12.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "removed",
+                "clientRef": "ref-9",
+                "detail": "The builder stopped while passing this on."
+              }
+            }
+          }
+        ]
       }
     ]
   },
@@ -536,10 +703,143 @@
             }
           }
         }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:12.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "pending",
+                "clientRef": "ref-9"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:10"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:12.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "failed",
+                "clientRef": "ref-9",
+                "detail": "The builder stopped while passing this on."
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:11"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:12.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "pending",
+                "clientRef": "ref-9"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:12"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u9",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tag it."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:12.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "delivered",
+                "clientRef": "ref-9"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:13"
+            }
+          }
+        }
       }
     ],
     "expect": {
-      "cursor": "c:9",
+      "cursor": "c:13",
       "messages": [
         {
           "id": "m1",
@@ -558,6 +858,12 @@
           "kind": "user",
           "text": "Never mind.",
           "status": "removed"
+        },
+        {
+          "id": "u9",
+          "kind": "user",
+          "text": "Tag it.",
+          "status": "delivered"
         }
       ],
       "state": null,
@@ -565,10 +871,12 @@
     },
     "bubbles": [
       "m1",
-      "u7"
+      "u7",
+      "u9"
     ],
     "ticks": {
-      "u7": 2
+      "u7": 2,
+      "u9": 2
     }
   }
 }

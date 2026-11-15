@@ -379,7 +379,16 @@ interface Fixture {
     during?: SessionUpdate[];
     stream?: SessionUpdate[];
     error?: number;
-    writes?: { request: { method: string; params: Record<string, unknown> }; result?: unknown; error?: number; stream: SessionUpdate[] }[];
+    writes?: {
+      request: { method: string; params: Record<string, unknown> };
+      /** A change of the host's own instead of a request: applied, then expected on the stream. */
+      host?: SessionUpdate;
+      /** An edit with force on a failed message: a retry, which a host that never queues still runs. */
+      retry?: boolean;
+      result?: unknown;
+      error?: number;
+      stream: SessionUpdate[];
+    }[];
     clients?: number;
     ask?: ElicitationCreateParams;
     answer?: unknown;
@@ -641,8 +650,20 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
         Array.isArray(value) ? value.map(resolve) : isObject(value) ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolve(v)])) : bind(value);
       try {
         for (const [index, write] of (lifecycle.writes ?? []).entries()) {
+          if (write.host) {
+            // The host's own change (a delivery that failed), applied as the host would, then seen on the stream.
+            await apply(sessionId, resolve(write.host) as SessionUpdate);
+            const what = `host step ${index}`;
+            for (const [at, expected] of (write.stream ?? []).entries()) {
+              const want = resolve({ ...expected, messageId: `@${(expected as { messageId: string }).messageId}` });
+              expectSubset(hostless(want as Record<string, unknown>), updateOf(await c.next(wait), what), `${what} update ${at}`);
+            }
+            await c.none(30);
+            continue;
+          }
           const { method, params } = write.request;
-          const sendNow = method === "_agentchatkit/edit" && params.force === true && params.prompt === undefined;
+          const sendNow =
+            method === "_agentchatkit/edit" && params.force === true && params.prompt === undefined && !write.retry;
           if (
             (method === "_agentchatkit/edit" && !capabilities.edit) ||
             (method === "_agentchatkit/remove" && !capabilities.remove) ||

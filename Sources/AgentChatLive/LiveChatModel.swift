@@ -320,7 +320,13 @@ public final class LiveChatModel {
         try await edit(message, force: true)
     }
 
-    /// Changes a message still `pending` or `queued`. `LiveRequestError.refused(AcpError.conflict)` once it is on its way.
+    /// Sends a failed message again: it becomes `pending`, with the same id and `clientRef`.
+    @discardableResult
+    public func retry(_ message: String) async throws -> String {
+        try await edit(message, force: true)
+    }
+
+    /// Changes a message still `pending`, `queued` or `failed`. `LiveRequestError.refused(AcpError.conflict)` once it is on its way.
     @discardableResult
     public func edit(_ message: String, text: String? = nil, force: Bool? = nil) async throws -> String {
         var params: [String: JSONValue] = ["sessionId": .string(endpoint.session), "messageId": .string(message)]

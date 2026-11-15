@@ -237,7 +237,7 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
     private func change(_ method: String, _ params: JSONValue, id: JSONValue, on name: String) async {
         guard let target = params["messageId"]?.string,
               var ours = current[target]?.at("_meta", "agentchatkit")?.object,
-              ["pending", "queued"].contains(ours["status"]?.string ?? "") else {
+              ["pending", "queued", "failed"].contains(ours["status"]?.string ?? "") else {
             return send(Self.error(id, AcpError.conflict, "conflict"), to: name)
         }
         let forced = params["force"] == .bool(true)

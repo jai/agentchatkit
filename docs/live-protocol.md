@@ -95,7 +95,9 @@ session config options (`config_option_update`), as `ModelReasoningChip` shows t
   A host that never queues ignores it.
 - **Send now** a queued message: `_agentchatkit/edit` with `force: true` alone. It turns `queued` into `pending` and
   goes to the agent at once (Jai uses this daily).
-- **Edit or force, or remove,** a message still `pending` or `queued`; otherwise error `-32009` (`conflict`).
+- **Retry** a `failed` message: `_agentchatkit/edit` with `force: true`. It turns `failed` into `pending`, keeps its
+  id and `clientRef`, and the host passes it on again. (A send with the same `clientRef` answers the failed one.)
+- **Edit or force, or remove,** a message still `pending`, `queued` or `failed`; otherwise error `-32009` (`conflict`).
   Each change comes on the stream as a `user_message` update; a removed one has `status: removed`.
 
 ## Questions
@@ -154,6 +156,6 @@ tests read the same files.
 | `resume-cursor.json` | a cursor: only what came after it |
 | `resume-expired.json` | `-32602`, then replay from start replaces everything |
 | `display-order.json` | by `at`, not arrival; no `at`; ties |
-| `prompt-lifecycle.json` | queued, edited, sent now (force), delivered; removed; a repeat `clientRef` |
+| `prompt-lifecycle.json` | queued, edited, sent now (force), delivered; removed; a repeat `clientRef`; failed, retried, removed |
 | `question.json` | `elicitation/create` to two clients, one answers, the other is cancelled |
 | `transport.json` | statuses, back-off, keep-alive, what the client does |
