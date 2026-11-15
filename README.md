@@ -13,6 +13,8 @@ chats with it. It knows nothing of pull requests or of any app's Worker: a host 
 |---|---|---|
 | `AgentChatCore` | `MessageImage` (a screenshot as a Worker takes it) and `ScreenshotLine` | Foundation. Safe in an app extension. |
 | `AgentChatKit` | `ChatView`, `ChatMessage`, `SessionBubble`, `SessionComposer`, `ComposerAttachments`, `ModelReasoningChip` and `ModelPicker`, `DeliveryTicks`, `ChatQuickReply` and `WaitWhatButton`, `MarkdownText`, `ChatScroll` and `followsChatEnd`, `ReturnKey`, `Pasteboard`, `FoldSet`, `ChatStyle`, `ChatTheme` | SwiftUI, and `AgentChatCore`, re-exported. |
+| `AgentChatLive` | `LiveChatModel` follows a chat live ([protocol](docs/live-protocol.md)): stream, reconnect with back-off, read while down, one cursor, the writes; `LiveChat` and its `chatMessages` | `AgentChatKit`, [DurableNetworking](https://github.com/jai/durable-networking) |
+| `AgentChatLiveTesting` | `LiveLoopbackServer`: the protocol's server in memory, for tests, previews and demos | `AgentChatLive` |
 
 ## Use it
 
@@ -48,8 +50,9 @@ measures (a bubble's insets, its widest share of a wide window) are `ChatStyle`'
 
 `Demo/` is an iPhone and Mac app that shows the chat at work with a scripted agent: replies that stream in
 Markdown after quiet tool-call rows, the working line, delivery ticks, "Wait, what?", screenshots sent from the reply
-box, the model and reasoning chip, a long chat that keeps to its end, and three themes set by the host (PR Hub,
-Terminal, Paper). Everything runs in the app: no network, no account.
+box, the model and reasoning chip, a long chat that keeps to its end, three themes set by the host (PR Hub,
+Terminal, Paper), and a Live chat followed with AgentChatLive, whose toolbar drops the stream or takes the network away
+to show it reconnect. Everything runs in the app: no network, no account.
 
 <p>
   <img src="Demo/Screenshots/working.png" width="250" alt="The agent at work after a screenshot, in the PR Hub theme">
@@ -62,7 +65,7 @@ cd Demo && xcodegen && open AgentChatDemo.xcodeproj
 ```
 
 Run `AgentChatDemo-iOS` or `AgentChatDemo-macOS`. The package is a local dependency, so a change in `Sources/` shows in
-the demo at once. Launch arguments set it up: `-DemoChat tour|long`, `-DemoTheme prHub|terminal|paper`, and
+the demo at once. Launch arguments set it up: `-DemoChat tour|long|live`, `-DemoTheme prHub|terminal|paper`, and
 `-DemoPace fast|slow` for the agent's speed.
 
 ## Develop

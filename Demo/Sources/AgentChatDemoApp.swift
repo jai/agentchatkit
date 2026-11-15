@@ -2,7 +2,7 @@ import AgentChatKit
 import SwiftUI
 
 /// AgentChatKit's demo: a host app with two chats with a scripted agent and three looks. Launch arguments set it up
-/// for UI tests and screenshots: `-DemoPace fast|slow` (the agent's speed), `-DemoChat tour|long` (open on a chat),
+/// for UI tests and screenshots: `-DemoPace fast|slow` (the agent's speed), `-DemoChat tour|long|live` (open on a chat),
 /// `-DemoTheme prHub|terminal|paper`.
 @main
 struct AgentChatDemoApp: App {
@@ -20,6 +20,7 @@ struct DemoRoot: View {
     /// Seeded from `-DemoTheme`, then the toolbar's: `@AppStorage` would keep reading the launch argument over a pick.
     @State private var themeChoice: DemoTheme
     @State private var chats: [DemoChat]
+    @State private var live: DemoLiveChat
     @State private var selection: String?
     @State private var column = NavigationSplitViewColumn.sidebar
 
@@ -32,6 +33,7 @@ struct DemoRoot: View {
         )
         let long = DemoChat(id: "long", title: "Long chat", messages: DemoScript.longHistory(now: .now), pace: pace)
         _chats = State(initialValue: [tour, long])
+        _live = State(initialValue: DemoLiveChat(pace: pace))
         let theme = UserDefaults.standard.string(forKey: "DemoTheme").flatMap { DemoTheme(rawValue: $0) }
         _themeChoice = State(initialValue: theme ?? .prHub)
         let opened = UserDefaults.standard.string(forKey: "DemoChat")
@@ -41,15 +43,23 @@ struct DemoRoot: View {
 
     var body: some View {
         NavigationSplitView(preferredCompactColumn: $column) {
-            List(chats, selection: $selection) { chat in
-                NavigationLink(value: chat.id) {
-                    Label(chat.title, systemImage: chat.id == "long" ? "text.alignleft" : "sparkles")
+            List(selection: $selection) {
+                ForEach(chats) { chat in
+                    NavigationLink(value: chat.id) {
+                        Label(chat.title, systemImage: chat.id == "long" ? "text.alignleft" : "sparkles")
+                    }
+                    .accessibilityIdentifier("demo-chat-\(chat.id)")
                 }
-                .accessibilityIdentifier("demo-chat-\(chat.id)")
+                NavigationLink(value: "live") {
+                    Label("Live", systemImage: "dot.radiowaves.left.and.right")
+                }
+                .accessibilityIdentifier("demo-chat-live")
             }
             .navigationTitle("AgentChatKit")
         } detail: {
-            if let chat = chats.first(where: { $0.id == selection }) {
+            if selection == "live" {
+                DemoLiveScreen(chat: live, themeChoice: $themeChoice)
+            } else if let chat = chats.first(where: { $0.id == selection }) {
                 DemoChatScreen(chat: chat, themeChoice: $themeChoice)
                     .id(chat.id)
             } else {

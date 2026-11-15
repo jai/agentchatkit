@@ -1,7 +1,8 @@
 import XCTest
 
 /// AgentChatKit's main flows, driven through the demo app on a phone: a reply that streams after tool calls, delivery
-/// ticks, "Wait, what?", the model chip, a screenshot sent with a message, a theme change, and the long chat's end.
+/// ticks, "Wait, what?", the model chip, a screenshot sent with a message, a theme change, the long chat's end, and the
+/// Live chat reconnecting.
 final class DemoUITests: XCTestCase {
     private var app: XCUIApplication!
 
@@ -92,6 +93,38 @@ final class DemoUITests: XCTestCase {
         let lastPart = element(containing: "Part 14.")
         waitFor(lastPart, "the long answer's last part")
         XCTAssertTrue(lastPart.isHittable, "The chat stopped following the answer")
+    }
+
+    /// The Live chat (AgentChatLive on the in-memory server): an answer arrives as it is written; a dropped stream
+    /// reconnects from its cursor; offline, the agent keeps writing and the chat catches up once back, nothing twice.
+    func testLiveChatReconnects() {
+        launch(chat: "live")
+        waitFor(element(containing: "This chat is"), "live greeting")
+        let status = app.descendants(matching: .any)["demo-live-status"]
+        waitFor(status, "stream status")
+        let streaming = { (count: Int) in
+            self.app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier == 'demo-live-status' AND label CONTAINS %@", "stream \(count)"))
+                .firstMatch
+        }
+        waitFor(streaming(1), "the first stream")
+
+        send("How does ChatView work?")
+        waitFor(app.descendants(matching: .any)["reply-ticks-2"], "delivered ticks")
+        app.buttons["demo-live-drop"].tap()
+        waitFor(streaming(2), "a new stream after the drop")
+        waitFor(element(containing: "whole chat screen"), "the answer, finished after the drop", timeout: 30)
+
+        send("How do themes work?")
+        app.buttons["demo-live-network"].tap()
+        waitFor(element(containing: "Offline"), "offline status")
+        waitFor(app.buttons["demo-live-network"], "network switch")
+        sleep(3)
+        app.buttons["demo-live-network"].tap()
+        waitFor(element(containing: "fonts, colours and icons"), "the answer written while offline", timeout: 30)
+        waitFor(streaming(3), "a new stream once back online")
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label == %@", "How do themes work?")).count, 1,
+                       "A message showed twice after reconnecting")
     }
 
     /// The README's pictures, with the agent slowed down to catch it at work. Kept as attachments on the result.

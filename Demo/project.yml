@@ -28,6 +28,10 @@ targets:
     dependencies:
       - package: AgentChatKit
         product: AgentChatKit
+      - package: AgentChatKit
+        product: AgentChatLive
+      - package: AgentChatKit
+        product: AgentChatLiveTesting
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.govindani.agentchatdemo

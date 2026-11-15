@@ -289,10 +289,22 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
         if down {
             throw URLError(.notConnectedToInternet)
         }
-        let path = url.path()
-        let path0 = path.range(of: "/live").map { String(path[$0.lowerBound...].dropFirst()) } ?? path
+        // The route is the first `live` segment that what follows makes a route of: a chat may be named `live`.
+        let segments = url.path().split(separator: "/").map(String.init)
+        let start = segments.indices.first { segments[$0] == "live" && Self.isRoute(Array(segments[($0 + 1)...])) }
+        let path0 = start.map { segments[$0...].joined(separator: "/") } ?? url.path()
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         return Route(path: path0, query: Dictionary(items.map { ($0.name, $0.value ?? "") }) { _, last in last })
+    }
+
+    private static func isRoute(_ rest: [String]) -> Bool {
+        switch rest.count {
+        case 0: true
+        case 1: ["read", "messages", "answer"].contains(rest[0])
+        case 2: rest[0] == "replies"
+        case 3: rest[0] == "replies" && rest[2] == "force"
+        default: false
+        }
     }
 
     private func next() -> Int {

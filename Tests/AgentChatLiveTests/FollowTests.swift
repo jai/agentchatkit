@@ -48,6 +48,20 @@ struct FollowTests {
         #expect(requests.first == "GET /chats/chat-1/live?v=1")
     }
 
+    @Test func aChatNamedLiveIsServedToo() async throws {
+        let server = LiveLoopbackServer(chatID: "live")
+        await server.put(message("m1"))
+        let live = LiveChatModel(
+            endpoint: LiveEndpoint(chat: URL(string: "https://host.test/chats/live")!, bearer: { _ in "t" }),
+            http: server, streams: server
+        )
+        let following = Task { await live.follow() }
+        defer { following.cancel() }
+        try await eventually("snapshot") { live.chat.messages.map(\.id) == ["m1"] }
+        let reply = try await live.send("Hi", clientRef: "x")
+        #expect(reply.status == .pending)
+    }
+
     @Test func aDroppedStreamReadsWhileDownThenResumesFromItsCursorTakingNothingTwice() async throws {
         await server.put(message("m1", .user))
         let live = model()

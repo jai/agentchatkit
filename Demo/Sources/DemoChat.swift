@@ -143,7 +143,7 @@ final class DemoChat: Identifiable {
     }
 
     /// The text in pieces of about `size` characters, each ending where a word does.
-    static func chunks(of text: String, size: Int) -> [String] {
+    nonisolated static func chunks(of text: String, size: Int) -> [String] {
         var chunks: [String] = []
         var current = ""
         for character in text {

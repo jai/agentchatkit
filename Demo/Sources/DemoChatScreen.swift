@@ -64,7 +64,7 @@ struct DemoChatScreen: View {
 }
 
 /// The footer while the agent works: a spinner and what it is doing ("Reading ChatView.swift").
-private struct WorkingLine: View {
+struct WorkingLine: View {
     @Environment(\.chatTheme) private var theme
     let activity: String
 
