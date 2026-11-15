@@ -23,18 +23,4 @@ struct ChatThemeTests {
         #expect(theme.spacing.xs == 7)
         #expect(theme.spacing.sm == 13)
     }
-
-    @Test func originalIDsRemainDefaultsAndHostsCanReplaceEveryControl() {
-        #expect(QueuedReplyIdentifiers().row == "queued-reply")
-        #expect(ReplyStatusIdentifiers().status == "reply-status")
-        #expect(ReplyStatusIdentifiers().sentTicks == "reply-ticks-1")
-        #expect(ReplyStatusIdentifiers().deliveredTicks == "reply-ticks-2")
-        #expect(ThreadQuestionIdentifiers<String>().waitWhat == "wait-what")
-        #expect(SentScreenshotIdentifiers().thumbnail("key", 2) == "sent-screenshot")
-        #expect(SentScreenshotIdentifiers().close == "sent-screenshot-viewer-close")
-        #expect(ChatThreadRowIdentifiers().status == nil)
-        #expect(ChatThreadRowIdentifiers().chips == nil)
-        let ids = ReplyStatusIdentifiers(retry: "finder-message-retry")
-        #expect(ids.retry == "finder-message-retry")
-    }
 }

@@ -36,7 +36,7 @@ remain with the parent. Agent Pager was read only as the queue/row reference.
 
 ## Authored coverage — NOT RUN
 
-- `Tests/AgentChatKitTests/ChatThemeTests.swift`: live legacy fallback, host metrics/tokens and identifier defaults.
+- `Tests/AgentChatKitTests/ChatThemeTests.swift`: live legacy fallback and host typography metrics/tokens. Identifier coverage exercises actual controls in the UI suites.
 - `Tests/AgentChatKitTests/ChatThreadActionControllerTests.swift`: confirmation/cancel/missing hooks, competing
   keyboard/menu requests during pending/error, identity reuse and pending removal/reinsertion.
 - `Demo/SharedUITests/AdoptionUITests.swift`: both platforms; custom IDs, inherited slot IDs, explicit slot overrides,
