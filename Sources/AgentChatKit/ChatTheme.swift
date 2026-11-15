@@ -67,14 +67,26 @@ public struct ChatTheme: Sendable {
         public init() {}
     }
 
+    /// The host app's colour of this name when its asset catalog has one, else `fallback`: a missing named colour draws
+    /// nothing, so a host without these assets would show no "Needs you" or error text at all.
+    public static func named(_ name: String, or fallback: Color) -> Color {
+        #if canImport(UIKit)
+        UIColor(named: name) != nil ? Color(name) : fallback
+        #elseif canImport(AppKit)
+        NSColor(named: name) != nil ? Color(name) : fallback
+        #else
+        fallback
+        #endif
+    }
+
     public init(
         font: @escaping @Sendable (Font.TextStyle) -> Font = ChatTheme.systemFont,
         code: @escaping @MainActor @Sendable (Text) -> AnyView = ChatTheme.systemCode,
         ink: Color = .primary, inkQuiet: Color = .secondary, onBubble: Color = .white,
         groundPage: Color = ChatTheme.systemGroundPage, groundCard: Color = ChatTheme.systemGroundCard,
         groundFill: Color = ChatTheme.systemGroundFill, pictureGround: Color = .black, line: Color = ChatTheme.systemLine,
-        toneGood: Color = Color("ToneGood"), toneBad: Color = Color("ToneBad"),
-        toneWaiting: Color = Color("ToneWaiting"), symbols: Symbols = Symbols(),
+        toneGood: Color = ChatTheme.named("ToneGood", or: .green), toneBad: Color = ChatTheme.named("ToneBad", or: .red),
+        toneWaiting: Color = ChatTheme.named("ToneWaiting", or: .orange), symbols: Symbols = Symbols(),
         typography: ChatTypography = ChatTypography(), spacing: ChatSpacing = ChatSpacing(),
         controlSize: ControlSize = .large
     ) {
