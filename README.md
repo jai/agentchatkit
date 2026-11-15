@@ -145,7 +145,7 @@ a native disclosure indicator, so its row should not add an explicit navigation 
 
 `Demo/Sources/DemoHostThreadList.swift` demonstrates a host route of type `String` (also its item-ID type),
 header/footer, external selection and Return callback. FeedbackKit can keep its current row/header/footer closures
-and add just `selection:`/`open:`; its host still owns routes and default-row chevrons.
+and add just `selection:`/`open:`; its host still owns routes. A host NavigationLink uses the native list disclosure.
 
 See [the adoption review handoff](Demo/ADOPTION.md) for authored coverage, screenshot output and files changed.
 
