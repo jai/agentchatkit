@@ -1,5 +1,5 @@
 {
-  "about": "Prompts sent while the agent works: inserted at once as queued, edited and forced, delivered; another removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held (its status is known) but has no bubble.",
+  "about": "Prompts sent while the agent works: inserted at once as queued, edited, then forced (send it now: queued becomes pending), delivered; another removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held (its status is known) but has no bubble.",
   "server": {
     "before": [
       {
@@ -117,8 +117,7 @@
                 "type": "text",
                 "text": "Merge it, then tag."
               }
-            ],
-            "force": true
+            ]
           }
         },
         "result": {
@@ -142,6 +141,42 @@
                   "name": "Jai"
                 },
                 "status": "queued",
+                "clientRef": "ref-7"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "request": {
+          "method": "_agentchatkit/edit",
+          "params": {
+            "sessionId": "chat-1",
+            "messageId": "@u7",
+            "force": true
+          }
+        },
+        "result": {
+          "messageId": "@u7"
+        },
+        "stream": [
+          {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it, then tag."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "pending",
                 "clientRef": "ref-7"
               }
             }
@@ -358,7 +393,7 @@
                   "login": "jai",
                   "name": "Jai"
                 },
-                "status": "delivering",
+                "status": "pending",
                 "clientRef": "ref-7"
               }
             }
@@ -391,7 +426,7 @@
                   "login": "jai",
                   "name": "Jai"
                 },
-                "status": "delivered",
+                "status": "delivering",
                 "clientRef": "ref-7"
               }
             }
@@ -399,6 +434,39 @@
           "_meta": {
             "agentchatkit": {
               "cursor": "c:6"
+            }
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "chat-1",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "u7",
+            "content": [
+              {
+                "type": "text",
+                "text": "Merge it, then tag."
+              }
+            ],
+            "_meta": {
+              "agentchatkit": {
+                "at": "2026-11-15T05:00:10.000Z",
+                "sender": {
+                  "login": "jai",
+                  "name": "Jai"
+                },
+                "status": "delivered",
+                "clientRef": "ref-7"
+              }
+            }
+          },
+          "_meta": {
+            "agentchatkit": {
+              "cursor": "c:7"
             }
           }
         }
@@ -431,7 +499,7 @@
           },
           "_meta": {
             "agentchatkit": {
-              "cursor": "c:7"
+              "cursor": "c:8"
             }
           }
         }
@@ -464,14 +532,14 @@
           },
           "_meta": {
             "agentchatkit": {
-              "cursor": "c:8"
+              "cursor": "c:9"
             }
           }
         }
       }
     ],
     "expect": {
-      "cursor": "c:8",
+      "cursor": "c:9",
       "messages": [
         {
           "id": "m1",

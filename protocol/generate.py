@@ -107,7 +107,9 @@ write("messages.json", {
             "sessionId": SID, "prompt": text("Merge it.") + [{"type": "image", "mimeType": "image/jpeg", "data": "/9j/4AAQ"}],
             "_meta": ours(clientRef="ref-7", force=False)}}},
         {"name": "edit", "message": {"jsonrpc": "2.0", "id": 5, "method": "_agentchatkit/edit", "params": {
-            "sessionId": SID, "messageId": "u7", "prompt": text("Merge it, then tag."), "force": True}}},
+            "sessionId": SID, "messageId": "u7", "prompt": text("Merge it, then tag.")}}},
+        {"name": "send now", "message": {"jsonrpc": "2.0", "id": 7, "method": "_agentchatkit/edit", "params": {
+            "sessionId": SID, "messageId": "u7", "force": True}}},
         {"name": "remove", "message": {"jsonrpc": "2.0", "id": 6, "method": "_agentchatkit/remove", "params": {
             "sessionId": SID, "messageId": "u8"}}},
         {"name": "answer", "message": {"jsonrpc": "2.0", "id": 900, "result": {
@@ -186,12 +188,14 @@ write("display-order.json", {
 # --- prompt-lifecycle
 q1 = user("u7", "Merge it.", 10, "queued", "ref-7")
 q2 = user("u7", "Merge it, then tag.", 10, "queued", "ref-7")
+qf = user("u7", "Merge it, then tag.", 10, "pending", "ref-7")
 q3 = user("u7", "Merge it, then tag.", 10, "delivering", "ref-7")
 q4 = user("u7", "Merge it, then tag.", 10, "delivered", "ref-7")
 r1 = user("u8", "Never mind.", 11, "queued", "ref-8")
 r2 = user("u8", "Never mind.", 11, "removed", "ref-8")
 write("prompt-lifecycle.json", {
-    "about": "Prompts sent while the agent works: inserted at once as queued, edited and forced, delivered; another "
+    "about": "Prompts sent while the agent works: inserted at once as queued, edited, then forced (send it now: "
+             "queued becomes pending), delivered; another "
              "removed. A repeat clientRef answers the first messageId and adds nothing. A removed message stays held "
              "(its status is known) but has no bubble.",
     "server": {
@@ -204,8 +208,11 @@ write("prompt-lifecycle.json", {
                                                                 "_meta": ours(clientRef="ref-7", force=False)}},
              "result": {"messageId": "@u7"}, "stream": []},
             {"request": {"method": "_agentchatkit/edit", "params": {"sessionId": SID, "messageId": "@u7",
-                                                                    "prompt": text("Merge it, then tag."), "force": True}},
+                                                                    "prompt": text("Merge it, then tag.")}},
              "result": {"messageId": "@u7"}, "stream": [q2]},
+            {"request": {"method": "_agentchatkit/edit", "params": {"sessionId": SID, "messageId": "@u7",
+                                                                    "force": True}},
+             "result": {"messageId": "@u7"}, "stream": [qf]},
             {"request": {"method": "session/prompt", "params": {"sessionId": SID, "prompt": text("Never mind."),
                                                                 "_meta": ours(clientRef="ref-8", force=False)}},
              "result": {"messageId": "@u8"}, "stream": [r1]},
@@ -216,9 +223,9 @@ write("prompt-lifecycle.json", {
         ],
     },
     "client": {"start": {"cursor": "c:2", "messages": [m1], "state": None},
-               "messages": [note(q1, "c:3"), note(q2, "c:4"), note(q3, "c:5"), note(q4, "c:6"), note(r1, "c:7"),
-                            note(r2, "c:8")],
-               "expect": expect("c:8", [m1, q4, r2]),
+               "messages": [note(q1, "c:3"), note(q2, "c:4"), note(qf, "c:5"), note(q3, "c:6"), note(q4, "c:7"),
+                            note(r1, "c:8"), note(r2, "c:9")],
+               "expect": expect("c:9", [m1, q4, r2]),
                "bubbles": ["m1", "u7"], "ticks": {"u7": 2}},
 })
 

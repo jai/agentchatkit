@@ -94,7 +94,19 @@
               "type": "text",
               "text": "Merge it, then tag."
             }
-          ],
+          ]
+        }
+      }
+    },
+    {
+      "name": "send now",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "_agentchatkit/edit",
+        "params": {
+          "sessionId": "chat-1",
+          "messageId": "u7",
           "force": true
         }
       }

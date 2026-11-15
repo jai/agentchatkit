@@ -90,6 +90,8 @@ session config options (`config_option_update`), as `ModelReasoningChip` shows t
   `pending` or `queued`, and `session/prompt` answers its `messageId`. Passing it to the agent is the host's business,
   reported by `status`. A repeat `clientRef` answers the first `messageId` and sends nothing new.
 - `force: true` asks for it to go now instead of after the agent's turn. The default is the person's choice, `false`.
+- **Send now** a queued message: `_agentchatkit/edit` with `force: true` alone. It turns `queued` into `pending` and
+  goes to the agent at once (Jai uses this daily).
 - **Edit or force, or remove,** a message still `pending` or `queued`; otherwise error `-32009` (`conflict`).
   Each change comes on the stream as a `user_message` update; a removed one has `status: removed`.
 
@@ -149,6 +151,6 @@ tests read the same files.
 | `resume-cursor.json` | a cursor: only what came after it |
 | `resume-expired.json` | `-32602`, then replay from start replaces everything |
 | `display-order.json` | by `at`, not arrival; no `at`; ties |
-| `prompt-lifecycle.json` | queued, edited, forced, delivered; removed; a repeat `clientRef` |
+| `prompt-lifecycle.json` | queued, edited, sent now (force), delivered; removed; a repeat `clientRef` |
 | `question.json` | `elicitation/create` to two clients, one answers, the other is cancelled |
 | `transport.json` | statuses, back-off, keep-alive, what the client does |
