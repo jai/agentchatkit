@@ -39,7 +39,9 @@ final class MacThreadListUITests: FixtureUITestCase {
         activate(beta)
         key(.delete)
         activate(app.buttons["confirm-beta"])
-        XCTAssertTrue(app.staticTexts["Host delete failed"].waitForExistence(timeout: 6))
+        let failure = app.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@",
+                                                            "Host delete failed", "Host delete failed")).firstMatch
+        XCTAssertTrue(failure.waitForExistence(timeout: 6))
         key(.delete)
         XCTAssertFalse(app.buttons["confirm-beta"].exists)
         activate(app.buttons["dismiss-beta"])

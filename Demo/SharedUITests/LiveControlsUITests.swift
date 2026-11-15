@@ -122,7 +122,8 @@ final class LiveControlsUITests: FixtureUITestCase {
         launch("live-question-single")
         activate(app.buttons["live-decline"])
         wait(element("live-question"), "exists == false")
-        XCTAssertFalse(element("live-answer-received").exists)
+        // The dev host records a declined question as a "(declined)" message from Jai.
+        wait(element("live-answer-received"), "label == '(declined)'")
         wait(element("live-working"), "label == 'Working'")
     }
 
