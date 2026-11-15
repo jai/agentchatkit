@@ -173,11 +173,11 @@ final class AdoptionUITests: FixtureUITestCase {
         XCTAssertTrue(alpha.waitForExistence(timeout: 5))
         alpha.swipeLeft()
         activate(app.buttons["delete-alpha"])
-        activate(app.buttons["cancel-alpha"])
+        app.cancelConfirmation("cancel-alpha")
         notice("Archive calls: 0, Delete calls: 0")
         alpha.press(forDuration: 1)
         activate(app.buttons["delete-alpha"])
-        activate(app.buttons["confirm-alpha"])
+        activate(app.sheets.buttons["confirm-alpha"].firstMatch)  // iOS 26 lists a dialog's buttons twice
         wait(alpha, "exists == false")
         notice("Archive calls: 0, Delete calls: 1")
         element("sessionRow-beta").swipeLeft()

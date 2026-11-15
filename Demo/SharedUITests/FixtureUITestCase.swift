@@ -32,7 +32,7 @@ class FixtureUITestCase: XCTestCase {
         #if os(macOS)
         activate(app.checkBoxes[label])
         #else
-        activate(app.switches[label])
+        app.flipSwitch(label)
         #endif
     }
 
@@ -48,7 +48,13 @@ class FixtureUITestCase: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: timeout), .completed)
     }
 
-    func notice(_ text: String) { wait(element("fixture-notice"), "label == '\(text)'") }
+    /// Any element with the notice's ID showing `text`: after a context menu or dialog closes, iOS 26 can keep a stale
+    /// copy of the screen, whose notice is found first.
+    func notice(_ text: String) {
+        let showing = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == 'fixture-notice' AND (label == %@ OR value == %@)", text, text)).firstMatch
+        XCTAssertTrue(showing.waitForExistence(timeout: 6), "fixture-notice never showed \(text)")
+    }
 
     func keep(_ name: String) throws {
         #if os(macOS)
@@ -68,3 +74,40 @@ class FixtureUITestCase: XCTestCase {
         }
     }
 }
+
+#if os(iOS)
+extension XCUIApplication {
+    /// On iOS 26 a tap in the middle of a full-width Toggle lands on its label, which does not flip it.
+    func flipSwitch(_ label: String, file: StaticString = #filePath, line: UInt = #line) {
+        let toggle = switches[label]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), file: file, line: line)
+        let before = toggle.value as? String ?? ""
+        let knob = toggle.switches.firstMatch
+        if knob.exists {
+            knob.tap()
+        } else {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        }
+        let flipped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value != %@", before), object: toggle)
+        XCTAssertEqual(XCTWaiter.wait(for: [flipped], timeout: 3), .completed, file: file, line: line)
+    }
+
+    /// iOS 26 shows a row's confirmation dialog without a Cancel button; a tap outside it is the cancel.
+    func cancelConfirmation(_ cancelID: String = "Cancel") {
+        let cancel = buttons[cancelID].firstMatch
+        if cancel.waitForExistence(timeout: 2) {
+            cancel.tap()
+            return
+        }
+        // Tap the dimmed screen outside the dialog, on whichever side has room; the navigation bar does not dismiss it.
+        let dialog = sheets.firstMatch
+        let screen = windows.firstMatch.frame
+        let frame = dialog.exists ? dialog.frame : CGRect(x: 0, y: screen.midY, width: screen.width, height: 0)
+        let height = max(screen.height, 1)
+        let y = frame.minY > 200 ? (frame.minY - 60) / height : (frame.maxY + 60) / height
+        coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: min(max(y, 0.15), 0.95))).tap()
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: dialog)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 3), .completed, "the confirmation dialog stayed open")
+    }
+}
+#endif

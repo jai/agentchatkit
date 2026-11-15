@@ -35,8 +35,9 @@ final class ExtractionUITests: XCTestCase {
     }
 
     private func notice(_ text: String) {
-        let notice = app.staticTexts["fixture-notice"]
-        wait(notice, "label == '\(text)'")
+        let showing = app.staticTexts.matching(NSPredicate(
+            format: "identifier == 'fixture-notice' AND label == %@", text)).firstMatch
+        XCTAssertTrue(showing.waitForExistence(timeout: 5), "fixture-notice never showed \(text)")
     }
 
     private func thread(_ id: String) -> XCUIElement {
@@ -60,44 +61,42 @@ final class ExtractionUITests: XCTestCase {
         let delete = thread("delete")
         delete.press(forDuration: 1)
         app.buttons["Delete"].tap()
-        let cancel = app.buttons["Cancel"].firstMatch
-        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
-        cancel.tap()
+        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 3))
+        app.cancelConfirmation()
         notice("Archive calls: 1, Delete calls: 0")
         XCTAssertTrue(delete.exists)
 
         delete.press(forDuration: 1)
         app.buttons["Delete"].tap()
-        app.buttons["Delete"].tap()
+        app.sheets.buttons["Delete"].firstMatch.tap()  // iOS 26 lists a dialog's buttons twice
         notice("Archive calls: 1, Delete calls: 1")
         wait(delete, "exists == false")
         // No Archive/Delete hook means no corresponding action control.
         thread("read-only").press(forDuration: 1)
         XCTAssertFalse(app.buttons["Archive"].exists)
         XCTAssertFalse(app.buttons["Delete"].exists)
-        // The row with no hooks still opens the host destination.
-        thread("read-only").tap()
+        // With no hooks there is no menu, so the press opens the host destination as a tap does.
         XCTAssertTrue(app.staticTexts["Opened Read-only fixture"].waitForExistence(timeout: 3))
     }
 
     func testThreadActionFailureKeepsRowAndShowsHostError() {
         launch("Thread list")
-        app.switches["Fail next action"].tap()
+        app.flipSwitch("Fail next action")
         thread("archive").press(forDuration: 1)
         app.buttons["Archive"].tap()
         XCTAssertTrue(app.staticTexts["Fixture archive failed"].waitForExistence(timeout: 5))
-        app.alerts.buttons["OK"].tap()
+        app.alerts.buttons["OK"].firstMatch.tap()
         XCTAssertTrue(thread("archive").exists)
         thread("archive").press(forDuration: 1)
         app.buttons["Archive"].tap()
         notice("Archive calls: 2, Delete calls: 0")
         wait(thread("archive"), "exists == false")
-        app.switches["Fail next action"].tap()
+        app.flipSwitch("Fail next action")
         thread("delete").press(forDuration: 1)
         app.buttons["Delete"].tap()
-        app.buttons["Delete"].tap()
+        app.sheets.buttons["Delete"].firstMatch.tap()  // iOS 26 lists a dialog's buttons twice
         XCTAssertTrue(app.staticTexts["Fixture delete failed"].waitForExistence(timeout: 5))
-        app.alerts.buttons["OK"].tap()
+        app.alerts.buttons["OK"].firstMatch.tap()
         XCTAssertTrue(thread("delete").exists)
         notice("Archive calls: 2, Delete calls: 1")
     }
@@ -111,7 +110,7 @@ final class ExtractionUITests: XCTestCase {
         XCTAssertLessThan(edit.frame.minY, remove.frame.minY)
         XCTAssertLessThan(remove.frame.minY, now.frame.minY)
 
-        app.switches["Fail next action"].tap()
+        app.flipSwitch("Fail next action")
         edit.buttons["Edit"].tap()
         XCTAssertFalse(edit.buttons["Edit"].isEnabled)
         XCTAssertFalse(edit.buttons["Remove"].isEnabled)

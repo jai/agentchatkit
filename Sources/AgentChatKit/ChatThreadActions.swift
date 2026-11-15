@@ -29,9 +29,11 @@ extension View {
         modifier(OwnedChatThreadActions(title: title, actions: actions))
     }
 
+    /// Inside ChatThreadList the list presents the delete confirmation and the error itself (`presentsDialogs: false`).
     func chatThreadActions(title: String, actions: ChatThreadActions,
-                           controller: ChatThreadActionController) -> some View {
-        modifier(ChatThreadActionModifier(title: title, actions: actions, controller: controller))
+                           controller: ChatThreadActionController, presentsDialogs: Bool = true) -> some View {
+        modifier(ChatThreadActionModifier(title: title, actions: actions, controller: controller,
+                                          presentsDialogs: presentsDialogs))
     }
 }
 
@@ -50,16 +52,18 @@ private struct ChatThreadActionModifier: ViewModifier {
     let title: String
     let actions: ChatThreadActions
     let controller: ChatThreadActionController
+    var presentsDialogs = true
 
     func body(content: Content) -> some View {
-        swipeContent(content)
-            .contextMenu {
-                if let menu = actions.hostMenu {
-                    menu()
-                    if actions.archive != nil || actions.delete != nil { Divider() }
-                }
-                buttons
-            }
+        if presentsDialogs {
+            rowContent(content).chatThreadActionDialogs(title: title, actions: actions, controller: controller)
+        } else {
+            rowContent(content)
+        }
+    }
+
+    private func rowContent(_ content: Content) -> some View {
+        menuContent(swipeContent(content))
             .disabled(controller.isPending)
             .overlay(alignment: .trailing) {
                 if controller.isPending {
@@ -68,26 +72,21 @@ private struct ChatThreadActionModifier: ViewModifier {
                         .chatIdentifier(actions.identifiers.progress)
                 }
             }
-            .confirmationDialog("Delete \(title)?", isPresented: Binding(
-                get: { controller.isConfirmingDelete },
-                set: { if !$0 { controller.dismissConfirmation() } }
-            ), titleVisibility: .visible) {
-                Button("Delete", role: .destructive) { controller.confirmDelete(actions) }
-                    .chatTextStyle(.control)
-                    .chatIdentifier(actions.identifiers.confirmDelete)
-                Button("Cancel", role: .cancel) { controller.dismissConfirmation() }
-                    .chatTextStyle(.control)
-                    .chatIdentifier(actions.identifiers.cancelDelete)
+    }
+
+    /// A row with nothing to offer gets no menu: an empty one still lifts the row on a long press and stays up.
+    @ViewBuilder private func menuContent(_ content: some View) -> some View {
+        if actions.hostMenu != nil || actions.archive != nil || actions.delete != nil {
+            content.contextMenu {
+                if let menu = actions.hostMenu {
+                    menu()
+                    if actions.archive != nil || actions.delete != nil { Divider() }
+                }
+                buttons
             }
-            .alert("Couldn’t update \(title)", isPresented: Binding(
-                get: { controller.error != nil }, set: { if !$0 { controller.dismissError() } }
-            )) {
-                Button("OK") { controller.dismissError() }
-                    .chatTextStyle(.control)
-                    .chatIdentifier(actions.identifiers.dismissError)
-            } message: {
-                Text(controller.error?.message ?? "")
-            }
+        } else {
+            content
+        }
     }
 
     @ViewBuilder private func swipeContent(_ content: Content) -> some View {
@@ -111,5 +110,33 @@ private struct ChatThreadActionModifier: ViewModifier {
                 .chatIdentifier(actions.identifiers.delete)
                 .disabled(!controller.isIdle)
         }
+    }
+}
+
+extension View {
+    /// The delete confirmation and the failed-action alert for one thread.
+    func chatThreadActionDialogs(title: String, actions: ChatThreadActions,
+                                 controller: ChatThreadActionController) -> some View {
+        self
+            .confirmationDialog("Delete \(title)?", isPresented: Binding(
+                get: { controller.isConfirmingDelete },
+                set: { if !$0 { controller.dismissConfirmation() } }
+            ), titleVisibility: .visible) {
+                Button("Delete", role: .destructive) { controller.confirmDelete(actions) }
+                    .chatTextStyle(.control)
+                    .chatIdentifier(actions.identifiers.confirmDelete)
+                Button("Cancel", role: .cancel) { controller.dismissConfirmation() }
+                    .chatTextStyle(.control)
+                    .chatIdentifier(actions.identifiers.cancelDelete)
+            }
+            .alert("Couldn’t update \(title)", isPresented: Binding(
+                get: { controller.error != nil }, set: { if !$0 { controller.dismissError() } }
+            )) {
+                Button("OK") { controller.dismissError() }
+                    .chatTextStyle(.control)
+                    .chatIdentifier(actions.identifiers.dismissError)
+            } message: {
+                Text(controller.error?.message ?? "")
+            }
     }
 }
