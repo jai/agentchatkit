@@ -18,9 +18,11 @@ public struct ThreadQueuedReplies<ID: Hashable & Sendable>: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: theme.spacing.sm) {
             ForEach(model.queued) { reply in
-                row(reply)
+                row(reply).transition(.opacity)
             }
         }
+        .animation(ChatMotion.fold, value: model.queued)
+        .animation(ChatMotion.fold, value: model.errors)
     }
 
     private func row(_ reply: QueuedReply<ID>) -> some View {
