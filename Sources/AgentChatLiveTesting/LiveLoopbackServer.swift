@@ -206,6 +206,9 @@ public actor LiveLoopbackServer: HTTPTransport, StreamingTransport {
         guard let name = request.value(forHTTPHeaderField: "Acp-Connection-Id"), connections[name] != nil else {
             return (Data(), response(request, 404))
         }
+        guard request.value(forHTTPHeaderField: "Acp-Session-Id") == session else {
+            return (Data(), response(request, 400)) // As the server package: a session's requests name it.
+        }
         if message["method"] == nil {
             await take(answer: message, from: name)
         } else {

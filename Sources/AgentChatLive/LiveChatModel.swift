@@ -222,7 +222,12 @@ public final class LiveChatModel {
                     }
                 } catch {}
             }
-            await resume(clock: clock, initialized: initialized, stream: opened - opening)
+            guard await resume(clock: clock, initialized: initialized, stream: opened - opening) else {
+                // No answer to the resume: this stream will never carry the chat. Start again.
+                reader.cancel()
+                failWaiting()
+                return .dropped(after: .zero)
+            }
             await withTaskCancellationHandler {
                 await reader.value
             } onCancel: {
@@ -236,17 +241,20 @@ public final class LiveChatModel {
         }
     }
 
-    /// `session/resume` from the held cursor; from start when there is none or the host can't resume from it.
-    private func resume(clock: ContinuousClock, initialized: Duration?, stream: Duration) async {
+    /// `session/resume` from the held cursor; from start when there is none or the host can't resume from it. False
+    /// when it got no answer.
+    private func resume(clock: ContinuousClock, initialized: Duration?, stream: Duration) async -> Bool {
         let started = clock.now
         var fromStart = chat.cursor == nil
         do {
             _ = try await resumeCall()
         } catch LiveRequestError.refused(AcpError.invalidParams, _) {
             fromStart = true
-            _ = try? await resumeCall(fromStart: true)
+            guard (try? await resumeCall(fromStart: true)) != nil else {
+                return false
+            }
         } catch {
-            return
+            return false
         }
         phase = .live
         let measured = LiveConnectTiming(
@@ -254,6 +262,7 @@ public final class LiveChatModel {
         )
         timings = Array((timings + [measured]).suffix(20))
         onTiming?(measured)
+        return true
     }
 
     private func resumeCall(fromStart: Bool = false) async throws -> JSONValue {
@@ -429,9 +438,8 @@ public final class LiveChatModel {
         request.setValue("Bearer \(bearer ?? "")", forHTTPHeaderField: "Authorization")
         request.setValue(accept, forHTTPHeaderField: "Accept")
         if let connection {
+            // Everything after `initialize` is the session's: the stream, and every request on it.
             request.setValue(connection, forHTTPHeaderField: "Acp-Connection-Id")
-        }
-        if method == "GET" {
             request.setValue(endpoint.session, forHTTPHeaderField: "Acp-Session-Id")
         }
         return request
