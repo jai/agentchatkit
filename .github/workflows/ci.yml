@@ -21,6 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift test
+      # A test process that crashes says nothing in the log: print its crash report.
+      - name: Crash reports
+        if: failure()
+        run: |
+          for report in $(ls -t ~/Library/Logs/DiagnosticReports/*.ips 2>/dev/null | head -2); do
+            echo "== $report"; head -c 12000 "$report"; echo
+          done
   demo:
     # The demo app builds for the Mac, and its UI tests walk the chat's main flows on an iPhone simulator.
     runs-on: macos-latest
