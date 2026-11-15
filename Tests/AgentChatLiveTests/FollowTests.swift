@@ -93,7 +93,7 @@ struct FollowTests {
         let following = follow(live)
         defer { following.cancel() }
         try await eventually("replaced") { live.chat.messages.map(\.id) == ["m1", "m2"] }
-        #expect(live.timings.last?.fromStart == true)
+        try await eventually("timed from start") { live.timings.last?.fromStart == true }
     }
 
     @Test func aBearerRefusedTwiceStops() async throws {

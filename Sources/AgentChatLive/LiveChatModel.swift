@@ -212,29 +212,39 @@ public final class LiveChatModel {
             }
             let opened = clock.now
             streamsOpened += 1
-            let reader = Task { @MainActor [weak self] in
+            // The lines reach this task through a stream of the model's own: a pump copies them from the connection,
+            // and a resume that gets no answer ends it. Reading inline means cancelling `follow()` ends the reading.
+            // (No `withTaskCancellationHandler` around an awaited reader: on the macOS 26 runtime that pattern
+            // aborted the test process with "freed pointer was not the last allocation".)
+            let (lines, feed) = AsyncStream<String>.makeStream()
+            let pump = Task {
                 do {
                     for try await line in stream.lines {
-                        guard let self, let message = self.parser.message(from: line) else {
-                            continue
-                        }
-                        self.receive(message)
+                        feed.yield(line)
                     }
                 } catch {}
+                feed.finish()
             }
-            guard await resume(clock: clock, initialized: initialized, stream: opened - opening) else {
-                // No answer to the resume: this stream will never carry the chat. Start again.
-                reader.cancel()
-                failWaiting()
-                return .dropped(after: .zero)
+            defer { pump.cancel() }
+            let since = opened - opening
+            let resumer = Task { @MainActor [weak self] () -> Bool in
+                guard let self else {
+                    return false
+                }
+                let resumed = await self.resume(clock: clock, initialized: initialized, stream: since)
+                if !resumed {
+                    feed.finish() // No answer to the resume: this stream will never carry the chat. Start again.
+                }
+                return resumed
             }
-            await withTaskCancellationHandler {
-                await reader.value
-            } onCancel: {
-                reader.cancel()
+            for await line in lines {
+                if let message = parser.message(from: line) {
+                    receive(message)
+                }
             }
             failWaiting()
-            return .dropped(after: clock.now - opened)
+            let resumed = await resumer.value
+            return .dropped(after: resumed ? clock.now - opened : .zero)
         } catch {
             failWaiting()
             return .dropped(after: .zero)
