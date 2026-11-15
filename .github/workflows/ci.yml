@@ -26,11 +26,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      # AgentChatLive's tests start the server package's dev host (server/dev/host.ts) with node.
+      # AgentChatLive's tests follow the server package's dev host. CI starts it, rather than the test process
+      # (launching node from inside swift test died with SIGBUS on the macOS 26 runner).
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - run: node server/dev/host.ts --port 8789 > "$RUNNER_TEMP/dev-host.log" 2>&1 &
       - run: swift test
+        env:
+          AGENTCHAT_DEV_HOST: http://127.0.0.1:8789
       # A test process that crashes says nothing in the log: print its crash report.
       - name: Crash reports
         if: failure()
