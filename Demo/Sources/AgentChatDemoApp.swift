@@ -3,7 +3,7 @@ import SwiftUI
 
 /// AgentChatKit's demo: a host app with two chats with a scripted agent and three looks. Launch arguments set it up
 /// for UI tests and screenshots: `-DemoPace fast|slow` (the agent's speed), `-DemoChat tour|long|live` (open on a chat),
-/// `-DemoTheme prHub|terminal|paper`.
+/// `-DemoTheme prHub|terminal|paper`. `-DemoChat extraction` opens independent shared-control fixtures.
 @main
 struct AgentChatDemoApp: App {
     var body: some Scene {
@@ -54,11 +54,15 @@ struct DemoRoot: View {
                     Label("Live", systemImage: "dot.radiowaves.left.and.right")
                 }
                 .accessibilityIdentifier("demo-chat-live")
+                NavigationLink(value: "extraction") { Text("Shared pieces") }
+                    .accessibilityIdentifier("demo-chat-extraction")
             }
             .navigationTitle("AgentChatKit")
         } detail: {
             if selection == "live" {
                 DemoLiveScreen(chat: live, themeChoice: $themeChoice)
+            } else if selection == "extraction" {
+                DemoExtractionHome()
             } else if let chat = chats.first(where: { $0.id == selection }) {
                 DemoChatScreen(chat: chat, themeChoice: $themeChoice)
                     .id(chat.id)

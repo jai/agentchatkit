@@ -28,6 +28,10 @@ public enum ChatStyle {
     public static let followSlack: CGFloat = 40
     /// A message bar's widest on a wide iPad, centred: the width of an iPad in portrait.
     public static let barMaxWidth: CGFloat = 820
+    /// Equal-width quick answers stop growing on a wide Mac window.
+    public static let answerMaxWidth: CGFloat = 240
+    public static let screenshotViewerMinWidth: CGFloat = 480
+    public static let screenshotViewerMinHeight: CGFloat = 360
 }
 
 /// What people write, laid out (`MarkdownText`).

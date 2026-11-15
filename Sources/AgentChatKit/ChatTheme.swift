@@ -21,6 +21,8 @@ public struct ChatTheme: Sendable {
     /// The page under the chat, and a box on it.
     public var groundPage: Color
     public var groundCard: Color
+    /// The full-screen screenshot viewer stays dark even when the host chooses a light paper theme.
+    public var pictureGround: Color
     /// Behind a table's header.
     public var groundFill: Color
     /// A hairline: a box's border.
@@ -52,6 +54,9 @@ public struct ChatTheme: Sendable {
         public var conversation = "text.bubble"
         public var drillIn = "chevron.right"
         public var paused = "pause.circle.fill"
+        public var archive = "archivebox"
+        public var delete = "trash"
+        public var sendNow = "arrow.up"
 
         public init() {}
     }
@@ -61,7 +66,7 @@ public struct ChatTheme: Sendable {
         code: @escaping @MainActor @Sendable (Text) -> AnyView = ChatTheme.systemCode,
         ink: Color = .primary, inkQuiet: Color = .secondary, onBubble: Color = .white,
         groundPage: Color = ChatTheme.systemGroundPage, groundCard: Color = ChatTheme.systemGroundCard,
-        groundFill: Color = ChatTheme.systemGroundFill, line: Color = ChatTheme.systemLine,
+        groundFill: Color = ChatTheme.systemGroundFill, pictureGround: Color = .black, line: Color = ChatTheme.systemLine,
         toneGood: Color = Color("ToneGood"), toneBad: Color = Color("ToneBad"),
         toneWaiting: Color = Color("ToneWaiting"), symbols: Symbols = Symbols()
     ) {
@@ -72,6 +77,7 @@ public struct ChatTheme: Sendable {
         self.onBubble = onBubble
         self.groundPage = groundPage
         self.groundCard = groundCard
+        self.pictureGround = pictureGround
         self.groundFill = groundFill
         self.line = line
         self.toneGood = toneGood

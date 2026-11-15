@@ -1,0 +1,42 @@
+import AgentChatKit
+import SwiftUI
+
+struct DemoDeliveryScreen: View {
+    @State private var state = ReplyDeliveryState.failed
+    @State private var retries = 0
+    @State private var cancels = 0
+    @State private var busy = false
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: ChatSpace.lg) {
+            Text("A fixture reply")
+            SentReplyStatus(
+                state: state, text: state == .removed ? "Cancelled" : "Fixture delivery failed",
+                about: "A fixture reply", isSending: busy,
+                retry: state == .failed ? retry : nil,
+                cancel: state == .failed ? cancel : nil
+            )
+            Button("Reset delivery") { state = .failed }
+            SentReplyStatus(state: .pending(), text: "Sent", about: "Gateway received it")
+            SentReplyStatus(state: .delivered, text: "Delivered", about: "Agent received it")
+            DemoFixtureNotice(text: "Retry calls: \(retries), Cancel calls: \(cancels)")
+        }
+        .padding(ChatSpace.md)
+        .navigationTitle("Delivery status")
+    }
+
+    private func retry() {
+        retries += 1
+        busy = true
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            state = .delivered
+            busy = false
+        }
+    }
+
+    private func cancel() {
+        cancels += 1
+        state = .removed
+    }
+}
