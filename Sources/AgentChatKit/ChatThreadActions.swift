@@ -1,3 +1,4 @@
+import AgentChatCore
 import SwiftUI
 
 /// Host mutations only. Archive may hide locally; Delete means only what the supplied hook implements.

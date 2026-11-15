@@ -1,3 +1,4 @@
+import AgentChatCore
 import Foundation
 import Observation
 
