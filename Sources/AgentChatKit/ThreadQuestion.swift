@@ -85,6 +85,9 @@ public struct ThreadQuestion<Option: Identifiable>: View {
                 .controlSize(theme.controlSize)
                 .disabled(isSending)
         }
-        if let waitWhat { WaitWhatButton(isSending: isSending, identifier: identifiers.waitWhat, send: waitWhat) }
+        if let waitWhat {
+            WaitWhatButton(isSending: isSending, identifier: identifiers.waitWhat, send: waitWhat)
+                .controlSize(theme.controlSize)
+        }
     }
 }

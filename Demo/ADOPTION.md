@@ -7,7 +7,7 @@ remain with the parent. Agent Pager was read only as the queue/row reference.
 ## API changes for the adopter
 
 - `ChatTheme.typography` has optional meta/objectTitle/body/control `ChatTextStyle` roles (font, leading, lineSpacing).
-  Unset roles resolve via the current legacy `font` closure. Nil leading/lineSpacing preserve the host font’s own
+  Unset roles resolve via the current legacy `font` closure. Existing ticks and quick-reply controls retain their original caption2 and semibold-footnote fallback; explicit host roles win. Nil leading/lineSpacing preserve the host font’s own
   leading and inherited spacing. `ChatTheme.spacing` holds host spacing/row insets;
   `controlSize` defaults to native `.large`. No new view selects a point size.
 - `ChatThreadRow` keeps its two-generic-parameter type and existing accessory/chips initializer. A second initializer

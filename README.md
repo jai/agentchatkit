@@ -69,6 +69,8 @@ theme.controlSize = .large // native semantic size; hosts may use .regular on Ma
 Host accessory/chip views can also use `.chatTextStyle(.meta)` or the other roles. Explicit fonts on their own
 children still take precedence. Hosts own any scaling of custom line-spacing/spacing tokens.
 
+Existing `DeliveryTicksLine` and `WaitWhatButton` keep their caption2 and semibold footnote fonts until the host supplies the corresponding semantic role. New chat controls use the semantic defaults.
+
 ## Thread rows and navigation
 
 `ChatThreadRow` orders context (`meta`), object title, `About:` body text, then chips. Its optional `titleMark`
@@ -293,3 +295,4 @@ step; the parent owns the permitted CI run and rendered-image review.
 
 The demo is this repo's UI-test host: `AgentChatDemo-iOS`'s tests (`Demo/UITests`) walk the main flows on an iPhone, and
 `testReadmeScreenshots` takes the pictures above (they are kept on its test result).
+

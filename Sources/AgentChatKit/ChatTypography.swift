@@ -40,29 +40,30 @@ public struct ChatTypography: Sendable {
 }
 
 extension ChatTheme {
-    public func textStyle(_ role: ChatTextRole) -> ChatTextStyle {
+    public func textStyle(_ role: ChatTextRole, fallback: ChatTextStyle? = nil) -> ChatTextStyle {
         switch role {
-        case .meta: typography.meta ?? ChatTextStyle(font: font(.caption))
-        case .objectTitle: typography.objectTitle ?? ChatTextStyle(font: font(.headline))
-        case .body: typography.body ?? ChatTextStyle(font: font(.body))
-        case .control: typography.control ?? ChatTextStyle(font: font(.body).weight(.semibold))
+        case .meta: typography.meta ?? fallback ?? ChatTextStyle(font: font(.caption))
+        case .objectTitle: typography.objectTitle ?? fallback ?? ChatTextStyle(font: font(.headline))
+        case .body: typography.body ?? fallback ?? ChatTextStyle(font: font(.body))
+        case .control: typography.control ?? fallback ?? ChatTextStyle(font: font(.body).weight(.semibold))
         }
     }
 }
 
 extension View {
     /// Also available to host accessories/chips, so their baselines use the same host metrics.
-    public func chatTextStyle(_ role: ChatTextRole) -> some View {
-        modifier(ChatTextStyleModifier(role: role))
+    public func chatTextStyle(_ role: ChatTextRole, fallback: ChatTextStyle? = nil) -> some View {
+        modifier(ChatTextStyleModifier(role: role, fallback: fallback))
     }
 }
 
 private struct ChatTextStyleModifier: ViewModifier {
     @Environment(\.chatTheme) private var theme
     let role: ChatTextRole
+    let fallback: ChatTextStyle?
 
     func body(content: Content) -> some View {
-        let style = theme.textStyle(role)
+        let style = theme.textStyle(role, fallback: fallback)
         if let lineSpacing = style.lineSpacing {
             content.font(style.resolvedFont).lineSpacing(lineSpacing)
         } else {

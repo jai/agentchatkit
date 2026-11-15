@@ -23,4 +23,16 @@ struct ChatThemeTests {
         #expect(theme.spacing.xs == 7)
         #expect(theme.spacing.sm == 13)
     }
+    @Test func explicitHostRolesOverrideAnExistingComponentsFallback() {
+        var theme = ChatTheme(font: { .system($0, design: .monospaced) })
+        let originalTicks = ChatTextStyle(font: theme.font(.caption2))
+        let originalQuickReply = ChatTextStyle(font: theme.font(.footnote).weight(.semibold))
+        #expect(theme.textStyle(.meta, fallback: originalTicks).resolvedFont == originalTicks.resolvedFont)
+        #expect(theme.textStyle(.control, fallback: originalQuickReply).resolvedFont == originalQuickReply.resolvedFont)
+        theme.typography.meta = ChatTextStyle(font: .title, lineSpacing: 7, leading: .loose)
+        theme.typography.control = ChatTextStyle(font: .headline)
+        #expect(theme.textStyle(.meta, fallback: originalTicks).resolvedFont == Font.title.leading(.loose))
+        #expect(theme.textStyle(.meta, fallback: originalTicks).lineSpacing == 7)
+        #expect(theme.textStyle(.control, fallback: originalQuickReply).resolvedFont == Font.headline)
+    }
 }

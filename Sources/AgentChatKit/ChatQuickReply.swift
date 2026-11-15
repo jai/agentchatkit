@@ -47,9 +47,8 @@ public struct WaitWhatButton: View {
     public var body: some View {
         Button(action: send) {
             Text("\(Image(systemName: theme.symbols.askAI)) \(ChatQuickReply.waitWhat.label)")
-                .chatTextStyle(.control)
+                .chatTextStyle(.control, fallback: ChatTextStyle(font: theme.font(.footnote).weight(.semibold)))
         }
-        .controlSize(theme.controlSize)
         .buttonStyle(.borderless)
         .disabled(isSending)
         .accessibilityLabel(ChatQuickReply.waitWhat.label)

@@ -44,7 +44,7 @@ public struct DeliveryTicksLine: View {
             }
             .foregroundStyle(ticks == .delivered ? theme.toneGood : theme.inkQuiet)
         }
-        .chatTextStyle(.meta)
+        .chatTextStyle(.meta, fallback: ChatTextStyle(font: theme.font(.caption2)))
         .foregroundStyle(theme.inkQuiet)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([date?.formatted(date: .omitted, time: .shortened), ticks.spoken].compactMap(\.self)
