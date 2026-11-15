@@ -7,6 +7,7 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     @State private var controllers = ChatThreadActionStore<Item.ID>()
     public var items: [Item]
     private let title: (Item) -> String
+    private let rowIdentifier: (Item) -> String?
     private let actions: (Item) -> ChatThreadActions
     private let row: (Item) -> Row
     private let navigation: Navigation
@@ -24,11 +25,13 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     public init(
         items: [Item], title: @escaping (Item) -> String,
         actions: @escaping (Item) -> ChatThreadActions = { _ in ChatThreadActions() },
+        rowIdentifier: @escaping (Item) -> String? = { _ in nil },
         selection: Binding<Item.ID?>? = nil, open: ((Item) -> Void)? = nil,
         @ViewBuilder row: @escaping (Item) -> Row, @ViewBuilder destination: @escaping (Item) -> Destination
     ) {
         self.items = items
         self.title = title
+        self.rowIdentifier = rowIdentifier
         self.actions = actions
         self.row = row
         hostSelection = selection
@@ -43,12 +46,14 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     public init<Header: View, Footer: View>(
         items: [Item], title: @escaping (Item) -> String,
         actions: @escaping (Item) -> ChatThreadActions = { _ in ChatThreadActions() },
+        rowIdentifier: @escaping (Item) -> String? = { _ in nil },
         selection: Binding<Item.ID?>? = nil, open: ((Item) -> Void)? = nil,
         @ViewBuilder row: @escaping (Item) -> Row,
         @ViewBuilder header: () -> Header, @ViewBuilder footer: () -> Footer
     ) where Destination == EmptyView {
         self.items = items
         self.title = title
+        self.rowIdentifier = rowIdentifier
         self.actions = actions
         self.row = row
         hostSelection = selection
@@ -108,10 +113,11 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
 
     @ViewBuilder private func link(_ item: Item) -> some View {
         switch navigation {
-        case .host: row(item)
+        case .host: row(item).chatIdentifier(rowIdentifier(item))
         case let .destination(destination):
             NavigationLink { destination(item) } label: { row(item) }
                 .buttonStyle(.plain)
+                .chatIdentifier(rowIdentifier(item))
         }
     }
 }

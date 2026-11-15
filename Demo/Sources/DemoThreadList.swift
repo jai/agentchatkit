@@ -17,7 +17,9 @@ struct DemoThreadList: View {
     @State private var failNext = false
 
     var body: some View {
-        ChatThreadList(items: threads, title: \.title, actions: actions) { thread in
+        ChatThreadList(items: threads, title: \.title, actions: actions, rowIdentifier: {
+            DemoAdoptionSettings.customIDs ? "sessionRow-\($0.id)" : "fixture-thread-\($0.id)"
+        }) { thread in
             ChatThreadRow(title: thread.title, context: "Fixture · local host", about: "Shared row and navigation",
                           identifiers: DemoAdoptionSettings.rowIDs(thread.id)) {
                 Text("◈").accessibilityLabel("Host title mark")
