@@ -37,7 +37,16 @@ function harness(capabilities: HostCapabilities): ConformanceHarness<MemoryWho> 
 
 const hosts: [string, HostCapabilities][] = [
   ["a host that queues and asks", { queues: true, edit: true, remove: true, answer: true }],
-  ["a host that never queues and asks nothing", { queues: false, edit: true, remove: true, answer: false }],
+  [
+    "a host that never queues, asks nothing and has no tool calls (FeedbackKit's shape)",
+    {
+      queues: false,
+      edit: true,
+      remove: true,
+      answer: false,
+      updates: ["user_message", "agent_message", "state_update"],
+    },
+  ],
 ];
 
 for (const [name, capabilities] of hosts) {

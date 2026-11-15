@@ -41,6 +41,12 @@ export interface HostCapabilities {
   remove: boolean;
   /** Questions: `elicitation/create` and its answer (FeedbackKit: false). Needs `ask`. */
   answer: boolean;
+  /**
+   * The `sessionUpdate` kinds the host's sessions hold. Fixture updates of other kinds are left out of what the
+   * suite applies and expects (FeedbackKit: `["user_message", "agent_message", "state_update"]`, no tool calls).
+   * Every kind when left out.
+   */
+  updates?: string[];
 }
 
 export interface ConformanceHarness<Who> {
@@ -386,6 +392,9 @@ function fixture(name: string): Fixture {
 
 export function conformanceCases<Who>(harness: ConformanceHarness<Who>): ConformanceCase[] {
   const { adapter, capabilities } = harness;
+  /** Whether the host's sessions hold this kind of update (`capabilities.updates`). */
+  const holds = (update: SessionUpdate) =>
+    capabilities.updates === undefined || capabilities.updates.includes(update.sessionUpdate);
   const wait = harness.timeoutMs ?? 2_000;
   const timers = new ManualTimers();
   const rooms = localRooms(adapter, timers);
@@ -558,7 +567,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
         const who = await owner(sessionId);
         const places: string[] = [];
         for (const update of server.before) {
-          await harness.apply(sessionId, update);
+          // A kind the host has none of is not applied; its place is the one before it, so "@n" still counts it.
+          if (holds(update)) {
+            await harness.apply(sessionId, update);
+          }
           places.push(await cursorNow(sessionId, who));
         }
         const clients: AcpTestClient[] = [];
@@ -581,8 +593,8 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
           const { client: c, replay, answer } = await follow(sessionId, cursor);
           clients.push(c);
           check("result" in answer, `the resume answers, got ${JSON.stringify(answer)}`);
-          const stream = server.stream ?? [];
-          const during = server.during ?? [];
+          const stream = (server.stream ?? []).filter(holds);
+          const during = (server.during ?? []).filter(holds);
           const atResume = stream.length - during.length;
           check(replay.length === atResume, `the resume carried ${replay.length} updates, expected ${atResume}`);
           replay.forEach((message, index) => expectSubset(stream[index], updateOf(message, `replay ${index}`), `${name} replay ${index}`));
