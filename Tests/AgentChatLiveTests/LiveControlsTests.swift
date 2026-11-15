@@ -7,7 +7,7 @@ import Testing
 @testable import AgentChatLive
 
 /// Exercises the same action coordinator used by the SwiftUI adapters, over real in-memory ACP requests/updates.
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.timeLimit(.minutes(1)), .enabled(if: LiveHostSuites.run, "AGENTCHAT_LIVE_TESTS=off"))
 @MainActor
 struct LiveControlsTests {
     private let server = LiveDevHost()
