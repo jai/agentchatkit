@@ -24,7 +24,15 @@ function harness(capabilities: HostCapabilities): ConformanceHarness<MemoryWho> 
     ask: async (id, params) => {
       sessions.ask(id, params);
     },
-    expire: async (id) => sessions.expire(id),
+    // FeedbackKit's shape names a cursor past the end instead of expiring them (its cursors never go stale alone).
+    ...(capabilities.queues
+      ? { expire: async (id: string) => sessions.expire(id) }
+      : {
+          staleCursor: async (_id: string, current: string) => {
+            const [epoch, count] = current.split(":");
+            return `${epoch}:${Number(count) + 1000}`;
+          },
+        }),
     request: (url, init = {}, auth = "owner") => {
       const headers = new Headers(init.headers);
       if (auth !== "none") {

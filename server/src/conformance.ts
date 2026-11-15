@@ -60,6 +60,11 @@ export interface ConformanceHarness<Who> {
   ask?(sessionId: string, params: Omit<ElicitationCreateParams, "sessionId">): Promise<void>;
   /** Makes every cursor handed out for the session so far one the host can't resume. Without it, that case skips. */
   expire?(sessionId: string): Promise<void>;
+  /**
+   * Instead of `expire`, for a host whose cursors never go stale by themselves: a cursor of this session it can't
+   * resume (another history's, or past its end). Without either, that case skips.
+   */
+  staleCursor?(sessionId: string, current: string): Promise<string>;
   /** A request to `url` with the session owner's bearer, no bearer, or someone else's. */
   request(url: string, init?: RequestInit, auth?: Auth): Request;
   /** What a stranger gets: 403 by default; some hosts answer 404 so as not to say the session exists. */
@@ -558,7 +563,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
   for (const name of ["resume-start", "resume-cursor", "resume-expired"]) {
     const server = fixture(name).server;
     check(server, `${name} has a server half`);
-    const skip = server.resume === "expired" && !harness.expire ? "the harness cannot expire cursors" : undefined;
+    const skip =
+      server.resume === "expired" && !harness.expire && !harness.staleCursor
+        ? "the harness can neither expire cursors nor name a stale one"
+        : undefined;
     cases.push({
       name: `${name}.json: the resume and what follows it`,
       ...(skip ? { skip } : {}),
@@ -576,8 +584,12 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
         const clients: AcpTestClient[] = [];
         try {
           if (server.resume === "expired") {
-            await harness.expire?.(sessionId);
-            const old = places.at(-1) ?? null;
+            let old = places.at(-1) ?? null;
+            if (harness.expire) {
+              await harness.expire(sessionId);
+            } else if (harness.staleCursor && old !== null) {
+              old = await harness.staleCursor(sessionId, old);
+            }
             const { client: c, replay, answer } = await follow(sessionId, old);
             clients.push(c);
             check(replay.length === 0, `an expired cursor replays nothing, got ${replay.length}`);
