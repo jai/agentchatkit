@@ -126,9 +126,14 @@ final class AdoptionUITests: FixtureUITestCase {
         XCTAssertTrue(edit.label.contains("Edit"))
         XCTAssertTrue(remove.label.contains("Remove"))
         XCTAssertTrue(send.label.contains("Send now"))
-        XCTAssertGreaterThanOrEqual(edit.frame.height, 28)
-        XCTAssertGreaterThanOrEqual(remove.frame.height, 28)
-        XCTAssertGreaterThanOrEqual(send.frame.height, 28)
+        #if os(iOS)
+        let minimumHeight: CGFloat = 44
+        #else
+        let minimumHeight: CGFloat = 28
+        #endif
+        XCTAssertGreaterThanOrEqual(edit.frame.height, minimumHeight)
+        XCTAssertGreaterThanOrEqual(remove.frame.height, minimumHeight)
+        XCTAssertGreaterThanOrEqual(send.frame.height, minimumHeight)
         XCTAssertLessThan(edit.frame.minX, remove.frame.minX)
         XCTAssertGreaterThanOrEqual(send.frame.maxX, remove.frame.maxX)
         XCTAssertTrue(element("queue-text-edit").exists)
