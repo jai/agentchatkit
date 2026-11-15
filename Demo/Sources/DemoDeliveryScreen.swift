@@ -13,8 +13,8 @@ struct DemoDeliveryScreen: View {
             SentReplyStatus(
                 state: state, text: state == .removed ? "Cancelled" : "Fixture delivery failed",
                 about: "A fixture reply", isSending: busy,
-                retry: state == .failed ? retry : nil,
-                cancel: state == .failed ? cancel : nil,
+                retry: retryAction,
+                cancel: cancelAction,
                 identifiers: ids
             )
             Button("Reset delivery") { state = .failed }
@@ -24,6 +24,16 @@ struct DemoDeliveryScreen: View {
         }
         .padding(ChatSpace.md)
         .navigationTitle("Delivery status")
+    }
+
+    private var retryAction: (() -> Void)? {
+        guard state == .failed else { return nil }
+        return { retry() }
+    }
+
+    private var cancelAction: (() -> Void)? {
+        guard state == .failed else { return nil }
+        return { cancel() }
     }
 
     private var ids: ReplyStatusIdentifiers {
