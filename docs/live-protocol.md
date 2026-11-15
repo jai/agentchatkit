@@ -20,13 +20,15 @@ Status: draft for review, 2026-11-15. Nothing implements it yet.
 4. While the stream is down, the app reads `GET <chat>/live/read?v=1&after=<cursor>` every 2 s. The read answers the
    same frames, so the app applies them the same way.
 5. The app keeps one cursor, takes each item once by its id and `seq`, and reconnects with back-off.
+6. The app writes with four requests: send, force a queued reply, remove a queued reply, answer the agent's question.
+   Each change it makes reaches every open stream as frames.
 
 ## Why Server-Sent Events
 
 - DurableNetworking, the one network stack for the apps, has `StreamingTransport` (lines of a long response). It has
   no WebSocket. SSE needs nothing new in it.
 - Agent Pager's hub and Worker already stream threads as SSE, through a Cloudflare Tunnel.
-- The app sends nothing on the stream. Its replies go through the host's own write route (an outbox), not here.
+- The app sends nothing on the stream. It writes with plain requests ([Writes](#writes)), through its outbox.
 
 The cost: a Durable Object that holds an open SSE response stays awake, where a hibernating WebSocket sleeps. A
 stream is open only while a chat is on screen and the app is in front, and it ends after 10 minutes
@@ -54,6 +56,7 @@ The host chooses where a chat lives (`<chat>`), for example `/v2/feedback/{id}` 
 | `GET <chat>/live?v=1&after=<cursor>` | `200 text/event-stream`: frames, until a `close` frame or the connection drops |
 | `GET <chat>/live/read?v=1&after=<cursor>&limit=<n>` | `200 application/json`: `{"v": 1, "frames": [Frame]}` |
 | `GET <chat>/live/read?v=1&before=<message id>&limit=<n>` | `200 application/json`: `{"v": 1, "frames": [Earlier]}` |
+| `POST`, `DELETE` `<chat>/live/…` | the writes: [Writes](#writes) |
 
 - `v` is required and is `1`. Another value: `400 unsupported_version`.
 - `after` is optional. Without it, the server starts with a `snapshot`. On the stream, a `Last-Event-ID` header is
@@ -77,6 +80,9 @@ Before the stream starts, a refusal is a plain HTTP answer with `{"error": <code
 | 5xx | `internal` | the server failed | reads; reconnects with back-off |
 
 A cursor the server can no longer resume from is not a refusal: the stream (or read) starts with a `snapshot`.
+
+A host may serve live for some chats only (FeedbackKit's public-issue chats have no change source). Those answer
+`404` to both routes, and the app keeps the host's own read.
 
 ## Frames
 
@@ -126,8 +132,8 @@ In a read, the same frames are the `frames` array. `type` is always in the JSON,
 
 `{"type": "message", "cursor", "seq", "message": Message}`
 
-A new message, or a new version of one: same `id`, higher `seq`. The client replaces a held message by `id`, in
-place, and appends a new one at the end.
+A new message, or a new version of one: same `id`, higher `seq`. The client replaces a held message by `id`.
+Where it shows: [Display order](#display-order).
 
 ### reply
 
@@ -135,6 +141,10 @@ place, and appends a new one at the end.
 
 One of the person's replies (messages they sent) moved on: queued, delivering, delivered, failed. When a reply
 becomes a message in the chat, the message carries `reply_id` and the reply carries `message_id`.
+
+A host whose person's messages are in the chat from the start (FeedbackKit) sends each as both: a `user` Message
+with `reply_id` set to its own id, and a Reply with the same id, `message_id` set at once, carrying its status. The
+bubble draws the Message; its ticks come from the Reply. Message and Reply ids are separate spaces.
 
 ### state
 
@@ -158,7 +168,7 @@ back-off.
 | `code` | `reason` | Means | The client |
 |---|---|---|---|
 | 4000 | `rotate` | the stream reached 10 minutes | reconnects at once with its cursor |
-| 4001 | `unauthorized` | the bearer expired while open, and the host ends streams for that | new bearer, then reconnects |
+| 4001 | `unauthorized` | the bearer was revoked while open (optional: a host may keep a stream whose bearer only expired) | new bearer, then reconnects |
 | 4003 | `forbidden` | no longer this person's chat | stops |
 | 4004 | `gone` | the chat was closed or deleted | stops following; one read shows the end |
 | 4029 | `busy` | the host is shedding streams | reads every 2 s; reconnects after `retry_after_ms` |
@@ -181,8 +191,10 @@ The package passes it through untouched; the Swift client hands it to the host a
 ### Message
 
 ```json
-{"id": "m7", "seq": 42, "role": "assistant", "text": "Done.", "at": "2026-11-15T05:01:02.000Z",
- "tool": null, "partial": false, "reply_id": null, "images": 0, "extra": {}}
+{"id": "m6", "seq": 40, "role": "user", "text": "Merge it.", "at": "2026-11-15T05:01:02.000Z",
+ "tool": null, "partial": false, "reply_id": "rpl_1", "sender": {"login": "jai", "name": "Jai"},
+ "images": [{"id": "img1", "url": "images/img1?sig=abc", "media_type": "image/jpeg", "width": 1179, "height": 2556}],
+ "extra": {}}
 ```
 
 | Field | Type | |
@@ -195,10 +207,19 @@ The package passes it through untouched; the Swift client hands it to the host a
 | `tool` | string or `null` | a `tool` message: the tool's name |
 | `partial` | bool, default `false` | the text so far of a message still being written; a later version replaces it |
 | `reply_id` | string or `null` | a `user` message that is one of the person's replies: that reply's `id` |
-| `images` | integer, default 0 | screenshots it carried (the bubble says so; the bytes are not on this wire) |
+| `sender` | Sender or `null` | a `user` message: who wrote it. A chat can have several people (FeedbackKit's owner and builder) |
+| `images` | [Image], default `[]` | the screenshots it carried |
 | `extra` | object, optional | the host's |
 
 FeedbackKit's `you` and `agent` are `user` and `assistant`.
+
+**Sender**: `{"login": string, "name": string or null}`. `login` is the host's stable id for the person (FeedbackKit:
+the GitHub login); `name` is how the app names them.
+
+**Image**: `{"id", "url", "media_type", "width", "height"}`.
+- `url` is where the app fetches the bytes. The host makes it and authorizes it: an absolute signed URL, or a path
+  relative to `<chat>/live/` that the app fetches with the same bearer. The package never serves image bytes.
+- `width` and `height` are pixels, so the strip lays out before the bytes arrive. `null` when the host does not know.
 
 ### Reply
 
@@ -217,6 +238,8 @@ FeedbackKit's `you` and `agent` are `user` and `assistant`.
 | `at` | ISO 8601 UTC | when the host took it |
 | `detail` | string or `null` | `failed`: why, in words for the person |
 | `message_id` | string or `null` | the chat message it became, once it did |
+| `sender` | Sender or `null` | who sent it |
+| `images` | [Image], default `[]` | the screenshots it carries |
 | `extra` | object, optional | the host's |
 
 Statuses, and the ticks `DeliveryTicks` draws:
@@ -233,8 +256,11 @@ Statuses, and the ticks `DeliveryTicks` draws:
 ### State
 
 ```json
-{"seq": 41, "working": true, "activity": "Running tests", "problem": null, "model": "claude-opus-5-5",
- "effort": "high", "extra": {}}
+{"seq": 43, "working": false, "activity": null, "problem": null, "model": "claude-opus-5-5", "effort": "high",
+ "waiting": {"id": "q1", "question": "Merge now or wait for review?",
+             "options": [{"id": "merge", "label": "Merge now"}, {"id": "wait", "label": "Wait for review"}],
+             "multiple": false, "free_text": true},
+ "extra": {}}
 ```
 
 | Field | Type | |
@@ -244,7 +270,50 @@ Statuses, and the ticks `DeliveryTicks` draws:
 | `activity` | string or `null` | what it is doing now, in a few words |
 | `problem` | string or `null` | why it stopped short of an answer |
 | `model`, `effort` | string or `null` | the chat's model and reasoning, as `ModelReasoningChip` shows them |
+| `waiting` | Question or `null` | the agent waits on the person: its open question (Orca's question card) |
 | `extra` | object, optional | the host's |
+
+**Question**: `{"id", "question", "options": [{"id", "label"}], "multiple": bool, "free_text": bool}`. `options` may be
+empty (an open question). `multiple`: more than one option may be chosen. `free_text`: words may be sent instead of,
+or with, options. When the person answers, `waiting` becomes `null` in the next `state`.
+
+## Writes
+
+The app's four writes. Each carries the bearer and `v=1` in the query. Each answers the Reply it made or changed. The
+change also reaches every open stream on the chat as frames, the writer's own included; the app takes the frames
+like any other, by `seq`, so the answer and the frame never show a reply twice.
+
+| Request | Body | Answer | Frames |
+|---|---|---|---|
+| `POST <chat>/live/messages` | `{"text", "client_ref", "force": bool, "images": [{"media_type", "data"}]}` | `201` Reply; `200` the same Reply for a repeat `client_ref` | `reply` (a repeat: none) |
+| `POST <chat>/live/replies/{id}/force` | none | `200` Reply | `reply` |
+| `DELETE <chat>/live/replies/{id}` | none | `200` Reply, `status: removed` | `reply` |
+| `POST <chat>/live/answer` | `{"question_id", "option_ids": [string], "text": string or null, "client_ref"}` | `201` Reply | `reply`, then `state` with `waiting: null` |
+
+- **send**: `client_ref` is the app's id for the message and its idempotency key: a repeat lands once. `images` are
+  up to four JPEG or PNG, base64 (`MessageImage`). `force: false` lets the host queue it behind the agent's turn;
+  `force: true` asks it to go now. Neither text nor images: `400 bad_request`.
+- **force**: a queued reply goes now. Not queued: `409 conflict`.
+- **remove**: a reply not yet passed on is taken back. Already `delivering` or `delivered`: `409 conflict`.
+- **answer**: answers `waiting`. The answer is a reply like any other: it becomes a `user` message when delivered.
+  A question that is not open (answered, or another id): `409 conflict`.
+- **Force by default while the chat waits on the person.** When the held `state.waiting` is not null, the client
+  sends with `force: true`: the agent's turn will not end until it is answered, so a queued reply would wait for
+  good. The person can still choose to queue.
+- Refusals are the same as the reads' (`400`, `401`, `403`, `404`), plus `409 conflict`, each
+  `{"error", "message"}`.
+
+## Display order
+
+`seq` decides which version of an item wins. It does not decide where a message shows:
+
+- Messages show in order of `at`, oldest first. An agent's message often arrives after a later one of the person's
+  (a transcript is read late); its earlier `at` puts it before.
+- A message without `at` sorts at the `at` of the message before it when it was first taken: it stays where it
+  arrived.
+- Equal `at` keeps the order taken. A snapshot's and an earlier frame's order is the server's.
+
+Fixture: `display-order.json`.
 
 ## The client's rules
 
@@ -256,6 +325,7 @@ One cursor, one `seq`, from whichever source last moved them.
      the same id (none held: apply). Then, if the frame's `seq` is higher than the held `seq`, take its `cursor` and
      `seq`.
    - `hello`, `ping`: change nothing. `hello` with `resumed: false` means a snapshot is next.
+   - A write's answer is a Reply: apply it as a `reply` frame's item, by its `seq`.
    - `earlier`: put its messages in front, each once by id.
 2. **So a duplicate does nothing** (same `seq`), **and an out-of-order frame does nothing** (lower `seq`): a read
    that answers after the stream has moved on cannot take the chat back.
@@ -295,16 +365,28 @@ interface LiveAdapter<Who> {
   read(who: Who, chat: string, cursor: string | null, limit: number): Promise<LiveRead>;
   /** The `limit` messages just before one, for `earlier`. */
   earlier(who: Who, chat: string, before: string, limit: number): Promise<{messages: Message[], moreBefore: boolean}>;
+  /** The writes. Each answers the Reply, or a refusal (400, 404, 409). Optional: a host without one answers 404. */
+  send?(who: Who, chat: string, body: SendBody): Promise<{reply: Reply, repeat: boolean} | LiveRefusal>;
+  force?(who: Who, chat: string, reply: string): Promise<Reply | LiveRefusal>;
+  remove?(who: Who, chat: string, reply: string): Promise<Reply | LiveRefusal>;
+  answer?(who: Who, chat: string, body: AnswerBody): Promise<Reply | LiveRefusal>;
 }
 ```
 
-When a chat changes, the host calls `notifyChat(namespace, chat)`. The room reads after the cursor it last sent and
+After a write that changed something, the package notifies the chat's room itself. When a chat changes any other
+way, the host calls `notifyChat(namespace, chat)`. The room reads after the cursor it last sent and
 broadcasts what is new. A failed notify is logged, never answered: the next read catches up.
 
 - **FeedbackKit**: `notifyChat` where it calls `chatChanged` today. Its `seq` and cursor come from a change counter
   on the chat.
 - **Agent Pager**: the hub follows the transcript (`follow`); while a room has streams, the room holds one hub stream
   and notifies itself on each message. The transcript offset is `seq`; the cursor keeps the hub's own cursor.
+
+## Pushes
+
+A host's push about a chat may carry the chat's `cursor` after the change. A tap, or the notification service, then
+does one `live/read?v=1&after=<the cursor it holds>` instead of fetching the whole chat. The push's cursor only says
+the chat moved; the client still takes the cursor from the frames it reads.
 
 ## Conformance
 
@@ -326,6 +408,11 @@ Fixtures (`protocol/fixtures/`):
 | `message-update.json` | a partial message, then its final version |
 | `reply-lifecycle.json` | a reply pending, queued, delivered, and the message it became |
 | `refusals.json` | each HTTP refusal and each `close` code, and what the client does |
+| `earlier.json` | "Load earlier": messages in front, cursor unchanged |
+| `display-order.json` | messages by `at`, not arrival; no `at`; ties |
+| `writes.json` | send, a repeat send, force, remove, answer: answers, frames, refusals; force while waiting |
+
+The fixtures are written by `protocol/generate.py`: change it, run it, commit both.
 
 ## Versioning
 
