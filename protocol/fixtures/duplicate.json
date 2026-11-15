@@ -1,0 +1,143 @@
+{
+  "about": "The same message arrives twice: on the stream, then in a read that overlapped it. The second does nothing.",
+  "client": {
+    "start": {
+      "cursor": "c:3",
+      "seq": 3,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "role": "user",
+          "text": "Why is the build red?",
+          "at": "2026-11-15T05:00:00.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        },
+        {
+          "id": "m3",
+          "seq": 3,
+          "role": "assistant",
+          "text": "A test times out on the simulator.",
+          "at": "2026-11-15T05:00:05.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      ],
+      "replies": [],
+      "state": {
+        "seq": 2,
+        "working": true,
+        "activity": "Reading the CI log",
+        "problem": null,
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "waiting": null
+      },
+      "more_before": false
+    },
+    "inputs": [
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:4",
+          "seq": 4,
+          "message": {
+            "id": "m4",
+            "seq": 4,
+            "role": "assistant",
+            "text": "I raised the timeout to 30 s.",
+            "at": "2026-11-15T05:00:08.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      },
+      {
+        "source": "read",
+        "frame": {
+          "type": "message",
+          "cursor": "c:4",
+          "seq": 4,
+          "message": {
+            "id": "m4",
+            "seq": 4,
+            "role": "assistant",
+            "text": "I raised the timeout to 30 s.",
+            "at": "2026-11-15T05:00:08.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:4",
+          "seq": 4,
+          "message": {
+            "id": "m4",
+            "seq": 4,
+            "role": "assistant",
+            "text": "I raised the timeout to 30 s.",
+            "at": "2026-11-15T05:00:08.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:4",
+      "seq": 4,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "text": "Why is the build red?",
+          "partial": false
+        },
+        {
+          "id": "m3",
+          "seq": 3,
+          "text": "A test times out on the simulator.",
+          "partial": false
+        },
+        {
+          "id": "m4",
+          "seq": 4,
+          "text": "I raised the timeout to 30 s.",
+          "partial": false
+        }
+      ],
+      "replies": [],
+      "state": {
+        "seq": 2,
+        "working": true,
+        "activity": "Reading the CI log",
+        "waiting": null
+      },
+      "more_before": false
+    }
+  }
+}

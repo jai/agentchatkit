@@ -1,0 +1,396 @@
+{
+  "about": "A reply the person sent: pending, queued behind the agent's turn, delivering, then delivered. On delivery it becomes message m9, which names it by reply_id; the reply names m9 by message_id.",
+  "server": {
+    "before": [
+      {
+        "message": {
+          "id": "m1",
+          "role": "user",
+          "text": "Why is the build red?",
+          "at": "2026-11-15T05:00:00.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      }
+    ],
+    "connect": {
+      "after": "@1"
+    },
+    "during": [
+      {
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "pending",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": null,
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      },
+      {
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "queued",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": null,
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      },
+      {
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "delivering",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": null,
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      },
+      {
+        "message": {
+          "id": "m9",
+          "role": "user",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:12.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": "rpl_7",
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      },
+      {
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "delivered",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": "m9",
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      }
+    ],
+    "frames": [
+      {
+        "type": "hello",
+        "resumed": true
+      },
+      {
+        "type": "reply",
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "pending",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": null,
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      },
+      {
+        "type": "reply",
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "queued",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": null,
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      },
+      {
+        "type": "reply",
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "delivering",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": null,
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      },
+      {
+        "type": "message",
+        "message": {
+          "id": "m9",
+          "role": "user",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:12.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": "rpl_7",
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      },
+      {
+        "type": "reply",
+        "reply": {
+          "id": "rpl_7",
+          "client_ref": "ref-rpl_7",
+          "status": "delivered",
+          "text": "Merge it.",
+          "at": "2026-11-15T05:00:10.000Z",
+          "detail": null,
+          "message_id": "m9",
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          },
+          "images": []
+        }
+      }
+    ]
+  },
+  "client": {
+    "start": {
+      "cursor": "c:1",
+      "seq": 1,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "role": "user",
+          "text": "Why is the build red?",
+          "at": "2026-11-15T05:00:00.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      ],
+      "replies": [],
+      "state": null,
+      "more_before": false
+    },
+    "inputs": [
+      {
+        "source": "stream",
+        "frame": {
+          "type": "reply",
+          "cursor": "c:2",
+          "seq": 2,
+          "reply": {
+            "id": "rpl_7",
+            "seq": 2,
+            "client_ref": "ref-rpl_7",
+            "status": "pending",
+            "text": "Merge it.",
+            "at": "2026-11-15T05:00:10.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "reply",
+          "cursor": "c:3",
+          "seq": 3,
+          "reply": {
+            "id": "rpl_7",
+            "seq": 3,
+            "client_ref": "ref-rpl_7",
+            "status": "queued",
+            "text": "Merge it.",
+            "at": "2026-11-15T05:00:10.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      },
+      {
+        "source": "read",
+        "frame": {
+          "type": "reply",
+          "cursor": "c:2",
+          "seq": 2,
+          "reply": {
+            "id": "rpl_7",
+            "seq": 2,
+            "client_ref": "ref-rpl_7",
+            "status": "pending",
+            "text": "Merge it.",
+            "at": "2026-11-15T05:00:10.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "reply",
+          "cursor": "c:4",
+          "seq": 4,
+          "reply": {
+            "id": "rpl_7",
+            "seq": 4,
+            "client_ref": "ref-rpl_7",
+            "status": "delivering",
+            "text": "Merge it.",
+            "at": "2026-11-15T05:00:10.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:5",
+          "seq": 5,
+          "message": {
+            "id": "m9",
+            "seq": 5,
+            "role": "user",
+            "text": "Merge it.",
+            "at": "2026-11-15T05:00:12.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": "rpl_7",
+            "images": [],
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            }
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "reply",
+          "cursor": "c:6",
+          "seq": 6,
+          "reply": {
+            "id": "rpl_7",
+            "seq": 6,
+            "client_ref": "ref-rpl_7",
+            "status": "delivered",
+            "text": "Merge it.",
+            "at": "2026-11-15T05:00:10.000Z",
+            "detail": null,
+            "message_id": "m9",
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:6",
+      "seq": 6,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "text": "Why is the build red?",
+          "partial": false
+        },
+        {
+          "id": "m9",
+          "seq": 5,
+          "text": "Merge it.",
+          "partial": false
+        }
+      ],
+      "replies": [
+        {
+          "id": "rpl_7",
+          "seq": 6,
+          "status": "delivered",
+          "message_id": "m9"
+        }
+      ],
+      "state": null,
+      "more_before": false
+    },
+    "ticks": {
+      "rpl_7": 2
+    }
+  }
+}

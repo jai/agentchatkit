@@ -1,0 +1,297 @@
+{
+  "about": "The four writes (docs/live-protocol.md#writes): the request, the answer, and the frames every open stream then gets. A repeat with the same client_ref answers the first reply and produces no frame.",
+  "writes": [
+    {
+      "name": "send",
+      "request": {
+        "method": "POST",
+        "path": "messages",
+        "body": {
+          "text": "Also bump the version.",
+          "client_ref": "ref-rpl_8",
+          "force": false,
+          "images": []
+        }
+      },
+      "status": 201,
+      "answer": {
+        "id": "rpl_8",
+        "client_ref": "ref-rpl_8",
+        "status": "queued",
+        "text": "Also bump the version.",
+        "at": "2026-11-15T05:00:40.000Z",
+        "detail": null,
+        "message_id": null,
+        "sender": {
+          "login": "jai",
+          "name": "Jai"
+        },
+        "images": []
+      },
+      "frames": [
+        {
+          "type": "reply",
+          "reply": {
+            "id": "rpl_8",
+            "client_ref": "ref-rpl_8",
+            "status": "queued",
+            "text": "Also bump the version.",
+            "at": "2026-11-15T05:00:40.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "send again",
+      "request": {
+        "method": "POST",
+        "path": "messages",
+        "body": {
+          "text": "Also bump the version.",
+          "client_ref": "ref-rpl_8",
+          "force": false,
+          "images": []
+        }
+      },
+      "status": 200,
+      "answer": {
+        "id": "rpl_8",
+        "client_ref": "ref-rpl_8",
+        "status": "queued",
+        "text": "Also bump the version.",
+        "at": "2026-11-15T05:00:40.000Z",
+        "detail": null,
+        "message_id": null,
+        "sender": {
+          "login": "jai",
+          "name": "Jai"
+        },
+        "images": []
+      },
+      "frames": []
+    },
+    {
+      "name": "force",
+      "request": {
+        "method": "POST",
+        "path": "replies/rpl_8/force",
+        "body": null
+      },
+      "status": 200,
+      "answer": {
+        "id": "rpl_8",
+        "client_ref": "ref-rpl_8",
+        "status": "delivering",
+        "text": "Also bump the version.",
+        "at": "2026-11-15T05:00:40.000Z",
+        "detail": null,
+        "message_id": null,
+        "sender": {
+          "login": "jai",
+          "name": "Jai"
+        },
+        "images": []
+      },
+      "frames": [
+        {
+          "type": "reply",
+          "reply": {
+            "id": "rpl_8",
+            "client_ref": "ref-rpl_8",
+            "status": "delivering",
+            "text": "Also bump the version.",
+            "at": "2026-11-15T05:00:40.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "remove",
+      "request": {
+        "method": "DELETE",
+        "path": "replies/rpl_9",
+        "body": null
+      },
+      "status": 200,
+      "answer": {
+        "id": "rpl_9",
+        "client_ref": "ref-rpl_9",
+        "status": "removed",
+        "text": "Never mind.",
+        "at": "2026-11-15T05:00:41.000Z",
+        "detail": null,
+        "message_id": null,
+        "sender": {
+          "login": "jai",
+          "name": "Jai"
+        },
+        "images": []
+      },
+      "frames": [
+        {
+          "type": "reply",
+          "reply": {
+            "id": "rpl_9",
+            "client_ref": "ref-rpl_9",
+            "status": "removed",
+            "text": "Never mind.",
+            "at": "2026-11-15T05:00:41.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "answer",
+      "request": {
+        "method": "POST",
+        "path": "answer",
+        "body": {
+          "question_id": "q1",
+          "option_ids": [
+            "merge"
+          ],
+          "text": null,
+          "client_ref": "ref-rpl_10"
+        }
+      },
+      "status": 201,
+      "answer": {
+        "id": "rpl_10",
+        "client_ref": "ref-rpl_10",
+        "status": "pending",
+        "text": "Merge now",
+        "at": "2026-11-15T05:00:42.000Z",
+        "detail": null,
+        "message_id": null,
+        "sender": {
+          "login": "jai",
+          "name": "Jai"
+        },
+        "images": [],
+        "extra": {
+          "answers": "q1",
+          "options": [
+            "merge"
+          ]
+        }
+      },
+      "frames": [
+        {
+          "type": "reply",
+          "reply": {
+            "id": "rpl_10",
+            "client_ref": "ref-rpl_10",
+            "status": "pending",
+            "text": "Merge now",
+            "at": "2026-11-15T05:00:42.000Z",
+            "detail": null,
+            "message_id": null,
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            },
+            "images": [],
+            "extra": {
+              "answers": "q1",
+              "options": [
+                "merge"
+              ]
+            }
+          }
+        },
+        {
+          "type": "state",
+          "state": {
+            "working": false,
+            "activity": null,
+            "problem": null,
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "waiting": null
+          }
+        }
+      ]
+    }
+  ],
+  "refusals": [
+    {
+      "name": "force a reply that is not queued",
+      "status": 409,
+      "error": "conflict"
+    },
+    {
+      "name": "remove a reply already delivering or delivered",
+      "status": 409,
+      "error": "conflict"
+    },
+    {
+      "name": "answer a question that is not open",
+      "status": 409,
+      "error": "conflict"
+    },
+    {
+      "name": "send with no text and no images",
+      "status": 400,
+      "error": "bad_request"
+    }
+  ],
+  "client": {
+    "about": "The client forces a send while the chat waits on the person: the question would otherwise hold the reply in the queue for good.",
+    "start": {
+      "cursor": "c:2",
+      "seq": 2,
+      "messages": [],
+      "replies": [],
+      "state": {
+        "seq": 2,
+        "working": false,
+        "activity": null,
+        "problem": null,
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "waiting": {
+          "id": "q1",
+          "question": "Merge now or wait for review?",
+          "options": [
+            {
+              "id": "merge",
+              "label": "Merge now"
+            },
+            {
+              "id": "wait",
+              "label": "Wait for review"
+            }
+          ],
+          "multiple": false,
+          "free_text": true
+        }
+      },
+      "more_before": false
+    },
+    "send": {
+      "text": "Also bump the version."
+    },
+    "expect_force": true
+  }
+}

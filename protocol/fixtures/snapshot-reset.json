@@ -1,0 +1,153 @@
+{
+  "about": "The host reset its history: a snapshot with a lower seq than the client holds still replaces everything, cursor and seq included. Frames after it apply from its seq.",
+  "client": {
+    "start": {
+      "cursor": "c:6",
+      "seq": 6,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "role": "user",
+          "text": "Why is the build red?",
+          "at": "2026-11-15T05:00:00.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        },
+        {
+          "id": "m3",
+          "seq": 3,
+          "role": "assistant",
+          "text": "A test times out on the simulator.",
+          "at": "2026-11-15T05:00:05.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        },
+        {
+          "id": "m4",
+          "seq": 6,
+          "role": "assistant",
+          "text": "I raised the timeout to 30 s.",
+          "at": "2026-11-15T05:00:08.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      ],
+      "replies": [],
+      "state": {
+        "seq": 5,
+        "working": true,
+        "activity": "Pushing",
+        "problem": null,
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "waiting": null
+      },
+      "more_before": false
+    },
+    "inputs": [
+      {
+        "source": "stream",
+        "frame": {
+          "type": "hello",
+          "v": 1,
+          "chat": "chat-1",
+          "cursor": "c:2",
+          "seq": 2,
+          "resumed": false
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "snapshot",
+          "cursor": "e2:2",
+          "seq": 2,
+          "messages": [
+            {
+              "id": "n1",
+              "seq": 2,
+              "role": "assistant",
+              "text": "A fresh session: the transcript was replaced.",
+              "at": "2026-11-15T05:00:30.000Z",
+              "tool": null,
+              "partial": false,
+              "reply_id": null,
+              "images": [],
+              "sender": null
+            }
+          ],
+          "replies": [],
+          "state": {
+            "seq": 1,
+            "working": false,
+            "activity": null,
+            "problem": null,
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "waiting": null
+          },
+          "more_before": false
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "e2:3",
+          "seq": 3,
+          "message": {
+            "id": "n2",
+            "seq": 3,
+            "role": "assistant",
+            "text": "Still here.",
+            "at": "2026-11-15T05:00:31.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "e2:3",
+      "seq": 3,
+      "messages": [
+        {
+          "id": "n1",
+          "seq": 2,
+          "text": "A fresh session: the transcript was replaced.",
+          "partial": false
+        },
+        {
+          "id": "n2",
+          "seq": 3,
+          "text": "Still here.",
+          "partial": false
+        }
+      ],
+      "replies": [],
+      "state": {
+        "seq": 1,
+        "working": false,
+        "activity": null,
+        "waiting": null
+      },
+      "more_before": false
+    }
+  }
+}

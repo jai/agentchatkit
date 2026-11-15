@@ -1,0 +1,124 @@
+{
+  "about": "Load earlier: a read with before answers an earlier frame. Its messages go in front, each once; the cursor and seq do not move.",
+  "client": {
+    "start": {
+      "cursor": "c:9",
+      "seq": 9,
+      "messages": [
+        {
+          "id": "m4",
+          "seq": 4,
+          "role": "assistant",
+          "text": "Message 4",
+          "at": "2026-11-15T05:00:04.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        },
+        {
+          "id": "m5",
+          "seq": 5,
+          "role": "user",
+          "text": "Message 5",
+          "at": "2026-11-15T05:00:05.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      ],
+      "replies": [],
+      "state": null,
+      "more_before": true
+    },
+    "inputs": [
+      {
+        "source": "read",
+        "frame": {
+          "type": "earlier",
+          "messages": [
+            {
+              "id": "m2",
+              "seq": 2,
+              "role": "assistant",
+              "text": "Message 2",
+              "at": "2026-11-15T05:00:02.000Z",
+              "tool": null,
+              "partial": false,
+              "reply_id": null,
+              "images": [],
+              "sender": null
+            },
+            {
+              "id": "m3",
+              "seq": 3,
+              "role": "user",
+              "text": "Message 3",
+              "at": "2026-11-15T05:00:03.000Z",
+              "tool": null,
+              "partial": false,
+              "reply_id": null,
+              "images": [],
+              "sender": {
+                "login": "jai",
+                "name": "Jai"
+              }
+            },
+            {
+              "id": "m4",
+              "seq": 4,
+              "role": "assistant",
+              "text": "Message 4",
+              "at": "2026-11-15T05:00:04.000Z",
+              "tool": null,
+              "partial": false,
+              "reply_id": null,
+              "images": [],
+              "sender": null
+            }
+          ],
+          "more_before": true
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:9",
+      "seq": 9,
+      "messages": [
+        {
+          "id": "m2",
+          "seq": 2,
+          "text": "Message 2",
+          "partial": false
+        },
+        {
+          "id": "m3",
+          "seq": 3,
+          "text": "Message 3",
+          "partial": false
+        },
+        {
+          "id": "m4",
+          "seq": 4,
+          "text": "Message 4",
+          "partial": false
+        },
+        {
+          "id": "m5",
+          "seq": 5,
+          "text": "Message 5",
+          "partial": false
+        }
+      ],
+      "replies": [],
+      "state": null,
+      "more_before": true
+    }
+  }
+}

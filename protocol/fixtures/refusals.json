@@ -1,0 +1,117 @@
+{
+  "about": "Each refusal before a stream starts, each close code, and what the client does about it. `action` is one of: stop, reauth (new bearer, then once more), read (read every 2 s, stream again after retry_after_ms), backoff (read, reconnect with back-off), now (reconnect at once), after (reconnect after retry_after_ms, no back-off).",
+  "http": [
+    {
+      "status": 400,
+      "error": "bad_request",
+      "action": "stop",
+      "query": "v=1&after=c:1&before=m1"
+    },
+    {
+      "status": 400,
+      "error": "unsupported_version",
+      "action": "stop",
+      "query": "v=2"
+    },
+    {
+      "status": 400,
+      "error": "unsupported_version",
+      "action": "stop",
+      "query": ""
+    },
+    {
+      "status": 401,
+      "error": "unauthorized",
+      "action": "reauth"
+    },
+    {
+      "status": 403,
+      "error": "forbidden",
+      "action": "stop"
+    },
+    {
+      "status": 404,
+      "error": "not_found",
+      "action": "stop"
+    },
+    {
+      "status": 429,
+      "error": "busy",
+      "action": "read",
+      "retry_after": 30
+    },
+    {
+      "status": 500,
+      "error": "internal",
+      "action": "backoff"
+    },
+    {
+      "status": 502,
+      "error": "internal",
+      "action": "backoff"
+    }
+  ],
+  "close": [
+    {
+      "code": 4000,
+      "reason": "rotate",
+      "retry_after_ms": 0,
+      "action": "now"
+    },
+    {
+      "code": 4001,
+      "reason": "unauthorized",
+      "retry_after_ms": 0,
+      "action": "reauth"
+    },
+    {
+      "code": 4003,
+      "reason": "forbidden",
+      "retry_after_ms": 0,
+      "action": "stop"
+    },
+    {
+      "code": 4004,
+      "reason": "gone",
+      "retry_after_ms": 0,
+      "action": "stop"
+    },
+    {
+      "code": 4029,
+      "reason": "busy",
+      "retry_after_ms": 30000,
+      "action": "read"
+    },
+    {
+      "code": 4500,
+      "reason": "internal",
+      "retry_after_ms": 0,
+      "action": "backoff"
+    },
+    {
+      "code": 4503,
+      "reason": "restarting",
+      "retry_after_ms": 2000,
+      "action": "after"
+    }
+  ],
+  "dropped": {
+    "about": "A stream that ends without a close frame, or a network error",
+    "action": "backoff"
+  },
+  "backoff_ms": [
+    500,
+    1000,
+    2000,
+    4000,
+    8000,
+    15000,
+    15000
+  ],
+  "jitter": 0.2,
+  "backoff_resets_after_ms": 10000,
+  "read_interval_ms": 2000,
+  "ping_interval_ms": 15000,
+  "quiet_limit_ms": 40000,
+  "rotate_after_ms": 600000
+}

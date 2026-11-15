@@ -1,0 +1,224 @@
+{
+  "about": "A message written in parts (an Orca chat): versions with partial true, then the final one. Each replaces the last in place, by id.",
+  "server": {
+    "before": [
+      {
+        "message": {
+          "id": "m1",
+          "role": "user",
+          "text": "Why is the build red?",
+          "at": "2026-11-15T05:00:00.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      }
+    ],
+    "connect": {
+      "after": "@1"
+    },
+    "during": [
+      {
+        "message": {
+          "id": "m2",
+          "role": "assistant",
+          "text": "Looking at",
+          "at": "2026-11-15T05:00:03.000Z",
+          "tool": null,
+          "partial": true,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      },
+      {
+        "message": {
+          "id": "m2",
+          "role": "assistant",
+          "text": "Looking at the CI log",
+          "at": "2026-11-15T05:00:03.000Z",
+          "tool": null,
+          "partial": true,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      },
+      {
+        "message": {
+          "id": "m2",
+          "role": "assistant",
+          "text": "Looking at the CI log now.",
+          "at": "2026-11-15T05:00:03.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      }
+    ],
+    "frames": [
+      {
+        "type": "hello",
+        "resumed": true
+      },
+      {
+        "type": "message",
+        "message": {
+          "id": "m2",
+          "role": "assistant",
+          "text": "Looking at",
+          "at": "2026-11-15T05:00:03.000Z",
+          "tool": null,
+          "partial": true,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      },
+      {
+        "type": "message",
+        "message": {
+          "id": "m2",
+          "role": "assistant",
+          "text": "Looking at the CI log",
+          "at": "2026-11-15T05:00:03.000Z",
+          "tool": null,
+          "partial": true,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      },
+      {
+        "type": "message",
+        "message": {
+          "id": "m2",
+          "role": "assistant",
+          "text": "Looking at the CI log now.",
+          "at": "2026-11-15T05:00:03.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": null
+        }
+      }
+    ]
+  },
+  "client": {
+    "start": {
+      "cursor": "c:1",
+      "seq": 1,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "role": "user",
+          "text": "Why is the build red?",
+          "at": "2026-11-15T05:00:00.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      ],
+      "replies": [],
+      "state": null,
+      "more_before": false
+    },
+    "inputs": [
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:2",
+          "seq": 2,
+          "message": {
+            "id": "m2",
+            "seq": 2,
+            "role": "assistant",
+            "text": "Looking at",
+            "at": "2026-11-15T05:00:03.000Z",
+            "tool": null,
+            "partial": true,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:3",
+          "seq": 3,
+          "message": {
+            "id": "m2",
+            "seq": 3,
+            "role": "assistant",
+            "text": "Looking at the CI log",
+            "at": "2026-11-15T05:00:03.000Z",
+            "tool": null,
+            "partial": true,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:4",
+          "seq": 4,
+          "message": {
+            "id": "m2",
+            "seq": 4,
+            "role": "assistant",
+            "text": "Looking at the CI log now.",
+            "at": "2026-11-15T05:00:03.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:4",
+      "seq": 4,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "text": "Why is the build red?",
+          "partial": false
+        },
+        {
+          "id": "m2",
+          "seq": 4,
+          "text": "Looking at the CI log now.",
+          "partial": false
+        }
+      ],
+      "replies": [],
+      "state": null,
+      "more_before": false
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "about": "Messages show in order of `at`, not of arrival: the agent's a2 (written at :08) arrives after the person's u2 (:10), and goes before it. A message without `at` (t9) stays where it arrived: it sorts at the `at` of the message before it. Equal `at` keeps the order taken.",
+  "client": {
+    "start": {
+      "cursor": "c:2",
+      "seq": 2,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "role": "user",
+          "text": "Why is the build red?",
+          "at": "2026-11-15T05:00:00.000Z",
+          "tool": null,
+          "partial": false,
+          "reply_id": null,
+          "images": [],
+          "sender": {
+            "login": "jai",
+            "name": "Jai"
+          }
+        }
+      ],
+      "replies": [],
+      "state": null,
+      "more_before": false
+    },
+    "inputs": [
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:3",
+          "seq": 3,
+          "message": {
+            "id": "u2",
+            "seq": 3,
+            "role": "user",
+            "text": "Also check the iPad.",
+            "at": "2026-11-15T05:00:10.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": {
+              "login": "jai",
+              "name": "Jai"
+            }
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:4",
+          "seq": 4,
+          "message": {
+            "id": "a2",
+            "seq": 4,
+            "role": "assistant",
+            "text": "The iPhone run is green.",
+            "at": "2026-11-15T05:00:08.000Z",
+            "tool": null,
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      },
+      {
+        "source": "stream",
+        "frame": {
+          "type": "message",
+          "cursor": "c:5",
+          "seq": 5,
+          "message": {
+            "id": "t9",
+            "seq": 5,
+            "role": "tool",
+            "text": "xcodebuild test",
+            "at": null,
+            "tool": "Bash",
+            "partial": false,
+            "reply_id": null,
+            "images": [],
+            "sender": null
+          }
+        }
+      }
+    ],
+    "expect": {
+      "cursor": "c:5",
+      "seq": 5,
+      "messages": [
+        {
+          "id": "m1",
+          "seq": 1,
+          "text": "Why is the build red?",
+          "partial": false
+        },
+        {
+          "id": "a2",
+          "seq": 4,
+          "text": "The iPhone run is green.",
+          "partial": false
+        },
+        {
+          "id": "u2",
+          "seq": 3,
+          "text": "Also check the iPad.",
+          "partial": false
+        },
+        {
+          "id": "t9",
+          "seq": 5,
+          "text": "xcodebuild test",
+          "partial": false
+        }
+      ],
+      "replies": [],
+      "state": null,
+      "more_before": false
+    }
+  }
+}
