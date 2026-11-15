@@ -50,6 +50,9 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_APP_SANDBOX: YES
         ENABLE_USER_SELECTED_FILES: readonly
+        # The Live chat and its fixtures follow the server package's dev host on localhost: the sandboxed Mac app
+        # needs leave to connect out.
+        ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
   AgentChatDemoUITests:
     type: bundle.ui-testing
     platform: iOS
