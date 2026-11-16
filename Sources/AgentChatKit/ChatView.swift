@@ -108,6 +108,9 @@ public struct ChatView<Extras: View, Header: View, Footer: View, Composer: View>
                     let waitWhatID = waitWhat == nil ? nil : Self.waitWhatID(in: messages)
                     ForEach(messages) { message in
                         row(message, waitWhat: message.id == waitWhatID)
+                            // One element per message, its words and what hangs under it inside, for a host's UI tests.
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier(message.accessibilityIdentifier)
                             .transition(.opacity)
                     }
                     footer()
@@ -221,5 +224,20 @@ private struct ChatToolLine: View, Equatable {
         .padding(.horizontal, ChatSpace.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+}
+
+extension ChatMessage {
+    /// The message's accessibility identifier in a `ChatView`: `chat-message-you-<id>` for Jai's,
+    /// `chat-message-agent-<id>` for the agent's, `chat-message-tool-<id>` for a tool call. A host's UI test finds one
+    /// message by it, or every message of a side by its start (`BEGINSWITH 'chat-message-agent-'`). Not a value: a
+    /// value is read out by VoiceOver.
+    public var accessibilityIdentifier: String {
+        let side = switch role {
+        case .mine: "you"
+        case .theirs: "agent"
+        case .tool: "tool"
+        }
+        return "chat-message-\(side)-\(id)"
     }
 }

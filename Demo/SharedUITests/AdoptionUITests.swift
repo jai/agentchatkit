@@ -184,7 +184,8 @@ final class AdoptionUITests: FixtureUITestCase {
     }
 
     /// The host draws the answers it claims inside the kit's bubbles (a link card, a meal card) and its own state
-    /// shows in them; the rest stay the kit's Markdown (jai/agentchatkit#11).
+    /// shows in them; the rest stay the kit's Markdown (jai/agentchatkit#11). Each message is found by its identifier
+    /// (#12).
     func testHostDrawsClaimedMessagesInsideTheBubble() {
         launch("message-content")
         XCTAssertTrue(app.buttons["card-link-pr12"].waitForExistence(timeout: 5))
@@ -195,6 +196,13 @@ final class AdoptionUITests: FixtureUITestCase {
         }
         XCTAssertEqual(words("RAW"), 0, "A claimed message's words are not drawn")
         XCTAssertGreaterThan(words("Markdown"), 0, "An unclaimed answer is still the kit's Markdown")
+        // Every message is one element, found by its side and id (#12).
+        XCTAssertTrue(element("chat-message-you-ask").exists)
+        XCTAssertTrue(element("chat-message-agent-plain").exists)
+        XCTAssertTrue(element("chat-message-agent-links").buttons["card-link-pr12"].exists)
+        let agents = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'chat-message-agent-'"))
+        XCTAssertEqual(agents.count, 3)
         activate(app.buttons["card-link-pr12"])
         wait(element("fixture-notice"), "label CONTAINS 'Opened: PR #12;'")
         activate(app.buttons["card-log"])
