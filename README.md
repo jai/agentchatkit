@@ -299,8 +299,10 @@ step; the parent owns the permitted CI run and rendered-image review.
 
 `swift test`. Swift 6, iOS 26 and macOS 26.
 
-Never breaking: apps take every release, so the public API only grows. `swift package diagnose-api-breaking-changes
-<latest release tag>` must find no break (CI's `api` job checks it; AGENTS.md has the rule).
+Never breaking (Jai, 2026-11-16): apps take every release, so the public API only grows. Add, never remove a public
+declaration or change its signature; to replace one, add the new one and mark the old `@available(*, deprecated)`. A
+deliberate break needs Jai's OK first and a major version. `swift package diagnose-api-breaking-changes <latest release
+tag>` must find no break; CI's `api` job checks it and a release waits for CI.
 
 The demo is this repo's UI-test host: `AgentChatDemo-iOS`'s tests (`Demo/UITests`) walk the main flows on an iPhone, and
 `testReadmeScreenshots` takes the pictures above (they are kept on its test result).
