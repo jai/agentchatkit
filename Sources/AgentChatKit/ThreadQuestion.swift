@@ -16,6 +16,10 @@ public struct ThreadQuestion<Option: Identifiable>: View {
     private let selected: ((Option) -> Bool)?
     private let reply: (() -> Void)?
     private let waitWhat: (() -> Void)?
+    private var contextRole = ChatTextRole.body
+    private var contextColor: Color?
+    private var contextLineLimit: Int?
+    private var questionLineLimit: Int?
 
     public init(
         question: String? = nil, context: String? = nil, options: [Option],
@@ -41,10 +45,12 @@ public struct ThreadQuestion<Option: Identifiable>: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: theme.spacing.sm) {
             if showsQuestion, let question {
-                Text(question).chatTextStyle(.objectTitle).chatIdentifier(identifiers.question)
+                Text(question).chatTextStyle(.objectTitle).lineLimit(questionLineLimit)
+                    .chatIdentifier(identifiers.question)
             }
             if showsContext, let context {
-                Text(context).chatTextStyle(.body).foregroundStyle(theme.inkQuiet)
+                Text(context).chatTextStyle(contextRole).foregroundStyle(contextColor ?? theme.inkQuiet)
+                    .lineLimit(contextLineLimit)
                     .chatIdentifier(identifiers.context)
             }
             if let answer, !options.isEmpty {
@@ -77,6 +83,25 @@ public struct ThreadQuestion<Option: Identifiable>: View {
         }
         .foregroundStyle(theme.ink)
         .sensoryFeedback(.impact, trigger: taps)
+        .modifier(QuestionContainer(identifier: identifiers.container))
+    }
+
+    /// How the context looks: a role of the host's typography, its colour (quiet ink when nil), and at most
+    /// `lineLimit` lines (all of it when nil). A host shows a context's kind this way, such as a warning in its tone.
+    public func context(role: ChatTextRole = .body, color: Color? = nil, lineLimit: Int? = nil) -> Self {
+        var question = self
+        question.contextRole = role
+        question.contextColor = color
+        question.contextLineLimit = lineLimit
+        return question
+    }
+
+    /// At most `limit` lines of the question (all of it when nil). The answers keep their own lines: a `.lineLimit`
+    /// put on the whole view from outside would cut them too.
+    public func questionLineLimit(_ limit: Int?) -> Self {
+        var question = self
+        question.questionLineLimit = limit
+        return question
     }
 
     @ViewBuilder private var replyButtons: some View {
@@ -91,6 +116,19 @@ public struct ThreadQuestion<Option: Identifiable>: View {
         if let waitWhat {
             WaitWhatButton(isSending: isSending, identifier: identifiers.waitWhat, send: waitWhat)
                 .controlSize(theme.controlSize)
+        }
+    }
+}
+
+/// The question as one element, when the host names it (`ThreadQuestionIdentifiers.container`).
+private struct QuestionContainer: ViewModifier {
+    let identifier: String?
+
+    func body(content: Content) -> some View {
+        if let identifier {
+            content.accessibilityElement(children: .contain).accessibilityIdentifier(identifier)
+        } else {
+            content
         }
     }
 }

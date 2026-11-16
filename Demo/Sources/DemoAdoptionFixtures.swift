@@ -15,6 +15,7 @@ struct DemoAdoptionFixtures: View {
             case "queue": DemoQueueScreen()
             case "delivery": DemoDeliveryScreen()
             case "question": DemoQuestionScreen()
+            case "question-styled": DemoStyledQuestion()
             case "screenshots": DemoScreenshotsScreen()
             case "screenshots-local": DemoScreenshotsScreen(sharesViewer: false)
             case "screenshots-conversation": DemoScreenshotConversation()

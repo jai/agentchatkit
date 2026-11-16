@@ -263,6 +263,21 @@ final class AdoptionUITests: FixtureUITestCase {
         #endif
     }
 
+    /// A host limits the question's lines and styles its context; the answers keep all their lines, and the whole
+    /// question is one element a test finds by name (jai/agentchatkit#15).
+    func testQuestionLineLimitContextStyleAndContainer() {
+        launch("question-styled")
+        let limited = element("q-limited"), full = element("q-full")
+        XCTAssertTrue(limited.waitForExistence(timeout: 5))
+        XCTAssertTrue(full.exists)
+        XCTAssertTrue(limited.descendants(matching: .any)["q-limited-answer-yes"].exists, "The answers are inside")
+        let shortQuestion = element("q-limited-text").frame.height, longQuestion = element("q-full-text").frame.height
+        XCTAssertLessThan(shortQuestion, longQuestion * 0.6, "The question was not limited")
+        XCTAssertLessThan(element("q-limited-context").frame.height, element("q-full-context").frame.height)
+        XCTAssertEqual(element("q-limited-answer-yes").frame.height, element("q-full-answer-yes").frame.height,
+                       accuracy: 1, "The answers were limited too")
+    }
+
     func testHostStringRoutesAndHeaderFooterRemainOwnedByHost() {
         launch("host-routes")
         XCTAssertTrue(element("host-new").waitForExistence(timeout: 5))
