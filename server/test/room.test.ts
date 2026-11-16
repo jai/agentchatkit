@@ -216,3 +216,37 @@ test("localRooms closes every room", async () => {
   rooms.closeAll();
   assert.equal(timers.pending, 0);
 });
+
+test("an upload answers the host's ticket, and a file too large is refused with its reason", async () => {
+  const { follow } = setup((s) => ({
+    ...s.adapter(),
+    upload: async (_who: MemoryWho, _session: string, file: { name: string; mimeType: string; size: number }) =>
+      file.size > 1000
+        ? { refusal: { status: 413 as const, message: "Videos up to 1 kB" } }
+        : { uploadUrl: `https://files.example/put/${file.name}`, uri: `files/${file.name}` },
+  }));
+  const c = await follow();
+  const ok = await c.request("_agentchatkit/upload", {
+    sessionId: "s",
+    name: "clip.mov",
+    mimeType: "video/quicktime",
+    size: 10,
+  });
+  const ticket = await c.next(500);
+  assert.ok("result" in ticket && ticket.id === ok);
+  assert.deepEqual(ticket.result, { uploadUrl: "https://files.example/put/clip.mov", uri: "files/clip.mov" });
+  const big = await c.request("_agentchatkit/upload", {
+    sessionId: "s",
+    name: "long.mov",
+    mimeType: "video/quicktime",
+    size: 5000,
+  });
+  const refused = await c.next(500);
+  assert.ok("error" in refused && refused.id === big);
+  assert.equal(refused.error.code, -32602);
+  assert.equal(refused.error.message, "Videos up to 1 kB");
+  const bad = await c.request("_agentchatkit/upload", { sessionId: "s", name: "", mimeType: "video/mp4", size: 1 });
+  const invalid = await c.next(500);
+  assert.ok("error" in invalid && invalid.id === bad && invalid.error.code === -32602);
+  await c.close();
+});

@@ -398,6 +398,29 @@ export function readRemoveParams(params: unknown, sessionId: string): RemovePara
   return { sessionId, messageId: params.messageId };
 }
 
+export interface UploadParams {
+  sessionId: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
+export function readUploadParams(params: unknown, sessionId: string): UploadParams | string {
+  if (
+    !isObject(params) ||
+    params.sessionId !== sessionId ||
+    typeof params.name !== "string" ||
+    params.name === "" ||
+    typeof params.mimeType !== "string" ||
+    typeof params.size !== "number" ||
+    !Number.isInteger(params.size) ||
+    params.size <= 0
+  ) {
+    return "sessionId is the stream's Acp-Session-Id; name and mimeType are strings, size a whole number of bytes";
+  }
+  return { sessionId, name: params.name, mimeType: params.mimeType, size: params.size };
+}
+
 export function readElicitationResult(result: unknown): ElicitationResult | string {
   if (!isObject(result) || !["accept", "decline", "cancel"].includes(result.action as string)) {
     return "action is accept, decline or cancel";

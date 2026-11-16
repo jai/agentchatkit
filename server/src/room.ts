@@ -21,6 +21,7 @@ import {
   readIncoming,
   readPromptParams,
   readRemoveParams,
+  readUploadParams,
   readResume,
   sessionUpdate,
   success,
@@ -382,6 +383,21 @@ export class LiveRoom<Who> {
         }
         return this.written(connection, id, await this.adapter.remove(who, this.sessionId, remove.messageId));
       }
+      case "_agentchatkit/upload": {
+        if (!this.adapter.upload) {
+          return this.notFound(connection, id, method);
+        }
+        const upload = readUploadParams(params, this.sessionId);
+        if (typeof upload === "string") {
+          return invalid(upload);
+        }
+        const { name, mimeType, size } = upload;
+        const ticket = await this.adapter.upload(who, this.sessionId, { name, mimeType, size });
+        if (isRefusal(ticket)) {
+          return this.refused(connection, id, ticket);
+        }
+        return this.send(connection, success(id, ticket));
+      }
       default:
         return this.notFound(connection, id, method);
     }
@@ -398,7 +414,7 @@ export class LiveRoom<Who> {
   private refused(connection: Connection, id: JsonRpcRequest["id"], refusal: LiveRefusal): void {
     const { status, message } = refusal.refusal;
     const code =
-      status === 409 ? ERRORS.conflict : status === 400 || status === 404 ? ERRORS.invalidParams : ERRORS.internal;
+      status === 409 ? ERRORS.conflict : [400, 404, 413, 415].includes(status) ? ERRORS.invalidParams : ERRORS.internal;
     this.send(connection, failure(id, code, message));
   }
 

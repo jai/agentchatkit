@@ -326,6 +326,26 @@ const server = createServer(async (req, res) => {
         : {};
       return void send(Response.json(await knob(decodeURIComponent(control[1]), control[2], body)), res);
     }
+    // A file an upload made room for: PUT its bytes, then GET them (an attachment's uri, relative to /acp).
+    const file = /^\/acp\/(files\/[^/]+)$/.exec(path);
+    if (file?.[1]) {
+      const uri = file[1];
+      if (req.method === "PUT") {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(chunk as Buffer);
+        }
+        res.statusCode = sessions.putFile(uri, new Uint8Array(Buffer.concat(chunks))) ? 201 : 404;
+        return void res.end();
+      }
+      const held = sessions.file(uri);
+      if (req.method !== "GET" || !held?.data) {
+        res.statusCode = 404;
+        return void res.end();
+      }
+      res.setHeader("content-type", held.mimeType);
+      return void res.end(Buffer.from(held.data));
+    }
     if (path !== "/acp") {
       res.statusCode = 404;
       return void res.end();

@@ -36,6 +36,15 @@ export interface MemoryOptions {
   /** How a login is named. Its login. */
   names?: Record<string, string>;
   now?: () => Date;
+  /** The largest file `_agentchatkit/upload` takes, in bytes. 50 MB. */
+  maxUpload?: number;
+}
+
+/** A file an upload made room for: its bytes once put. */
+export interface MemoryFile {
+  mimeType: string;
+  size: number;
+  data: Uint8Array | null;
 }
 
 interface Session {
@@ -106,12 +115,30 @@ export class MemorySessions {
   private readonly retained: number;
   private readonly names: Record<string, string>;
   private readonly now: () => Date;
+  private readonly maxUpload: number;
+  private readonly files = new Map<string, MemoryFile>();
 
   constructor(options: MemoryOptions = {}) {
     this.queues = options.queues ?? true;
     this.retained = options.retained ?? 200;
+    this.maxUpload = options.maxUpload ?? 50_000_000;
     this.names = options.names ?? {};
     this.now = options.now ?? (() => new Date());
+  }
+  /** Puts a file's bytes where an upload made room for them; false for a uri no upload made, or too many bytes. */
+  putFile(uri: string, data: Uint8Array): boolean {
+    const file = this.files.get(uri);
+    if (!file || data.byteLength > file.size) {
+      return false;
+    }
+    file.data = data;
+    return true;
+  }
+
+  /** A file put after an upload; null until its bytes are there. */
+  file(uri: string): MemoryFile | null {
+    const file = this.files.get(uri);
+    return file?.data ? file : null;
   }
 
   /** A new, empty session of `owner`'s. */
@@ -233,6 +260,18 @@ export class MemorySessions {
     };
 
     return {
+      upload: async (_who, _id, file) => {
+        if (!file.mimeType.startsWith("video/") && !file.mimeType.startsWith("image/")) {
+          return refuse(415, "only pictures and videos");
+        }
+        if (file.size > this.maxUpload) {
+          return refuse(413, `files up to ${Math.floor(this.maxUpload / 1_000_000)} MB`);
+        }
+        const uri = `files/${this.files.size + 1}-${encodeURIComponent(file.name)}`;
+        this.files.set(uri, { mimeType: file.mimeType, size: file.size, data: null });
+        return { uploadUrl: uri, uri };
+      },
+
       authorize: async (request, id) => {
         const session = this.sessions.get(id);
         if (!session) {

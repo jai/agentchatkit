@@ -9,7 +9,7 @@ import type { ContentBlock, ElicitationCreateParams, ElicitationResult, SessionU
  * answers `-32009` (`conflict`: the message is no longer `pending` or `queued`).
  */
 export interface LiveRefusal {
-  refusal: { status: 400 | 401 | 403 | 404 | 409; message: string };
+  refusal: { status: 400 | 401 | 403 | 404 | 409 | 413 | 415; message: string };
 }
 
 export function refuse(status: LiveRefusal["refusal"]["status"], message: string): LiveRefusal {
@@ -67,6 +67,21 @@ export interface EditBody {
 
 export type ElicitationAnswer = ElicitationResult;
 
+/** An `_agentchatkit/upload`: a file the app will send, too large to go in the prompt (a video). */
+export interface LiveUpload {
+  name: string;
+  mimeType: string;
+  /** Bytes. */
+  size: number;
+}
+
+/** Where the app puts the file (`PUT uploadUrl`, with `headers`), and the `uri` its `resource_link` then names. */
+export interface LiveUploadTicket {
+  uploadUrl: string;
+  uri: string;
+  headers?: Record<string, string>;
+}
+
 /**
  * A host's adapter. `Who` is whoever `authorize` says asks; it must survive `JSON.stringify`, since it travels
  * from the Worker to the session's room in a header.
@@ -86,6 +101,8 @@ export interface LiveAdapter<Who> {
   edit?(who: Who, sessionId: string, messageId: string, body: EditBody): Promise<string | LiveRefusal>;
   /** Removes a message still `pending` or `queued` (its status becomes `removed`); else refuse 409. */
   remove?(who: Who, sessionId: string, messageId: string): Promise<string | LiveRefusal>;
+  /** A place for a file the app will send (a video): refuse 413 for one too large, 415 for a type it won't take. */
+  upload?(who: Who, sessionId: string, file: LiveUpload): Promise<LiveUploadTicket | LiveRefusal>;
   /** The first answer to the open question `question`. The host shows it as a `user_message`. */
   answer?(who: Who, sessionId: string, question: string, answer: ElicitationAnswer): Promise<void | LiveRefusal>;
 }

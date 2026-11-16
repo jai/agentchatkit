@@ -69,7 +69,8 @@ has: FeedbackKit never queues (`pending`, `delivering`, `delivered`, `failed`, `
 **Attachments** are content blocks. From the host: `resource_link` (`uri`, `mimeType`, `size`), with
 `_meta.agentchatkit` `{width, height, durationMs}`; `uri` is absolute and signed, or relative to `<base>/acp` and
 fetched with the same bearer. From the app: `image` with base64 `data` (up to four, `MessageImage`), or for anything
-larger (video) a `resource_link` to a URL the host minted for the upload. A client skips a `mimeType` it can't draw.
+larger (video) a `resource_link` to a URL the host minted for the upload (`_agentchatkit/upload`, below). A client
+skips a `mimeType` it can't draw.
 
 ### Display order
 
@@ -90,6 +91,7 @@ session config options (`config_option_update`), as `ModelReasoningChip` shows t
 | `session/prompt` | `prompt` (text and attachment blocks); `_meta.agentchatkit`: `clientRef`, `force` | `messageId`, at once |
 | `_agentchatkit/edit` | `sessionId`, `messageId`, any of `prompt`, `force` | the `messageId` |
 | `_agentchatkit/remove` | `sessionId`, `messageId` | the `messageId` |
+| `_agentchatkit/upload` | `sessionId`, `name`, `mimeType`, `size` (bytes) | `uploadUrl`, `uri`, `headers?` |
 
 - **The host inserts every prompt at once** (ACP allows it): the `user_message` comes on the stream with `status`
   `pending` or `queued`, and `session/prompt` answers its `messageId`. Passing it to the agent is the host's business,
@@ -100,6 +102,10 @@ session config options (`config_option_update`), as `ModelReasoningChip` shows t
   goes to the agent at once (Jai uses this daily).
 - **Retry** a `failed` message: `_agentchatkit/edit` with `force: true`. It turns `failed` into `pending`, keeps its
   id and `clientRef`, and the host passes it on again. (A send with the same `clientRef` answers the failed one.)
+- **Upload** a file too large for the prompt (a video): `_agentchatkit/upload` answers where to `PUT` its bytes
+  (`uploadUrl`, with `headers`; absolute and signed, or relative to `<base>/acp` with the same bearer) and the `uri`
+  the prompt's `resource_link` then names. A host refuses a file too large (HTTP 413) or a type it won't take (415)
+  as `-32602`, with its reason. The app retries a failed `PUT` and shows its progress.
 - **Edit or force, or remove,** a message still `pending`, `queued` or `failed`; otherwise error `-32009` (`conflict`).
   Each change comes on the stream as a `user_message` update; a removed one has `status: removed`.
 
@@ -131,6 +137,7 @@ interface LiveAdapter<Who> {
   edit?(who: Who, sessionId: string, messageId: string, body: EditBody): Promise<string | LiveRefusal>;
   remove?(who: Who, sessionId: string, messageId: string): Promise<string | LiveRefusal>;
   answer?(who: Who, sessionId: string, question: string, answer: ElicitationAnswer): Promise<void | LiveRefusal>;
+  upload?(who: Who, sessionId: string, file: LiveUpload): Promise<LiveUploadTicket | LiveRefusal>;
 }
 ```
 
