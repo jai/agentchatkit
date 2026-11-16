@@ -1,5 +1,5 @@
-import Testing
 @testable import AgentChatKit
+import Testing
 
 /// A host's UI tests find a message by its identifier: its side, then its id (jai/agentchatkit#12).
 struct ChatMessageIdentifierTests {
