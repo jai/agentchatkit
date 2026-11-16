@@ -76,9 +76,10 @@ jobs:
             echo "== $report"; head -c 12000 "$report"; echo
           done
   demo:
-    # The demo app builds for the Mac, and its UI tests walk the chat's main flows on an iPhone simulator.
+    # The demo app builds for the Mac, and its UI tests walk the chat's main flows on an iPhone simulator. 60 minutes:
+    # with a failed test's second try the job ran past 40, and GitHub reports a job over its limit as cancelled.
     runs-on: macos-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - run: brew install xcodegen

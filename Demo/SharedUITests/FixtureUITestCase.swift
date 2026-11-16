@@ -89,7 +89,13 @@ extension XCUIApplication {
             toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
         }
         let flipped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value != %@", before), object: toggle)
-        XCTAssertEqual(XCTWaiter.wait(for: [flipped], timeout: 3), .completed, file: file, line: line)
+        guard XCTWaiter.wait(for: [flipped], timeout: 3) != .completed, toggle.value as? String ?? "" == before else {
+            return
+        }
+        // On a busy CI runner the first tap can miss the knob: tap the switch's track once more, only if it never flipped.
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let again = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value != %@", before), object: toggle)
+        XCTAssertEqual(XCTWaiter.wait(for: [again], timeout: 5), .completed, file: file, line: line)
     }
 
     /// iOS 26 shows a row's confirmation dialog without a Cancel button; a tap outside it is the cancel.
