@@ -320,9 +320,15 @@ final class AdoptionUITests: FixtureUITestCase {
     /// A phone's compact queue: each reply on one line with icon buttons that keep their names and touch targets, and a
     /// strip that stays within its height limit and still acts (#19).
     func testCompactQueueRowsAndHeightLimit() {
+        // A row's height is from its words to the foot of its lowest button (a full row wraps Send now under Edit): a
+        // row's own identifier is on a container, which the Mac does not show to UI tests.
+        func rowHeight() -> CGFloat {
+            let buttons = ["edit-edit", "remove-edit", "send-edit"].map { app.buttons[$0].frame.maxY }
+            return (buttons.max() ?? 0) - element("queue-text-edit").frame.minY
+        }
         launch("queue")
-        XCTAssertTrue(element("queue-edit").waitForExistence(timeout: 5))
-        let fullRow = element("queue-edit").frame.height
+        XCTAssertTrue(app.buttons["edit-edit"].waitForExistence(timeout: 5))
+        let fullRow = rowHeight()
         launch("queue-compact")
         let edit = app.buttons["edit-edit"], send = app.buttons["send-edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 5))
@@ -337,11 +343,20 @@ final class AdoptionUITests: FixtureUITestCase {
         }
         XCTAssertTrue(edit.label.contains("Edit"), "An icon keeps its name: \(edit.label)")
         XCTAssertTrue(send.label.contains("Send now"), send.label)
-        let compactRow = element("queue-edit").frame.height
+        let compactRow = rowHeight()
+        #if os(iOS)
+        // On a phone a full row wraps Send now under Edit; compact keeps it on one row.
         XCTAssertLessThan(compactRow, fullRow * 0.6, "The row is not compact: \(compactRow) of \(fullRow)")
-        XCTAssertLessThanOrEqual(element("queue-strip").frame.height, 161, "The strip grew past its limit")
+        #else
+        // A Mac's wide row already fits Send now beside Edit: compact is still shorter.
+        XCTAssertLessThan(compactRow, fullRow, "The row is not compact: \(compactRow) of \(fullRow)")
+        #endif
+        // The replies are taller than the limit, so they scroll in a view of their own, within it.
+        let strip = app.scrollViews.containing(.any, identifier: "queue-text-edit").allElementsBoundByIndex
+            .map(\.frame.height).min() ?? .infinity
+        XCTAssertLessThanOrEqual(strip, 161, "The strip grew past its limit")
         activate(edit)
-        wait(element("queue-edit"), "exists == false")
+        wait(element("queue-text-edit"), "exists == false")
         XCTAssertEqual(app.textViews["fixture-queue-draft"].value as? String, "Queue edit\n\nExisting draft")
     }
 
