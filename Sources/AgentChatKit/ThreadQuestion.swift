@@ -106,8 +106,8 @@ public struct ThreadQuestion<Option: Identifiable>: View {
 
     @ViewBuilder private var replyButtons: some View {
         if let reply {
-            Button("Reply", systemImage: theme.symbols.compose, action: reply)
-                .buttonStyle(.borderless)
+            Button(theme.controls.replyLabel, systemImage: theme.symbols.reply, action: reply)
+                .chatControlButton(standard: .borderless)
                 .chatTextStyle(.control)
                 .chatIdentifier(identifiers.reply)
                 .controlSize(theme.controlSize)

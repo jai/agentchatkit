@@ -15,6 +15,8 @@ struct DemoAdoptionFixtures: View {
             case "queue": DemoQueueScreen()
             case "delivery": DemoDeliveryScreen()
             case "question": DemoQuestionScreen()
+            case "question-host-controls": DemoHostControls { DemoQuestionScreen() }
+            case "queue-host-controls": DemoHostControls { DemoQueueScreen() }
             case "question-styled": DemoStyledQuestion()
             case "screenshots": DemoScreenshotsScreen()
             case "screenshots-local": DemoScreenshotsScreen(sharesViewer: false)
@@ -52,5 +54,19 @@ private struct DemoThreadRows: View {
         } chips: {
             Text("Host chip").accessibilityIdentifier("slot-chip-\(id)")
         }
+    }
+}
+
+/// A host's own action buttons through its theme: borderless, and "Reply…" with a reply arrow (jai/agentchatkit#18).
+struct DemoHostControls<Content: View>: View {
+    @Environment(\.chatTheme) private var theme
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        var host = theme
+        host.controls.style = .borderless
+        host.controls.replyLabel = "Reply…"
+        host.symbols.reply = "arrowshape.turn.up.left"
+        return content.chatTheme(host)
     }
 }

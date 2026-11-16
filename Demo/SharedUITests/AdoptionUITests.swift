@@ -290,6 +290,22 @@ final class AdoptionUITests: FixtureUITestCase {
         wait(send, "exists == true")
     }
 
+    /// A host's theme sets the action buttons' style and the Reply button's words; they still act (#18).
+    func testHostThemeSetsActionButtonsAndReplyLabel() {
+        launch("question-host-controls")
+        let reply = app.buttons["host-reply"]
+        XCTAssertTrue(reply.waitForExistence(timeout: 5))
+        XCTAssertTrue(reply.label.contains("Reply…"), reply.label)
+        activate(reply)
+        notice("Reply opened")
+        launch("queue-host-controls")
+        let edit = app.buttons["edit-edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        activate(edit)
+        wait(element("queue-edit"), "exists == false")
+        XCTAssertTrue(app.buttons["send-now"].exists)
+    }
+
     func testHostStringRoutesAndHeaderFooterRemainOwnedByHost() {
         launch("host-routes")
         XCTAssertTrue(element("host-new").waitForExistence(timeout: 5))

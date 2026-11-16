@@ -74,7 +74,7 @@ public struct SentReplyStatus: View {
                 }
                 .chatTextStyle(.control)
                 .controlSize(theme.controlSize)
-                .buttonStyle(.borderless)
+                .chatControlButton(standard: .borderless)
                 .disabled(isSending)
             }
         }

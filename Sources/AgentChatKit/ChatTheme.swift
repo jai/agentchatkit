@@ -38,6 +38,8 @@ public struct ChatTheme: Sendable {
     public var controlSize: ControlSize
 
     public var symbols: Symbols
+    /// The action buttons' style and the Reply button's words (`Controls`).
+    public var controls = Controls()
 
     /// The SF Symbols a chat draws, by what they mean.
     public struct Symbols: Sendable {
@@ -63,6 +65,8 @@ public struct ChatTheme: Sendable {
         public var delete = "trash"
         public var sendNow = "arrow.up"
         public var edit = "pencil"
+        /// A question's Reply button.
+        public var reply = "square.and.pencil"
 
         public init() {}
     }

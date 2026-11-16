@@ -113,12 +113,12 @@ public struct QueuedReplyRow: View {
         Button(action: edit) {
             Label("Edit", systemImage: theme.symbols.edit).frame(minHeight: minimumHeight)
         }
-        .buttonStyle(.bordered)
+        .chatControlButton()
         .chatIdentifier(identifiers.edit)
         Button(role: .destructive, action: remove) {
             Label("Remove", systemImage: theme.symbols.delete).frame(minHeight: minimumHeight)
         }
-        .buttonStyle(.bordered)
+        .chatControlButton()
         .tint(theme.toneBad)
         .chatIdentifier(identifiers.remove)
     }
@@ -129,7 +129,7 @@ public struct QueuedReplyRow: View {
                 Label(interrupts ? "Send now · stops its turn" : "Send now", systemImage: theme.symbols.sendNow)
                     .frame(minHeight: minimumHeight)
             }
-            .buttonStyle(.borderedProminent)
+            .chatControlButton(prominent: true)
             .chatIdentifier(identifiers.sendNow)
             .tint(interrupts ? theme.toneBad : .accentColor)
             .accessibilityHint(interrupts ? "Stops what the thread is doing and sends this now" : "")
