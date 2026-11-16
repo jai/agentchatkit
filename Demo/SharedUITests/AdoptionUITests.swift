@@ -1,3 +1,6 @@
+#if os(macOS)
+import AppKit
+#endif
 import XCTest
 
 /// Runs on both platforms. Existing ExtractionUITests and the main iPhone demo suite remain separate.
@@ -250,6 +253,27 @@ final class AdoptionUITests: FixtureUITestCase {
         reply.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: -6, dy: 6)).rightClick()
         XCTAssertTrue(app.menuItems["Stop Selecting"].waitForExistence(timeout: 5), "Select Text did not turn selection on")
         app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// After Select Text, the words select and copy: a double click picks a word, and Command-A then Command-C copies
+    /// the reply from its start (jai/agentchatkit#21). Read back from the pasteboard.
+    func testSelectTextLetsTheWordsSelectAndCopy() {
+        launch("reply-summary")
+        openMenu(words("CI on main"))
+        activate(app.menuItems["Select Text"])
+        let reply = words("CI on main")
+        XCTAssertTrue(reply.waitForExistence(timeout: 5))
+        NSPasteboard.general.clearContents()
+        reply.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.06)).doubleClick()
+        app.typeKey("c", modifierFlags: .command)
+        let word = NSPasteboard.general.string(forType: .string) ?? ""
+        XCTAssertFalse(word.isEmpty, "A double click selected nothing to copy")
+        XCTAssertTrue(reply.label.contains(word) || (reply.value as? String ?? "").contains(word), "Copied: \(word)")
+        NSPasteboard.general.clearContents()
+        app.typeKey("a", modifierFlags: .command)
+        app.typeKey("c", modifierFlags: .command)
+        let all = NSPasteboard.general.string(forType: .string) ?? ""
+        XCTAssertTrue(all.hasPrefix("CI on main"), "Command-A, Command-C copied: \(all.prefix(60))")
     }
     #endif
 
