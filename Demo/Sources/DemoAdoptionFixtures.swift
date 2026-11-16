@@ -25,6 +25,7 @@ struct DemoAdoptionFixtures: View {
             case "message-content": DemoMessageContent()
             case "reply-summary": DemoReplySummary(isOn: true)
             case "reply-summary-off": DemoReplySummary(isOn: false)
+            case "composer-paste": DemoComposerPaste()
             default: ContentUnavailableView("Unknown fixture", systemImage: "questionmark")
             }
         }
