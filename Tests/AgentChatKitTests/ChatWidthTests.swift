@@ -1,8 +1,8 @@
 #if os(iOS)
+@testable import AgentChatKit
 import SwiftUI
 import Testing
 import UIKit
-@testable import AgentChatKit
 
 /// A chat's bubbles follow the chat's width when it changes after they were laid out: a sheet that opens narrow and
 /// grows, as Ask's does on a Mac (UI bug 015), or a window resized. An agent's answer then takes the chat's width from
@@ -10,11 +10,11 @@ import UIKit
 @MainActor
 struct ChatWidthTests {
     private static let answer = """
-        Partly. The retry path is covered, but two things are not:
+    Partly. The retry path is covered, but two things are not:
 
-        - **Reachability:** at this head, `recordOtpVerified` has no caller in `functions/src` outside tests, so the \
-        recovery screen can never reach it. Either call it from `verifyOtp` or drop it from this PR.
-        """
+    - **Reachability:** at this head, `recordOtpVerified` has no caller in `functions/src` outside tests, so the \
+    recovery screen can never reach it. Either call it from `verifyOtp` or drop it from this PR.
+    """
 
     @Observable
     final class Frames {

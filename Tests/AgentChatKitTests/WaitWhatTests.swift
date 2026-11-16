@@ -1,6 +1,6 @@
+@testable import AgentChatKit
 import SwiftUI
 import Testing
-@testable import AgentChatKit
 
 /// "Wait, what?" (Jai, 2026-11-13): one tap under the agent's newest words asks it to say them again plainly. It shows
 /// only while those words are the newest in the chat, and his bubble says "Wait, what?" while the agent gets the whole

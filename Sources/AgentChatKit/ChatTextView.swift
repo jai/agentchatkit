@@ -184,7 +184,7 @@ final class PictureTextView: UITextView {
         }
         // A copied photo is a promise until it is loaded, so its bytes come from its item provider.
         for provider in UIPasteboard.general.itemProviders
-        where provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            where provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
             _ = provider.loadDataRepresentation(for: .image) { data, _ in
                 guard let data else {
                     return

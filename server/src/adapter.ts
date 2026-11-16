@@ -2,13 +2,7 @@
  * What a host Worker writes: its adapter (docs/live-protocol.md#host-adapter). The package does `/acp`, JSON-RPC,
  * connections, the room Durable Object, replay, broadcast and keep-alive.
  */
-import type {
-  ContentBlock,
-  ElicitationCreateParams,
-  ElicitationResult,
-  SessionUpdate,
-  StateUpdate,
-} from "./acp.ts";
+import type { ContentBlock, ElicitationCreateParams, ElicitationResult, SessionUpdate, StateUpdate } from "./acp.ts";
 
 /**
  * A refusal. From `authorize`: the HTTP status (401, 403, 404). From a write: 400 and 404 answer `-32602`, 409
@@ -83,7 +77,11 @@ export interface LiveAdapter<Who> {
   /** The session after `cursor` (null: from start). See `LiveRead`. */
   read(who: Who, sessionId: string, cursor: string | null): Promise<LiveRead>;
   /** Inserts the prompt at once as a `user_message` (`pending` or `queued`). A repeat `clientRef`: `repeat: true`. */
-  prompt?(who: Who, sessionId: string, prompt: PromptBody): Promise<{ messageId: string; repeat: boolean } | LiveRefusal>;
+  prompt?(
+    who: Who,
+    sessionId: string,
+    prompt: PromptBody,
+  ): Promise<{ messageId: string; repeat: boolean } | LiveRefusal>;
   /** Edits or forces a message still `pending` or `queued`; else refuse 409. Answers the `messageId`. */
   edit?(who: Who, sessionId: string, messageId: string, body: EditBody): Promise<string | LiveRefusal>;
   /** Removes a message still `pending` or `queued` (its status becomes `removed`); else refuse 409. */

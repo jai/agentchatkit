@@ -198,7 +198,11 @@ export class AcpTestClient {
   async open(): Promise<Response> {
     const response = await this.send(
       this.makeRequest(this.url, {
-        headers: { Accept: "text/event-stream", [CONNECTION_HEADER]: this.connection ?? "", [SESSION_HEADER]: this.sessionId },
+        headers: {
+          Accept: "text/event-stream",
+          [CONNECTION_HEADER]: this.connection ?? "",
+          [SESSION_HEADER]: this.sessionId,
+        },
       }),
     );
     if (response.status === 200 && response.body) {
@@ -354,7 +358,10 @@ export function expectSubset(expected: unknown, actual: unknown, path = "$"): vo
 
 /** A `session/update`'s update, after checking the cursor rides on the notification and not on the update. */
 function updateOf(message: JsonRpcMessage, what: string): SessionUpdate {
-  check("method" in message && message.method === "session/update", `${what}: expected session/update, got ${JSON.stringify(message)}`);
+  check(
+    "method" in message && message.method === "session/update",
+    `${what}: expected session/update, got ${JSON.stringify(message)}`,
+  );
   const params = message.params as { update?: SessionUpdate; _meta?: { agentchatkit?: { cursor?: unknown } } };
   check(typeof params._meta?.agentchatkit?.cursor === "string", `${what}: the notification carries a cursor`);
   check(params.update, `${what}: no update`);
@@ -435,7 +442,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
   const follow = async (sessionId: string, cursor: string | null) => {
     const c = client(sessionId);
     const initialized = await c.initialize();
-    check(initialized.status === 200 && c.connection, `initialize: expected 200 and a connection, got ${initialized.status}`);
+    check(
+      initialized.status === 200 && c.connection,
+      `initialize: expected 200 and a connection, got ${initialized.status}`,
+    );
     const opened = await c.open();
     check(opened.status === 200, `the stream: expected 200, got ${opened.status}`);
     check(opened.headers.get("Content-Type")?.startsWith("text/event-stream"), "the stream is text/event-stream");
@@ -502,8 +512,9 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
       const initialized = await c.initialize();
       check(initialized.status === 200, `initialize: expected 200, got ${initialized.status}`);
       check(c.connection, `initialize answers ${CONNECTION_HEADER}`);
-      const expected = (fixtures.messages as { host_to_client: { name: string; message: { result: Record<string, unknown> } }[] })
-        .host_to_client.find((entry) => entry.name === "initialized");
+      const expected = (
+        fixtures.messages as { host_to_client: { name: string; message: { result: Record<string, unknown> } }[] }
+      ).host_to_client.find((entry) => entry.name === "initialized");
       check(expected, "messages.json has initialized");
       const { agentInfo: _info, ...result } = expected.message.result;
       expectSubset({ jsonrpc: "2.0", id: 1, result }, await initialized.json(), "initialize");
@@ -520,18 +531,64 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
         ...extra,
       });
       const body = JSON.stringify({ jsonrpc: "2.0", id: 9, method: "session/resume", params: { sessionId } });
-      await status(call(harness.request(url, { method: "POST", headers: { "Content-Type": "application/json" }, body })), 400, "a request before initialize");
-      await status(call(harness.request(url, { method: "POST", headers: headers({ [CONNECTION_HEADER]: "forged.zz.sig" }), body })), 404, "an unknown connection's request");
-      await status(call(harness.request(url, { headers: { Accept: "text/event-stream", [CONNECTION_HEADER]: "forged.zz.sig", [SESSION_HEADER]: sessionId } })), 404, "an unknown connection's stream");
-      await status(call(harness.request(url, { headers: { [CONNECTION_HEADER]: c.connection, [SESSION_HEADER]: sessionId } })), 406, "a stream without Accept: text/event-stream");
-      await status(call(harness.request(url, { method: "POST", headers: headers({ "Content-Type": "text/plain" }), body })), 415, "a POST that is not JSON");
-      await status(call(harness.request(url, { method: "POST", headers: headers(), body: `[${body}]` })), 400, "a batch");
+      await status(
+        call(harness.request(url, { method: "POST", headers: { "Content-Type": "application/json" }, body })),
+        400,
+        "a request before initialize",
+      );
+      await status(
+        call(
+          harness.request(url, { method: "POST", headers: headers({ [CONNECTION_HEADER]: "forged.zz.sig" }), body }),
+        ),
+        404,
+        "an unknown connection's request",
+      );
+      await status(
+        call(
+          harness.request(url, {
+            headers: { Accept: "text/event-stream", [CONNECTION_HEADER]: "forged.zz.sig", [SESSION_HEADER]: sessionId },
+          }),
+        ),
+        404,
+        "an unknown connection's stream",
+      );
+      await status(
+        call(harness.request(url, { headers: { [CONNECTION_HEADER]: c.connection, [SESSION_HEADER]: sessionId } })),
+        406,
+        "a stream without Accept: text/event-stream",
+      );
+      await status(
+        call(harness.request(url, { method: "POST", headers: headers({ "Content-Type": "text/plain" }), body })),
+        415,
+        "a POST that is not JSON",
+      );
+      await status(
+        call(harness.request(url, { method: "POST", headers: headers(), body: `[${body}]` })),
+        400,
+        "a batch",
+      );
       const { [SESSION_HEADER]: _session, ...noSession } = headers();
-      await status(call(harness.request(url, { method: "POST", headers: noSession, body })), 400, `a POST without ${SESSION_HEADER}`);
-      const streamHeaders = { Accept: "text/event-stream", [CONNECTION_HEADER]: c.connection, [SESSION_HEADER]: sessionId };
+      await status(
+        call(harness.request(url, { method: "POST", headers: noSession, body })),
+        400,
+        `a POST without ${SESSION_HEADER}`,
+      );
+      const streamHeaders = {
+        Accept: "text/event-stream",
+        [CONNECTION_HEADER]: c.connection,
+        [SESSION_HEADER]: sessionId,
+      };
       await status(call(harness.request(url, { headers: streamHeaders }, "none")), 401, "a stream with no bearer");
-      await status(call(harness.request(url, { method: "POST", headers: headers(), body }, "none")), 401, "a request with no bearer");
-      await status(call(harness.request(url, { headers: streamHeaders }, "stranger")), harness.strangerStatus ?? 403, "someone else's stream");
+      await status(
+        call(harness.request(url, { method: "POST", headers: headers(), body }, "none")),
+        401,
+        "a request with no bearer",
+      );
+      await status(
+        call(harness.request(url, { headers: streamHeaders }, "stranger")),
+        harness.strangerStatus ?? 403,
+        "someone else's stream",
+      );
       await status(
         call(harness.request(url, { headers: { ...streamHeaders, [SESSION_HEADER]: `no-such-session-${sessionId}` } })),
         404,
@@ -540,7 +597,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
 
       const opened = await c.open();
       check(opened.status === 200, `the stream: expected 200, got ${opened.status}`);
-      check(opened.headers.get("X-Content-Type-Options") === "nosniff", "the stream says nosniff: URLSession waits to sniff otherwise");
+      check(
+        opened.headers.get("X-Content-Type-Options") === "nosniff",
+        "the stream says nosniff: URLSession waits to sniff otherwise",
+      );
       try {
         const first = await c.comment(wait);
         check(first === "open", `expected the stream to start with an open comment at once, got ${first}`);
@@ -549,8 +609,14 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
         check(comment === "keep-alive", `expected the keep-alive comment, got ${comment}`);
         const unknown = await c.request("session/nothing", { sessionId });
         const answer = await c.next(wait);
-        check("error" in answer && answer.id === unknown, `an unknown method answers an error, got ${JSON.stringify(answer)}`);
-        check(answer.error.code === ERRORS.methodNotFound, `an unknown method: expected -32601, got ${answer.error.code}`);
+        check(
+          "error" in answer && answer.id === unknown,
+          `an unknown method answers an error, got ${JSON.stringify(answer)}`,
+        );
+        check(
+          answer.error.code === ERRORS.methodNotFound,
+          `an unknown method: expected -32601, got ${answer.error.code}`,
+        );
         const missing: [boolean, string, unknown][] = [
           [capabilities.edit, "_agentchatkit/edit", { sessionId, messageId: "x", force: true }],
           [capabilities.remove, "_agentchatkit/remove", { sessionId, messageId: "x" }],
@@ -560,7 +626,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
           if (!can && !has) {
             const id = await c.request(method, params);
             const reply = await c.next(wait);
-            check("error" in reply && reply.id === id && reply.error.code === ERRORS.methodNotFound, `${method} without it: -32601`);
+            check(
+              "error" in reply && reply.id === id && reply.error.code === ERRORS.methodNotFound,
+              `${method} without it: -32601`,
+            );
           }
         }
       } finally {
@@ -602,7 +671,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
             const { client: c, replay, answer } = await follow(sessionId, old);
             clients.push(c);
             check(replay.length === 0, `an expired cursor replays nothing, got ${replay.length}`);
-            check("error" in answer && answer.error.code === server.error, `an expired cursor: expected ${server.error}, got ${JSON.stringify(answer)}`);
+            check(
+              "error" in answer && answer.error.code === server.error,
+              `an expired cursor: expected ${server.error}, got ${JSON.stringify(answer)}`,
+            );
             const again = await follow(sessionId, null);
             clients.push(again.client);
             check("result" in again.answer, "a resume from start after it answers");
@@ -618,10 +690,16 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
           const during = (server.during ?? []).filter(holds);
           const atResume = stream.length - during.length;
           check(replay.length === atResume, `the resume carried ${replay.length} updates, expected ${atResume}`);
-          replay.forEach((message, index) => expectSubset(stream[index], updateOf(message, `replay ${index}`), `${name} replay ${index}`));
+          replay.forEach((message, index) =>
+            expectSubset(stream[index], updateOf(message, `replay ${index}`), `${name} replay ${index}`),
+          );
           for (const [index, update] of during.entries()) {
             await apply(sessionId, update);
-            expectSubset(stream[atResume + index], updateOf(await c.next(wait), `live ${index}`), `${name} live ${index}`);
+            expectSubset(
+              stream[atResume + index],
+              updateOf(await c.next(wait), `live ${index}`),
+              `${name} live ${index}`,
+            );
           }
           await c.none(50);
         } finally {
@@ -647,7 +725,11 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
       const bind = (value: unknown): unknown =>
         typeof value === "string" && value.startsWith("@") ? (bound.get(value) ?? value) : value;
       const resolve = (value: unknown): unknown =>
-        Array.isArray(value) ? value.map(resolve) : isObject(value) ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolve(v)])) : bind(value);
+        Array.isArray(value)
+          ? value.map(resolve)
+          : isObject(value)
+            ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolve(v)]))
+            : bind(value);
       try {
         for (const [index, write] of (lifecycle.writes ?? []).entries()) {
           if (write.host) {
@@ -656,7 +738,11 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
             const what = `host step ${index}`;
             for (const [at, expected] of (write.stream ?? []).entries()) {
               const want = resolve({ ...expected, messageId: `@${(expected as { messageId: string }).messageId}` });
-              expectSubset(hostless(want as Record<string, unknown>), updateOf(await c.next(wait), what), `${what} update ${at}`);
+              expectSubset(
+                hostless(want as Record<string, unknown>),
+                updateOf(await c.next(wait), what),
+                `${what} update ${at}`,
+              );
             }
             await c.none(30);
             continue;
@@ -684,7 +770,10 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
             }
           }
           if (write.error !== undefined) {
-            check("error" in answer && answer.error.code === write.error, `${what}: expected error ${write.error}, got ${JSON.stringify(answer)}`);
+            check(
+              "error" in answer && answer.error.code === write.error,
+              `${what}: expected error ${write.error}, got ${JSON.stringify(answer)}`,
+            );
           } else {
             check("result" in answer, `${what}: expected a result, got ${JSON.stringify(answer)}`);
             const got = (answer.result as { messageId?: unknown }).messageId;
@@ -693,10 +782,16 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
             if (!bound.has(want)) {
               bound.set(want, got);
             }
-            check(bound.get(want) === got, `${what}: answered ${got}, expected the ${want} of before (${bound.get(want)})`);
+            check(
+              bound.get(want) === got,
+              `${what}: answered ${got}, expected the ${want} of before (${bound.get(want)})`,
+            );
           }
           write.stream.forEach((expected, at) => {
-            const want = resolve({ ...expected, messageId: `@${(expected as { messageId: string }).messageId}` }) as Record<string, unknown>;
+            const want = resolve({
+              ...expected,
+              messageId: `@${(expected as { messageId: string }).messageId}`,
+            }) as Record<string, unknown>;
             const meta = (want._meta as { agentchatkit?: { status?: string } } | undefined)?.agentchatkit;
             if (meta?.status === "queued" && !capabilities.queues) {
               meta.status = "pending";
@@ -733,11 +828,17 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
         let requestId: string | number | null = null;
         for (const [index, c] of clients.entries()) {
           const asked = await c.next(wait);
-          check("method" in asked && asked.method === "elicitation/create" && "id" in asked, `client ${index}: expected elicitation/create, got ${JSON.stringify(asked)}`);
+          check(
+            "method" in asked && asked.method === "elicitation/create" && "id" in asked,
+            `client ${index}: expected elicitation/create, got ${JSON.stringify(asked)}`,
+          );
           expectSubset({ ...ask, sessionId }, asked.params, `client ${index} question`);
           requestId ??= asked.id;
           check(asked.id === requestId, "every client is asked the same request");
-          expectSubset({ sessionUpdate: "state_update", state: "requires_action" }, updateOf(await c.next(wait), `client ${index} state`));
+          expectSubset(
+            { sessionUpdate: "state_update", state: "requires_action" },
+            updateOf(await c.next(wait), `client ${index} state`),
+          );
         }
         const late = await follow(sessionId, null);
         clients.push(late.client);
@@ -747,13 +848,23 @@ export function conformanceCases<Who>(harness: ConformanceHarness<Who>): Conform
         await a.client.post({ jsonrpc: "2.0", id: requestId, result: question.answer });
         for (const [index, c] of clients.entries()) {
           const seen: JsonRpcMessage[] = [];
-          while (!seen.some((m) => "method" in m && m.method === "session/update" && updateOf(m, "").sessionUpdate === "user_message")) {
+          while (
+            !seen.some(
+              (m) => "method" in m && m.method === "session/update" && updateOf(m, "").sessionUpdate === "user_message",
+            )
+          ) {
             seen.push(await c.next(wait));
           }
           const cancelled = seen.some(
-            (m) => "method" in m && m.method === "$/cancel_request" && (m.params as { requestId?: unknown }).requestId === requestId,
+            (m) =>
+              "method" in m &&
+              m.method === "$/cancel_request" &&
+              (m.params as { requestId?: unknown }).requestId === requestId,
           );
-          check(cancelled === (index !== 0), index === 0 ? "the client that answered is not cancelled" : `client ${index} is cancelled`);
+          check(
+            cancelled === (index !== 0),
+            index === 0 ? "the client that answered is not cancelled" : `client ${index} is cancelled`,
+          );
         }
         await b.client.post({ jsonrpc: "2.0", id: requestId, result: question.answer });
         const then = question.then?.at(-1);

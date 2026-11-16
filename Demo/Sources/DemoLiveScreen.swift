@@ -55,8 +55,8 @@ struct DemoLiveScreen: View {
                     question: .init(answer: { "demo-live-option-\($0)" }),
                     text: "demo-live-answer-text", submit: "demo-live-answer-submit", decline: "demo-live-decline"
                 ), choiceBehavior: .immediate)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("demo-live-question")
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("demo-live-question")
             } else if let state = chat.model.chat.state, state.working {
                 ChatWorkingLine(activity: state.activity ?? "Working")
             }

@@ -68,7 +68,7 @@ final class ExtractionUITests: XCTestCase {
 
         delete.press(forDuration: 1)
         app.buttons["Delete"].tap()
-        app.sheets.buttons["Delete"].firstMatch.tap()  // iOS 26 lists a dialog's buttons twice
+        app.sheets.buttons["Delete"].firstMatch.tap() // iOS 26 lists a dialog's buttons twice
         notice("Archive calls: 1, Delete calls: 1")
         wait(delete, "exists == false")
         // No Archive/Delete hook means no corresponding action control.
@@ -94,7 +94,7 @@ final class ExtractionUITests: XCTestCase {
         app.flipSwitch("Fail next action")
         thread("delete").press(forDuration: 1)
         app.buttons["Delete"].tap()
-        app.sheets.buttons["Delete"].firstMatch.tap()  // iOS 26 lists a dialog's buttons twice
+        app.sheets.buttons["Delete"].firstMatch.tap() // iOS 26 lists a dialog's buttons twice
         XCTAssertTrue(app.staticTexts["Fixture delete failed"].waitForExistence(timeout: 5))
         app.alerts.buttons["OK"].firstMatch.tap()
         XCTAssertTrue(thread("delete").exists)

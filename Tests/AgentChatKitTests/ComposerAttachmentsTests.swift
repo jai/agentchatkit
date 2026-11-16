@@ -1,10 +1,10 @@
+@testable import AgentChatKit
 import AVFoundation
 import CoreGraphics
 import Foundation
 import ImageIO
 import Testing
 import UniformTypeIdentifiers
-@testable import AgentChatKit
 
 /// A screenshot on a message: made small enough to send, and the tray's limit. Off the main actor but for the tray, so
 /// drawing and encoding pictures never holds up the PR screens' tests, which run on it beside these.

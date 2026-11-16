@@ -231,7 +231,7 @@ final class AdoptionUITests: FixtureUITestCase {
         notice("Archive calls: 0, Delete calls: 0")
         alpha.press(forDuration: 1)
         activate(app.buttons["delete-alpha"])
-        activate(app.sheets.buttons["confirm-alpha"].firstMatch)  // iOS 26 lists a dialog's buttons twice
+        activate(app.sheets.buttons["confirm-alpha"].firstMatch) // iOS 26 lists a dialog's buttons twice
         wait(alpha, "exists == false")
         notice("Archive calls: 0, Delete calls: 1")
         element("sessionRow-beta").swipeLeft()

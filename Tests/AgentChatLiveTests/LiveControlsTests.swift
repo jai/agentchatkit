@@ -1,10 +1,10 @@
 import AgentChatKit
+@testable import AgentChatLive
 import AgentChatLiveTesting
 import DurableNetworking
 import Foundation
 import Observation
 import Testing
-@testable import AgentChatLive
 
 /// Exercises the same action coordinator used by the SwiftUI adapters, over real in-memory ACP requests/updates.
 @Suite(.timeLimit(.minutes(1)), .enabled(if: LiveHostSuites.run, "AGENTCHAT_LIVE_TESTS=off"))
@@ -229,7 +229,6 @@ struct LiveControlsTests {
         #expect(retries == 1)
         #expect(await transport.posts.count == before, "Override replaces the default RPC")
     }
-
 }
 
 extension LiveControlsTests {
@@ -252,7 +251,7 @@ extension LiveControlsTests {
         draft += " typed while waiting"
         // Use the authoritative removed record, including words streamed after the request began.
         await server.publish(["sessionUpdate": "user_message", "messageId": .string(id),
-                              "content": [["type": "text", "text": "Updated original words"]],])
+                              "content": [["type": "text", "text": "Updated original words"]]])
         try await observeUntil { live.chat.message(id)?.text == "Updated original words" }
         await transport.loseChangeReplies()
         #expect(await editing.value)
@@ -411,7 +410,6 @@ extension LiveControlsTests {
         #expect(declines.count == 2)
         #expect(declines.allSatisfy { $0["id"] == question.requestID })
     }
-
 }
 
 extension LiveControlsTests {
@@ -513,7 +511,7 @@ extension LiveControlsTests {
         ["sessionUpdate": "user_message", "messageId": .string(id),
          "content": [["type": "text", "text": .string(id)]],
          "_meta": ["agentchatkit": ["status": .string(status.rawValue),
-                                   "at": .string("2026-01-01T00:00:0\(second).000Z"),],],]
+                                    "at": .string("2026-01-01T00:00:0\(second).000Z")]]]
     }
 }
 

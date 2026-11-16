@@ -129,7 +129,6 @@ public actor LiveDevHost: HTTPTransport, StreamingTransport {
         continuation.onTermination = { _ in pump.cancel() }
         return LineStream(response: stream.response, lines: lines)
     }
-
 }
 
 #if os(macOS)

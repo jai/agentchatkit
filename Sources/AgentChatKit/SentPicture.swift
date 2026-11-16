@@ -19,10 +19,10 @@ public struct SentPicture: Identifiable, Sendable {
               let width = properties[kCGImagePropertyPixelWidth as String] as? Int,
               let height = properties[kCGImagePropertyPixelHeight as String] as? Int,
               let preview = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: max(width, height),
-                kCGImageSourceShouldCacheImmediately: true,
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceCreateThumbnailWithTransform: true,
+                  kCGImageSourceThumbnailMaxPixelSize: max(width, height),
+                  kCGImageSourceShouldCacheImmediately: true,
               ] as CFDictionary)
         else { return nil }
         id = ID(key: key, index: index)

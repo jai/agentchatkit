@@ -21,29 +21,29 @@ struct DemoReply {
 enum DemoScript {
     /// The Tour's first message.
     static let greeting = """
-        Hi! I'm a **scripted agent**: everything I say is written into this demo, and nothing leaves the device.
+    Hi! I'm a **scripted agent**: everything I say is written into this demo, and nothing leaves the device.
 
-        Try one of these:
+    Try one of these:
 
-        - Ask *"How does scrolling work?"* and scroll up while I answer.
-        - Ask *"Show me the Markdown"* for headings, code, a table and a task list.
-        - Ask *"How do themes work?"*, then switch the theme from the toolbar.
-        - Add a screenshot (the paperclip, or the toolbar's sample) and send it.
-        - Change my model with the chip above the field.
-        - Tap **Wait, what?** under anything I say.
-        """
+    - Ask *"How does scrolling work?"* and scroll up while I answer.
+    - Ask *"Show me the Markdown"* for headings, code, a table and a task list.
+    - Ask *"How do themes work?"*, then switch the theme from the toolbar.
+    - Add a screenshot (the paperclip, or the toolbar's sample) and send it.
+    - Change my model with the chip above the field.
+    - Tap **Wait, what?** under anything I say.
+    """
 
     /// The Live chat's first message.
     static let liveGreeting = """
-        This chat is **live**: I sit behind a chat server (in memory, on this device), and the app follows it with \
-        AgentChatLive over ACP, as Agent Pager and FeedbackKit follow theirs.
+    This chat is **live**: I sit behind a chat server (in memory, on this device), and the app follows it with \
+    AgentChatLive over ACP, as Agent Pager and FeedbackKit follow theirs.
 
-        - Ask me anything and watch my answer arrive as I write it.
-        - While I answer, tap **Drop the stream** (⚡︎): the app reconnects, resumes from its cursor, \
-        and nothing shows twice.
-        - **Go offline** (Wi-Fi) for a while, then back: it catches up on everything I wrote meanwhile.
-        - Ask me to *merge*: I ask you first, with buttons.
-        """
+    - Ask me anything and watch my answer arrive as I write it.
+    - While I answer, tap **Drop the stream** (⚡︎): the app reconnects, resumes from its cursor, \
+    and nothing shows twice.
+    - **Go offline** (Wi-Fi) for a while, then back: it catches up on everything I wrote meanwhile.
+    - Ask me to *merge*: I ask you first, with buttons.
+    """
 
     /// The reply to a message of his, by what it asks about.
     static func reply(to words: String, screenshots: Int, model: String) -> DemoReply {
@@ -72,22 +72,22 @@ enum DemoScript {
             .tool(name: "Grep", summary: "\"ChatView(\" in Sources/", activity: "Searching the package"),
             .tool(name: "Read", summary: "Sources/AgentChatKit/ChatView.swift", activity: "Reading ChatView.swift"),
             .say("""
-                `ChatView` is the whole chat screen. A host gives it:
+            `ChatView` is the whole chat screen. A host gives it:
 
-                1. its **messages**, oldest first, as `ChatMessage`s (yours, mine, and tool calls like the two above);
-                2. **slots** for what only the host has: a `header`, `extras` under a message, a `footer` (this \
-                demo's working line lives there) and the `composer`.
+            1. its **messages**, oldest first, as `ChatMessage`s (yours, mine, and tool calls like the two above);
+            2. **slots** for what only the host has: a `header`, `extras` under a message, a `footer` (this \
+            demo's working line lives there) and the `composer`.
 
-                Everything else, the bubbles, the Markdown, keeping you at the end as I write, is the package's.
-                """),
+            Everything else, the bubbles, the Markdown, keeping you at the end as I write, is the package's.
+            """),
         ],
         plain: """
-            **The short version:** you hand `ChatView` a list of messages, and it draws the chat.
+        **The short version:** you hand `ChatView` a list of messages, and it draws the chat.
 
-            - Your app owns the conversation.
-            - The package owns how it looks and scrolls.
-            - Slots let your app add its own bits.
-            """
+        - Your app owns the conversation.
+        - The package owns how it looks and scrolls.
+        - Slots let your app add its own bits.
+        """
     )
 
     private static let scrolling = DemoReply(
@@ -104,12 +104,12 @@ enum DemoScript {
             }.joined(separator: "\n\n")),
         ],
         plain: """
-            **At the end, it follows. Scrolled up, it stays put.**
+        **At the end, it follows. Scrolled up, it stays put.**
 
-            - Reading the end: new words keep you at the end.
-            - Scrolled up: you stay where you are.
-            - Sending a message: the chat jumps to the end.
-            """
+        - Reading the end: new words keep you at the end.
+        - Scrolled up: you stay where you are.
+        - Sending a message: the chat jumps to the end.
+        """
     )
 
     private static let markdown = DemoReply(
@@ -117,74 +117,74 @@ enum DemoScript {
             .tool(name: "Read", summary: "Sources/AgentChatKit/MarkdownBlocks.swift",
                   activity: "Reading MarkdownBlocks.swift"),
             .say("""
-                ## What an agent's Markdown looks like
+            ## What an agent's Markdown looks like
 
-                Inline: **bold**, *italic*, `code`, ~~struck~~ and [a link](https://github.com/jai/agentchatkit).
+            Inline: **bold**, *italic*, `code`, ~~struck~~ and [a link](https://github.com/jai/agentchatkit).
 
-                > A quote, with its bar.
+            > A quote, with its bar.
 
-                ```swift
-                ChatView(messages: messages, sent: sent, readsEnd: $readsEnd, focus: $focused) { _ in
-                    EmptyView()
-                } header: { EmptyView() } footer: { EmptyView() } composer: { composer }
-                ```
+            ```swift
+            ChatView(messages: messages, sent: sent, readsEnd: $readsEnd, focus: $focused) { _ in
+                EmptyView()
+            } header: { EmptyView() } footer: { EmptyView() } composer: { composer }
+            ```
 
-                | Piece | Whose |
-                |---|---|
-                | Bubbles, Markdown, scrolling | the package |
-                | Messages, slots, theme | the host |
+            | Piece | Whose |
+            |---|---|
+            | Bubbles, Markdown, scrolling | the package |
+            | Messages, slots, theme | the host |
 
-                1. Stream a reply
-                2. Show tool calls
-                3. Ship your own app
-                """),
+            1. Stream a reply
+            2. Show tool calls
+            3. Ship your own app
+            """),
         ],
         plain: """
-            **I showed every kind of formatting a reply can have.**
+        **I showed every kind of formatting a reply can have.**
 
-            - Headings, bold, code and links.
-            - A code block and a table.
-            - A numbered list.
-            """
+        - Headings, bold, code and links.
+        - A code block and a table.
+        - A numbered list.
+        """
     )
 
     private static let theming = DemoReply(
         steps: [
             .tool(name: "Read", summary: "Sources/AgentChatKit/ChatTheme.swift", activity: "Reading ChatTheme.swift"),
             .say("""
-                A chat takes its **fonts, colours and icons** from `ChatTheme`, which the host sets once at its root:
+            A chat takes its **fonts, colours and icons** from `ChatTheme`, which the host sets once at its root:
 
-                ```swift
-                RootView().chatTheme(ChatTheme(font: { .app($0) }, toneGood: .green))
-                ```
+            ```swift
+            RootView().chatTheme(ChatTheme(font: { .app($0) }, toneGood: .green))
+            ```
 
-                This demo has three: **PR Hub** (PRHub's own look), **Terminal** and **Paper**. Switch them from the \
-                toolbar: the same chat redraws in each, and the package knows nothing about any of them.
-                """),
+            This demo has three: **PR Hub** (PRHub's own look), **Terminal** and **Paper**. Switch them from the \
+            toolbar: the same chat redraws in each, and the package knows nothing about any of them.
+            """),
         ],
         plain: """
-            **Your app picks the fonts and colours; the chat follows.**
+        **Your app picks the fonts and colours; the chat follows.**
 
-            - Set `.chatTheme(...)` once at the top of your app.
-            - Try the toolbar's Theme menu to see it change.
-            """
+        - Set `.chatTheme(...)` once at the top of your app.
+        - Try the toolbar's Theme menu to see it change.
+        """
     )
 
     private static func modelReply(_ model: String) -> DemoReply {
         DemoReply(
             steps: [
                 .say("""
-                    I'm answering as **\(model)**. The chip above the field picks the model and its reasoning. The \
-                    chip waits for the host to say the change took, so it never shows a pick the agent doesn't have. \
-                    The time under each of my replies says which model wrote it.
-                    """),
+                I'm answering as **\(model)**. The chip above the field picks the model and its reasoning. The \
+                chip waits for the host to say the change took, so it never shows a pick the agent doesn't have. \
+                The time under each of my replies says which model wrote it.
+                """),
             ],
             plain: """
-                **Tap the chip above the field to change my model.**
+            **Tap the chip above the field to change my model.**
 
-                - It shows what's in use now.
-                - Each reply notes which model wrote it.
-                """
+            - It shows what's in use now.
+            - Each reply notes which model wrote it.
+            """
         )
     }
 
@@ -195,17 +195,17 @@ enum DemoScript {
                 .tool(name: "View", summary: count == 1 ? "screenshot-1.jpg" : "screenshot-1…\(count).jpg",
                       activity: "Looking at \(pictures)"),
                 .say("""
-                    Got \(pictures). Each one was made small enough for me to read whole before it was sent \
-                    (at most \(ComposerImageEncoder.maxPixels) px on its long side), and your bubble says it went with \
-                    the message rather than showing the pictures again.
-                    """),
+                Got \(pictures). Each one was made small enough for me to read whole before it was sent \
+                (at most \(ComposerImageEncoder.maxPixels) px on its long side), and your bubble says it went with \
+                the message rather than showing the pictures again.
+                """),
             ],
             plain: """
-                **I received \(pictures).**
+            **I received \(pictures).**
 
-                - They were shrunk before sending.
-                - Your bubble notes they were attached.
-                """
+            - They were shrunk before sending.
+            - Your bubble notes they were attached.
+            """
         )
     }
 

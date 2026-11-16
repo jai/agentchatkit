@@ -70,7 +70,7 @@ final class DemoLiveControlsFixtureModel {
         await server.publish([
             "sessionUpdate": "user_message", "messageId": "pictures",
             "content": [["type": "resource_link", "name": "replacement.png", "uri": "attachments/replacement",
-                         "mimeType": "image/png",],],
+                         "mimeType": "image/png"]],
         ])
     }
 
@@ -79,7 +79,7 @@ final class DemoLiveControlsFixtureModel {
         ["sessionUpdate": "user_message", "messageId": .string(id),
          "content": [["type": "text", "text": .string(words)]],
          "_meta": ["agentchatkit": ["status": .string(status.rawValue),
-                                   "at": .string("2026-01-01T12:00:0\(second).000Z"), "clientRef": .string("fixture-\(id)"),],],]
+                                    "at": .string("2026-01-01T12:00:0\(second).000Z"), "clientRef": .string("fixture-\(id)")]]]
     }
 
     private static func withPictures(_ update: JSONValue) -> JSONValue {

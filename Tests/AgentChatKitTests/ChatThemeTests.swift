@@ -1,6 +1,6 @@
+@testable import AgentChatKit
 import SwiftUI
 import Testing
-@testable import AgentChatKit
 
 struct ChatThemeTests {
     @Test func legacyFontRemainsTheLiveFallbackForUnsetSemanticRoles() {

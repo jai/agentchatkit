@@ -11,7 +11,7 @@ struct DemoHostThreadList: View {
     var usesValueNavigation = false
     @State private var threads = [Thread(id: "alpha", title: "Alpha host thread"),
                                   Thread(id: "beta", title: "Beta host thread"),
-                                  Thread(id: "read-only", title: "Read-only host thread"),]
+                                  Thread(id: "read-only", title: "Read-only host thread")]
     @State private var selection: String?
     @State private var opened = "none"
     @State private var opens = 0
@@ -105,8 +105,8 @@ struct DemoHostThreadList: View {
             threads.removeAll { $0.id == thread.id }
             return .success(())
         }, identifiers: .init(archive: "archive-\(thread.id)", delete: "delete-\(thread.id)",
-                             confirmDelete: "confirm-\(thread.id)", cancelDelete: "cancel-\(thread.id)",
-                             dismissError: "dismiss-\(thread.id)", progress: "pending-\(thread.id)"))
+                              confirmDelete: "confirm-\(thread.id)", cancelDelete: "cancel-\(thread.id)",
+                              dismissError: "dismiss-\(thread.id)", progress: "pending-\(thread.id)"))
             .menuItems {
                 Button("Open host thread") { open(thread) }
                     .accessibilityIdentifier("host-open-\(thread.id)")

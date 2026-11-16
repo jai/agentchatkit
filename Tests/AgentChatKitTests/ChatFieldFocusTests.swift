@@ -1,5 +1,5 @@
-import Testing
 @testable import AgentChatKit
+import Testing
 
 /// The message field moves the keyboard only when the screen's `focused` changes (`ChatFieldFocus`). Agent Pager's
 /// chat box, a composer with no attachments, kept one letter on iOS 26.5: its screen's focus state never turned on,

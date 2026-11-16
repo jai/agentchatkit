@@ -1,7 +1,7 @@
-import Foundation
-import Testing
 @testable import AgentChatLive
 import AgentChatLiveTesting
+import Foundation
+import Testing
 
 /// `LiveChatModel` following the loopback host over the profile: initialize, the stream, resume (from start, from a
 /// cursor, from start again when the cursor expired), reconnects, the writes, and a question answered on one of two
@@ -233,7 +233,7 @@ struct FollowTests {
         try await eventually("both live") { phone.phase == .live && mac.phase == .live }
 
         await server.ask("Merge now or wait?", options: [.init(id: "merge", label: "Merge now"),
-                                                          .init(id: "wait", label: "Wait"), ])
+                                                         .init(id: "wait", label: "Wait")])
         try await eventually("asked on both") { phone.chat.question != nil && mac.chat.question != nil }
         try await eventually("waits on the person") { phone.chat.state?.phase == .requiresAction }
 

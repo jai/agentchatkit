@@ -1,6 +1,6 @@
+@testable import AgentChatKit
 import Foundation
 import Testing
-@testable import AgentChatKit
 
 @MainActor
 struct ReplyQueueControllerTests {

@@ -1,5 +1,5 @@
-import Foundation
 import AgentChatCore
+import Foundation
 import Testing
 
 /// A clock time follows the device's 24-Hour Time setting, which reaches `Locale.current` as its hour cycle

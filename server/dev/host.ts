@@ -39,8 +39,15 @@ interface Knobs {
 const knobs = new Map<string, Knobs>();
 const scripted = (id: string) => id.startsWith("live");
 const greeting = {
-  sessionUpdate: "agent_message", messageId: "greeting", _meta: { agentchatkit: { at: new Date().toISOString() } },
-  content: [{ type: "text", text: "Hi! I'm the scripted agent behind a **real ACP host** on this Mac. Ask me anything, or ask me to *merge*." }],
+  sessionUpdate: "agent_message",
+  messageId: "greeting",
+  _meta: { agentchatkit: { at: new Date().toISOString() } },
+  content: [
+    {
+      type: "text",
+      text: "Hi! I'm the scripted agent behind a **real ACP host** on this Mac. Ask me anything, or ask me to *merge*.",
+    },
+  ],
 } as SessionUpdate;
 /** When each connection id was first seen, by session: `forget` refuses those first seen before it. */
 const seen = new Map<string, number>();
@@ -73,7 +80,11 @@ const adapter: LiveAdapter<MemoryWho> = {
   prompt: async (who, id, body) => {
     const taken = await base.prompt(who, id, body);
     if (!("refusal" in taken) && !taken.repeat && scripted(id)) {
-      agent.answer(id, taken.messageId, body.prompt.map((block) => (block.type === "text" ? block.text : "")).join(" "));
+      agent.answer(
+        id,
+        taken.messageId,
+        body.prompt.map((block) => (block.type === "text" ? block.text : "")).join(" "),
+      );
     }
     return taken;
   },
@@ -97,9 +108,16 @@ async function change(id: string, update: SessionUpdate) {
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const at = () => ({ agentchatkit: { at: new Date().toISOString() } });
 const working = (activity: string): SessionUpdate => ({
-  sessionUpdate: "state_update", state: "running", _meta: { agentchatkit: { activity } },
+  sessionUpdate: "state_update",
+  state: "running",
+  _meta: { agentchatkit: { activity } },
 });
-const idle: SessionUpdate = { sessionUpdate: "state_update", state: "idle", stopReason: "end_turn", _meta: { agentchatkit: {} } };
+const idle: SessionUpdate = {
+  sessionUpdate: "state_update",
+  state: "idle",
+  stopReason: "end_turn",
+  _meta: { agentchatkit: {} },
+};
 const agent = {
   queue: Promise.resolve() as Promise<void>,
   counter: 0,
@@ -115,7 +133,11 @@ const agent = {
     });
   },
   async status(id: string, messageId: string, status: string) {
-    await change(id, { sessionUpdate: "user_message", messageId, _meta: { agentchatkit: { status } } } as SessionUpdate);
+    await change(id, {
+      sessionUpdate: "user_message",
+      messageId,
+      _meta: { agentchatkit: { status } },
+    } as SessionUpdate);
   },
   async run(id: string, messageId: string, words: string) {
     await this.status(id, messageId, "delivering");
@@ -142,8 +164,13 @@ const agent = {
     await pause(600);
     this.counter += 1;
     await change(id, {
-      sessionUpdate: "tool_call_update", toolCallId: `tool-${this.counter}`, title: 'rg "ChatView(" Sources/',
-      name: "Grep", kind: "search", status: "completed", _meta: at(),
+      sessionUpdate: "tool_call_update",
+      toolCallId: `tool-${this.counter}`,
+      title: 'rg "ChatView(" Sources/',
+      name: "Grep",
+      kind: "search",
+      status: "completed",
+      _meta: at(),
     } as SessionUpdate);
     await pause(600);
     await this.write(
@@ -159,7 +186,12 @@ const agent = {
     const meta = at();
     const words = text.split(" ");
     for (let end = 6; end < words.length; end += 6) {
-      await change(id, { sessionUpdate: "agent_message", messageId, content: [{ type: "text", text: words.slice(0, end).join(" ") }], _meta: meta });
+      await change(id, {
+        sessionUpdate: "agent_message",
+        messageId,
+        content: [{ type: "text", text: words.slice(0, end).join(" ") }],
+        _meta: meta,
+      });
       await pause(250);
     }
     await change(id, { sessionUpdate: "agent_message", messageId, content: [{ type: "text", text }], _meta: meta });
@@ -174,11 +206,16 @@ async function knob(id: string, name: string, body: Record<string, unknown>): Pr
       await change(id, body.update as SessionUpdate);
       return {};
     case "status":
-      await change(id, { sessionUpdate: "user_message", messageId: body.messageId, _meta: { agentchatkit: { status: body.status } } } as SessionUpdate);
+      await change(id, {
+        sessionUpdate: "user_message",
+        messageId: body.messageId,
+        _meta: { agentchatkit: { status: body.status } },
+      } as SessionUpdate);
       return {};
     case "state":
       await change(id, {
-        sessionUpdate: "state_update", state: body.state,
+        sessionUpdate: "state_update",
+        state: body.state,
         ...(body.state === "idle" ? { stopReason: "end_turn" } : {}),
         _meta: { agentchatkit: { activity: body.activity ?? null, problem: body.problem ?? null } },
       } as SessionUpdate);
@@ -195,7 +232,11 @@ async function knob(id: string, name: string, body: Record<string, unknown>): Pr
       if (body.freeText !== false) {
         properties.text = { type: "string" };
       }
-      const question = sessions.ask(id, { mode: "form", message: String(body.message), requestedSchema: { type: "object", properties } });
+      const question = sessions.ask(id, {
+        mode: "form",
+        message: String(body.message),
+        requestedSchema: { type: "object", properties },
+      });
       await notifyChat(rooms, id);
       return { id: question };
     }
@@ -280,7 +321,9 @@ const server = createServer(async (req, res) => {
     const control = /^\/control\/([^/]+)\/([a-z]+)$/.exec(path);
     if (control?.[1] && control[2]) {
       const request = await toRequest(req);
-      const body = request.headers.get("content-type")?.includes("json") ? ((await request.json()) as Record<string, unknown>) : {};
+      const body = request.headers.get("content-type")?.includes("json")
+        ? ((await request.json()) as Record<string, unknown>)
+        : {};
       return void send(Response.json(await knob(decodeURIComponent(control[1]), control[2], body)), res);
     }
     if (path !== "/acp") {

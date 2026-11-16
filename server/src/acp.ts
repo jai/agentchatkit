@@ -292,7 +292,10 @@ export function readIncoming(body: unknown): Incoming {
   if (hasId && ("result" in body || "error" in body)) {
     return { kind: "response", message: body as unknown as JsonRpcSuccess | JsonRpcError };
   }
-  return { kind: "invalid", error: failure(hasId ? id : null, ERRORS.invalidRequest, "neither a request nor a response") };
+  return {
+    kind: "invalid",
+    error: failure(hasId ? id : null, ERRORS.invalidRequest, "neither a request nor a response"),
+  };
 }
 
 function isContent(value: unknown): value is ContentBlock {

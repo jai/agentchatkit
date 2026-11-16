@@ -27,12 +27,25 @@ test("SSE: one event per message, comments apart, split anywhere", () => {
   const parser = new SSEParser();
   const items = [...text].flatMap((character) => parser.push(character));
   assert.deepEqual(items, [{ message }, { comment: "keep-alive" }, { message: { jsonrpc: "2.0", id: 1, result: {} } }]);
-  assert.ok(!encodeEvent(sessionUpdate("s", { sessionUpdate: "agent_message", messageId: "m", content: [{ type: "text", text: "a\nb" }] }, "c")).slice(0, -2).includes("\n"));
+  assert.ok(
+    !encodeEvent(
+      sessionUpdate(
+        "s",
+        { sessionUpdate: "agent_message", messageId: "m", content: [{ type: "text", text: "a\nb" }] },
+        "c",
+      ),
+    )
+      .slice(0, -2)
+      .includes("\n"),
+  );
 });
 
 test("reading what a client sends", () => {
   assert.equal(readIncoming([]).kind, "invalid");
-  assert.equal(readIncoming({ jsonrpc: "2.0", method: "$/cancel_request", params: { requestId: 1 } }).kind, "notification");
+  assert.equal(
+    readIncoming({ jsonrpc: "2.0", method: "$/cancel_request", params: { requestId: 1 } }).kind,
+    "notification",
+  );
   assert.equal(readIncoming({ jsonrpc: "2.0", id: 1, result: {} }).kind, "response");
   assert.deepEqual(readResume({ sessionId: "s" }, "s"), { sessionId: "s", replayFrom: { type: "start" } });
   assert.equal(typeof readResume({ sessionId: "other" }, "s"), "string");
@@ -49,7 +62,11 @@ test("the memory host: patches by id, appends chunks, coalesces nothing, retains
   const adapter = sessions.adapter();
   const who = { login: "jai", name: null };
   sessions.apply("s", { sessionUpdate: "agent_message", messageId: "m1", content: [{ type: "text", text: "Look" }] });
-  sessions.apply("s", { sessionUpdate: "agent_message_chunk", messageId: "m1", content: { type: "text", text: "ing" } });
+  sessions.apply("s", {
+    sessionUpdate: "agent_message_chunk",
+    messageId: "m1",
+    content: { type: "text", text: "ing" },
+  });
   sessions.apply("s", { sessionUpdate: "agent_message", messageId: "m2", content: [{ type: "text", text: "Two" }] });
   sessions.apply("s", { sessionUpdate: "agent_message", messageId: "m3", content: [{ type: "text", text: "Three" }] });
   assert.deepEqual(sessions.message("s", "m1"), {
@@ -59,7 +76,10 @@ test("the memory host: patches by id, appends chunks, coalesces nothing, retains
   });
   const start = await adapter.read(who, "s", null);
   assert.ok(!start.expired);
-  assert.deepEqual(start.updates.map((u) => (u.update as { messageId: string }).messageId), ["m2", "m3"]);
+  assert.deepEqual(
+    start.updates.map((u) => (u.update as { messageId: string }).messageId),
+    ["m2", "m3"],
+  );
   const after = await adapter.read(who, "s", "1:1");
   assert.ok(!after.expired);
   assert.equal(after.updates.length, 3);
@@ -75,12 +95,21 @@ test("the handler: DELETE ends a connection, other methods are 405, initialize n
   const route = { adapter, rooms, secret: "x" };
   const json = { "Content-Type": "application/json" };
   const init = await handleAcp(
-    new Request("https://h/acp", { method: "POST", headers: json, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }) }),
+    new Request("https://h/acp", {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    }),
     route,
   );
   const connection = init.headers.get(CONNECTION_HEADER) ?? "";
   assert.equal(init.status, 200);
-  const headers = { Authorization: "Bearer token-jai", Accept: "text/event-stream", [CONNECTION_HEADER]: connection, [SESSION_HEADER]: "s" };
+  const headers = {
+    Authorization: "Bearer token-jai",
+    Accept: "text/event-stream",
+    [CONNECTION_HEADER]: connection,
+    [SESSION_HEADER]: "s",
+  };
   const stream = await handleAcp(new Request("https://h/acp", { headers }), route);
   assert.equal(stream.status, 200);
   assert.equal(rooms.room("s").streams, 1);
@@ -91,7 +120,11 @@ test("the handler: DELETE ends a connection, other methods are 405, initialize n
   assert.equal((await handleAcp(new Request("https://h/acp", { method: "DELETE" }), route)).status, 400);
   assert.equal((await handleAcp(new Request("https://h/acp", { method: "PUT" }), route)).status, 405);
   const noId = await handleAcp(
-    new Request("https://h/acp", { method: "POST", headers: json, body: JSON.stringify({ jsonrpc: "2.0", method: "initialize", params: {} }) }),
+    new Request("https://h/acp", {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ jsonrpc: "2.0", method: "initialize", params: {} }),
+    }),
     route,
   );
   assert.equal(noId.status, 400);

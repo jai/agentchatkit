@@ -86,15 +86,15 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
 
     private var nativeList: some View {
         selectableList
-        #if os(macOS)
-        .onKeyPress(.return) {
-            guard let item = selectedItem, let open else { return .ignored }
-            guard controllers.controller(for: item.id).isIdle else { return .handled }
-            open(item)
-            return .handled
-        }
-        .onDeleteCommand(perform: deleteSelected)
-        #endif
+            #if os(macOS)
+            .onKeyPress(.return) {
+                guard let item = selectedItem, let open else { return .ignored }
+                guard controllers.controller(for: item.id).isIdle else { return .handled }
+                open(item)
+                return .handled
+            }
+            .onDeleteCommand(perform: deleteSelected)
+            #endif
     }
 
     /// On iPhone a selection-bound List takes a host NavigationLink(value:) whose value has the item ID's type as a

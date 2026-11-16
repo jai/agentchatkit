@@ -1,7 +1,7 @@
 #if os(iOS)
+@testable import AgentChatKit
 import Testing
 import UIKit
-@testable import AgentChatKit
 
 /// The phone's and iPad's text view with a hardware keyboard: Return and Command-Return are its key commands, ahead of
 /// its own Return, and send; Shift-Return and Option-Return start a new line at the cursor; a word being composed keeps

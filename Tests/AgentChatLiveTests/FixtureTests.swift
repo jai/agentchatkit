@@ -1,6 +1,6 @@
+@testable import AgentChatLive
 import Foundation
 import Testing
-@testable import AgentChatLive
 
 /// The profile's golden fixtures (protocol/fixtures, docs/live-protocol.md): the same files the server's conformance
 /// suite runs. Here, each scenario's `client` half.

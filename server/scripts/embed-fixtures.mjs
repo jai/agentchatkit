@@ -9,7 +9,9 @@ const source = join(root, "..", "protocol", "fixtures");
 
 export function embedded() {
   const fixtures = {};
-  for (const name of readdirSync(source).filter((file) => file.endsWith(".json")).sort()) {
+  for (const name of readdirSync(source)
+    .filter((file) => file.endsWith(".json"))
+    .sort()) {
     fixtures[name.replace(/\.json$/, "")] = JSON.parse(readFileSync(join(source, name), "utf8"));
   }
   return (

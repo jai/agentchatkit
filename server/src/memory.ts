@@ -85,7 +85,12 @@ function patch(held: SessionUpdate | undefined, update: SessionUpdate): SessionU
       }
       return { ...held, content };
     }
-    return { sessionUpdate: "agent_message", messageId: update.messageId, content: [update.content], _meta: update._meta ?? {} };
+    return {
+      sessionUpdate: "agent_message",
+      messageId: update.messageId,
+      content: [update.content],
+      _meta: update._meta ?? {},
+    };
   }
   if (!held) {
     return update;
@@ -193,7 +198,13 @@ export class MemorySessions {
 
   /** The reference adapter over these sessions. */
   adapter(): Required<LiveAdapter<MemoryWho>> {
-    const insert = (id: string, who: MemoryWho, content: ContentBlock[], status: MessageStatus, clientRef: string | null) => {
+    const insert = (
+      id: string,
+      who: MemoryWho,
+      content: ContentBlock[],
+      status: MessageStatus,
+      clientRef: string | null,
+    ) => {
       const session = this.session(id);
       session.prompts += 1;
       const messageId = `u${session.prompts}`;
@@ -263,7 +274,10 @@ export class MemorySessions {
           return { messageId: known, repeat: true };
         }
         const queued = this.queues && !body.force && session.state.state === "running";
-        return { messageId: insert(id, who, body.prompt, queued ? "queued" : "pending", body.clientRef), repeat: false };
+        return {
+          messageId: insert(id, who, body.prompt, queued ? "queued" : "pending", body.clientRef),
+          repeat: false,
+        };
       },
 
       edit: async (_who, id, messageId, body) => {

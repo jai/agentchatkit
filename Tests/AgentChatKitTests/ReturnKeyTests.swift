@@ -1,5 +1,5 @@
-import Testing
 @testable import AgentChatKit
+import Testing
 
 /// Return in a message box with a hardware keyboard (`ReturnKey`): it sends, and so does Command-Return; Shift-Return
 /// and Option-Return start a new line. On an iPad with a keyboard, Return only ever started a new line.

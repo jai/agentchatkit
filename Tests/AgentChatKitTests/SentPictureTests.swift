@@ -1,9 +1,9 @@
+@testable import AgentChatKit
 import CoreGraphics
 import Foundation
 import ImageIO
 import Testing
 import UniformTypeIdentifiers
-@testable import AgentChatKit
 
 struct SentPictureTests {
     private func jpeg(width: Int, orientation: Int = 1) throws -> Data {

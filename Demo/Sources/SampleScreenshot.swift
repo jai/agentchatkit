@@ -9,7 +9,7 @@ enum SampleScreenshot {
     @MainActor
     static func png(portrait: Bool = false) -> Data? {
         let renderer = ImageRenderer(content: Picture(size: portrait ? CGSize(width: 390, height: 844)
-                                                                     : CGSize(width: 320, height: 200)))
+                : CGSize(width: 320, height: 200)))
         renderer.scale = 2
         guard let image = renderer.cgImage else {
             return nil

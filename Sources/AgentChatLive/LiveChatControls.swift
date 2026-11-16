@@ -131,7 +131,7 @@ public final class LiveChatControls {
         if action == .force, accepted || (status == .pending && initialStatus != .pending) { return true }
         if !accepted, status == initialStatus {
             failures[id] = RequestFailure(id: id, status: initialStatus,
-                                         error: ChatActionError("Could not complete this action. Try again."))
+                                          error: ChatActionError("Could not complete this action. Try again."))
         }
         return false
     }

@@ -35,7 +35,7 @@ struct DemoQuestionScreen: View {
 
     private var options: [Option] {
         [Option(id: "phone", label: longAnswers ? "Run the complete phone fixture and review every screenshot" : "Phone"),
-         Option(id: "mac", label: longAnswers ? "Run the complete Mac fixture and review every screenshot" : "Mac"),]
+         Option(id: "mac", label: longAnswers ? "Run the complete Mac fixture and review every screenshot" : "Mac")]
     }
 
     private func invoke(_ message: String) {

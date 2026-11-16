@@ -114,7 +114,9 @@ export function closeConnection(rooms: LiveRooms, sessionId: string, connection:
  */
 export async function notifyChat(rooms: LiveRooms, sessionId: string): Promise<void> {
   try {
-    const response = await roomOf(rooms, sessionId).fetch(new Request(roomURL("/notify", sessionId), { method: "POST" }));
+    const response = await roomOf(rooms, sessionId).fetch(
+      new Request(roomURL("/notify", sessionId), { method: "POST" }),
+    );
     await response.body?.cancel();
   } catch (error) {
     console.error("agentchat-live: room not told", error);
@@ -395,7 +397,8 @@ export class LiveRoom<Who> {
 
   private refused(connection: Connection, id: JsonRpcRequest["id"], refusal: LiveRefusal): void {
     const { status, message } = refusal.refusal;
-    const code = status === 409 ? ERRORS.conflict : status === 400 || status === 404 ? ERRORS.invalidParams : ERRORS.internal;
+    const code =
+      status === 409 ? ERRORS.conflict : status === 400 || status === 404 ? ERRORS.invalidParams : ERRORS.internal;
     this.send(connection, failure(id, code, message));
   }
 

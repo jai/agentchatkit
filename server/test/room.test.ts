@@ -16,7 +16,10 @@ const agent = (id: string, words: string) => ({
   _meta: { agentchatkit: { at: null } },
 });
 
-function setup(adapterOf: (sessions: MemorySessions) => LiveAdapter<MemoryWho> = (s) => s.adapter(), refreshEvery?: number) {
+function setup(
+  adapterOf: (sessions: MemorySessions) => LiveAdapter<MemoryWho> = (s) => s.adapter(),
+  refreshEvery?: number,
+) {
   const sessions = new MemorySessions({ names: { jai: "Jai" } });
   sessions.create("s", "jai");
   const adapter = adapterOf(sessions);
@@ -40,7 +43,13 @@ function setup(adapterOf: (sessions: MemorySessions) => LiveAdapter<MemoryWho> =
     headers.set("Authorization", "Bearer token-jai");
     return new Request(url, { ...init, headers });
   };
-  const client = () => new AcpTestClient((r) => handleAcp(r, { adapter, rooms: namespace, secret: "s3cret" }), "s", "https://h/acp", request);
+  const client = () =>
+    new AcpTestClient(
+      (r) => handleAcp(r, { adapter, rooms: namespace, secret: "s3cret" }),
+      "s",
+      "https://h/acp",
+      request,
+    );
   const follow = async (c = client()) => {
     await c.initialize();
     await c.open();
@@ -115,7 +124,10 @@ test("a change made while a connection resumes is sent once it follows, once", a
       break;
     }
   }
-  assert.ok(seen.some((m) => typeof m === "object" && m !== null && "id" in m && m.id === id), "the resume answered first");
+  assert.ok(
+    seen.some((m) => typeof m === "object" && m !== null && "id" in m && m.id === id),
+    "the resume answered first",
+  );
   await c.none(30);
   await c.close();
 });

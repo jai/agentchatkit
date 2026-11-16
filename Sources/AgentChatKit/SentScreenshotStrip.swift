@@ -117,7 +117,7 @@ public final class SentScreenshotViewing {
 extension View {
     /// A single viewer shared by all of a conversation's strips. Selection is presentation only.
     public func presentsSentScreenshots(_ viewing: SentScreenshotViewing,
-                                       identifiers: SentScreenshotIdentifiers? = nil) -> some View {
+                                        identifiers: SentScreenshotIdentifiers? = nil) -> some View {
         environment(viewing).modifier(SentScreenshotPresentation(viewing: viewing, identifiers: identifiers))
     }
 }

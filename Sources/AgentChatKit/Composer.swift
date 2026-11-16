@@ -142,7 +142,7 @@ public struct SessionComposer: View {
                             sendNow.action()
                         }
                     }
-                        .accessibilityIdentifier("sessionReplySendNow")
+                    .accessibilityIdentifier("sessionReplySendNow")
                 }
             }
             .accessibilityLabel("Send reply")

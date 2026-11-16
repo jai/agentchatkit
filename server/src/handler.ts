@@ -10,15 +10,7 @@
  * app.all("/v2/acp", (c) => handleAcp(c.req.raw, { adapter, rooms: c.env.LIVE_ROOMS, secret: c.env.ACP_SECRET }));
  * ```
  */
-import {
-  ERRORS,
-  failure,
-  type InitializeResult,
-  isObject,
-  PROTOCOL_VERSION,
-  readIncoming,
-  success,
-} from "./acp.ts";
+import { ERRORS, failure, type InitializeResult, isObject, PROTOCOL_VERSION, readIncoming, success } from "./acp.ts";
 import { isRefusal, type LiveAdapter } from "./adapter.ts";
 import { mintConnection, verifyConnection } from "./connection.ts";
 import { closeConnection, type LiveRooms, openStream, postToRoom } from "./room.ts";
@@ -68,7 +60,9 @@ async function serve<Who>(request: Request, route: AcpRoute<Who>): Promise<Respo
       return Response.json(failure(null, ERRORS.parse, "not JSON"), { status: 400 });
     }
     if (Array.isArray(body)) {
-      return Response.json(failure(null, ERRORS.invalidRequest, "one message per request: no batches"), { status: 400 });
+      return Response.json(failure(null, ERRORS.invalidRequest, "one message per request: no batches"), {
+        status: 400,
+      });
     }
     if (connection === null) {
       if (isObject(body) && body.method === "initialize") {

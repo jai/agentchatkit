@@ -1,0 +1,2 @@
+# Python lint and format for protocol/generate.py (make lint).
+line-length = 120

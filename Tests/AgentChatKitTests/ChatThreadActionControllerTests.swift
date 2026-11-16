@@ -1,6 +1,6 @@
 import AgentChatCore
-import Testing
 @testable import AgentChatKit
+import Testing
 
 @MainActor
 struct ChatThreadActionControllerTests {

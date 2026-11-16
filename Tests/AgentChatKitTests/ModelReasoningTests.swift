@@ -1,5 +1,5 @@
-import Testing
 @testable import AgentChatKit
+import Testing
 
 /// The chip by the reply box (`ModelReasoningChip`), on Agent Pager's fixtures for an Orca chat: Opus at high.
 struct ModelReasoningTests {
