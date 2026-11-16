@@ -111,13 +111,15 @@ public struct ChatView<Extras: View, Header: View, Footer: View, Composer: View>
                             .transition(.opacity)
                     }
                     footer()
+                    // The page's bottom margin, and its end: scrolled to, it shows the margin too. Under a margin
+                    // of padding, the page stopped that margin short of its end (jai/agentchatkit#7).
                     Color.clear
-                        .frame(height: 1)
+                        .frame(height: ChatSpace.md)
                         .id(Self.end)
                         .accessibilityHidden(true)
                 }
                 .padding(.horizontal, ChatSpace.lg)
-                .padding(.vertical, ChatSpace.md)
+                .padding(.top, ChatSpace.md)
                 .animation(ChatMotion.fold, value: messages)
             }
             .followsChatEnd(proxy, endID: Self.end, readsEnd: $readsEnd, isLoadingEarlier: isLoadingEarlier, sent: sent)

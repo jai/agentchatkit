@@ -13,6 +13,7 @@ public struct SentScreenshotStrip: View {
     @State private var pictures: [SentPicture] = []
     @State private var total = 0
     @State private var problem: ChatActionError?
+    @State private var isLoading = true
     @State private var localViewing = SentScreenshotViewing()
 
     public init(key: String, identifiers: SentScreenshotIdentifiers = .init(), load: @escaping Loader) {
@@ -64,6 +65,16 @@ public struct SentScreenshotStrip: View {
                         .scrollIndicators(.hidden)
                 }
                 .frame(height: ChatStyle.attachmentSize)
+            } else if isLoading {
+                // The row is there while the pictures load, so the message does not grow under a reader at the
+                // chat's end once they come: it grew past the end, under the reply bar (jai/agentchatkit#7).
+                RoundedRectangle(cornerRadius: ChatRadius.md)
+                    .fill(theme.groundCard)
+                    .overlay(RoundedRectangle(cornerRadius: ChatRadius.md).strokeBorder(theme.line))
+                    .overlay { ProgressView().controlSize(.small) }
+                    .frame(width: ChatStyle.attachmentSize, height: ChatStyle.attachmentSize)
+                    .accessibilityElement()
+                    .accessibilityLabel("Loading screenshots")
             }
             if let problem {
                 Text(problem.message).chatTextStyle(.meta).foregroundStyle(theme.toneBad)
@@ -75,8 +86,10 @@ public struct SentScreenshotStrip: View {
             pictures = []
             total = 0
             problem = nil
+            isLoading = true
             let loaded = await load(key)
             guard !Task.isCancelled else { return }
+            defer { isLoading = false }
             switch loaded {
             case let .success(jpegs):
                 let key = key
