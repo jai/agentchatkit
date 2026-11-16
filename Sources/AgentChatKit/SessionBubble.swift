@@ -11,6 +11,8 @@ public struct SessionBubble<Accessory: View>: View {
     public let isMine: Bool
     public var footnote: String?
     public let accessory: Accessory
+    /// What the host draws in the bubble in place of the words (`chatMessageContent`).
+    var content: AnyView?
 
     public init(
         title: String?, text: String, date: Date?, isMine: Bool, footnote: String? = nil,
@@ -33,7 +35,9 @@ public struct SessionBubble<Accessory: View>: View {
                 }
                 // An agent writes Markdown; Jai's own words are drawn as he typed them. On a Mac the words select; on the
                 // phone a long press is Copy, below.
-                if isMine {
+                if let content {
+                    content
+                } else if isMine {
                     Text(text)
                         .selectable(Self.selectsWords)
                 } else {
@@ -61,6 +65,13 @@ public struct SessionBubble<Accessory: View>: View {
             accessory
         }
         .modifier(BubbleColumn(isMine: isMine))
+    }
+
+    /// The bubble with the host's drawing in place of its words, when the host claims its message.
+    func drawing(_ content: AnyView?) -> Self {
+        var bubble = self
+        bubble.content = content
+        return bubble
     }
 
     /// Selection on a Mac; on the phone the bubble's long press is Copy.

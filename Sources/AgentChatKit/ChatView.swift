@@ -167,6 +167,7 @@ public struct ChatView<Extras: View, Header: View, Footer: View, Composer: View>
 
 /// A message's bubble, its ticks, and what the host hangs under it.
 private struct ChatBubble<Under: View>: View {
+    @Environment(\.chatMessageContent) private var hostContent
     let message: ChatMessage
     @ViewBuilder let under: () -> Under
 
@@ -181,6 +182,7 @@ private struct ChatBubble<Under: View>: View {
             }
             under()
         }
+        .drawing(hostContent?.content(for: message))
     }
 }
 

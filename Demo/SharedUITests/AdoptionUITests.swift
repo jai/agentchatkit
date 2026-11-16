@@ -183,6 +183,25 @@ final class AdoptionUITests: FixtureUITestCase {
         wait(element("host-viewer"), "exists == false")
     }
 
+    /// The host draws the answers it claims inside the kit's bubbles (a link card, a meal card) and its own state
+    /// shows in them; the rest stay the kit's Markdown (jai/agentchatkit#11).
+    func testHostDrawsClaimedMessagesInsideTheBubble() {
+        launch("message-content")
+        XCTAssertTrue(app.buttons["card-link-pr12"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("card-meal-figures").exists)
+        func words(_ text: String) -> Int {
+            let shown = NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", text, text)
+            return app.staticTexts.matching(shown).count + app.textViews.matching(shown).count
+        }
+        XCTAssertEqual(words("RAW"), 0, "A claimed message's words are not drawn")
+        XCTAssertGreaterThan(words("Markdown"), 0, "An unclaimed answer is still the kit's Markdown")
+        activate(app.buttons["card-link-pr12"])
+        wait(element("fixture-notice"), "label CONTAINS 'Opened: PR #12;'")
+        activate(app.buttons["card-log"])
+        wait(element("fixture-notice"), "label CONTAINS 'Logged: 1'")
+        wait(app.buttons["card-log"], "label == 'Logged'")
+    }
+
     func testHostStringRoutesAndHeaderFooterRemainOwnedByHost() {
         launch("host-routes")
         XCTAssertTrue(element("host-new").waitForExistence(timeout: 5))
