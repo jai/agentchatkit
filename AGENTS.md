@@ -28,3 +28,13 @@ Instructions for agents working in this repo.
 ## About this repo
 
 See README.md.
+
+## Never breaking
+
+Apps take every release of this kit as it comes (`from:` ranges), so a release must never break one (Jai, 2026-11-16).
+
+- Add to the public API; never remove a public declaration or change its signature. To replace one, add the new one
+  and mark the old `@available(*, deprecated, message: "Use …")`.
+- CI's `api` job runs `swift package diagnose-api-breaking-changes <latest release tag>` on every push and pull
+  request, and a release waits for CI to pass. Run it yourself before you push a change to a public API.
+- A deliberate break needs Jai's OK first, and a major version.

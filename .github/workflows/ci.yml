@@ -20,6 +20,21 @@ jobs:
       - run: command -v swiftlint || brew install swiftlint
       - run: swiftlint lint --quiet
 
+  api:
+    # Apps take every release (`from:` ranges): a change adds to the public API and never removes or changes it
+    # (AGENTS.md). Compares every library product with the latest release; a failure here stops the release.
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: No public API break since the latest release
+        run: |
+          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          echo "Comparing with $tag"
+          swift package diagnose-api-breaking-changes "$tag"
+
   test:
     # GitHub's own Mac runner: free for a public repo.
     runs-on: macos-latest

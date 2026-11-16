@@ -295,6 +295,9 @@ step; the parent owns the permitted CI run and rendered-image review.
 
 `swift test`. Swift 6, iOS 26 and macOS 26.
 
+Never breaking: apps take every release, so the public API only grows. `swift package diagnose-api-breaking-changes
+<latest release tag>` must find no break (CI's `api` job checks it; AGENTS.md has the rule).
+
 The demo is this repo's UI-test host: `AgentChatDemo-iOS`'s tests (`Demo/UITests`) walk the main flows on an iPhone, and
 `testReadmeScreenshots` takes the pictures above (they are kept on its test result).
 
