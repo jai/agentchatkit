@@ -20,6 +20,34 @@ struct ReplyQueueControllerTests {
         #expect(!model.canSendNow)
     }
 
+    /// A thread's reply modes change while it is open: Send now follows them (#16).
+    @Test func sendNowFollowsWhetherItIsOffered() async {
+        let item = reply("now")
+        var sent = 0
+        let model = ReplyQueueController(replies: [item], remove: { _ in .success(nil) }, sendNow: { _ in
+            sent += 1
+            return .success(nil)
+        })
+        #expect(model.canSendNow)
+        model.offersSendNow = false
+        #expect(!model.canSendNow)
+        #expect(await model.sendNow(item).failure == .unavailable)
+        model.offersSendNow = true
+        #expect(await model.sendNow(item).failure == nil)
+        #expect(sent == 1)
+    }
+
+    /// A host that keeps its own drafts takes an edited reply's words; the controller's draft is left alone (#17).
+    @Test func editHandsTheWordsToTheHostWhenItAsks() async {
+        let item = reply("edit")
+        var taken: [String] = []
+        let model = ReplyQueueController(replies: [item], draft: "Kept", remove: { _ in .success(nil) })
+        model.onEdit = { taken.append($0) }
+        #expect(await model.edit(item).failure == nil)
+        #expect(taken == ["Words edit"])
+        #expect(model.draft == "Kept")
+    }
+
     @Test func failedEditKeepsTheDraftAndReplyAndShowsTheHostsError() async {
         let item = reply("edit")
         let problem = ChatActionError("The thread took it before that reached it.")

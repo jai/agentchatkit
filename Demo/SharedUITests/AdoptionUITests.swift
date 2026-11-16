@@ -278,6 +278,18 @@ final class AdoptionUITests: FixtureUITestCase {
                        accuracy: 1, "The answers were limited too")
     }
 
+    /// A thread's reply modes change while it is open: Send now goes and comes back with them (#16).
+    func testSendNowFollowsWhetherTheHostOffersIt() {
+        launch("queue")
+        let send = app.buttons["send-edit"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        toggle("Offer Send now")
+        wait(send, "exists == false")
+        XCTAssertTrue(app.buttons["edit-edit"].exists, "Edit stays")
+        toggle("Offer Send now")
+        wait(send, "exists == true")
+    }
+
     func testHostStringRoutesAndHeaderFooterRemainOwnedByHost() {
         launch("host-routes")
         XCTAssertTrue(element("host-new").waitForExistence(timeout: 5))

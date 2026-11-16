@@ -14,7 +14,13 @@ public final class ReplyQueueController<ID: Hashable & Sendable> {
     public var draft: String
     public private(set) var asking: Set<ID> = []
     public private(set) var errors: [ID: ChatActionError] = [:]
-    public var canSendNow: Bool { sendNowHook != nil }
+    /// Whether Send now is offered at this moment, for a thread whose reply modes change while it is open. It is
+    /// offered only with a sendNow hook, too.
+    public var offersSendNow = true
+    public var canSendNow: Bool { sendNowHook != nil && offersSendNow }
+    /// Where an edited reply's words go, for a host that keeps its own drafts (per thread, saved). Nil: the words go
+    /// into `draft`, ahead of what is there.
+    public var onEdit: (@MainActor (String) -> Void)?
 
     private let removeHook: Action
     private let sendNowHook: Action?
@@ -58,6 +64,7 @@ public final class ReplyQueueController<ID: Hashable & Sendable> {
     }
 
     public func sendNowWhereQueued() async {
+        guard canSendNow else { return }
         for reply in queued where !isBusy(reply) && sendNowIntents.contains(reply.clientRef) {
             _ = await sendNow(reply)
         }
@@ -70,7 +77,7 @@ public final class ReplyQueueController<ID: Hashable & Sendable> {
 
     @discardableResult
     public func sendNow(_ reply: Reply) async -> Result<Void, ChatActionError> {
-        guard let sendNowHook else { return .failure(.unavailable) }
+        guard let sendNowHook, offersSendNow else { return .failure(.unavailable) }
         return await perform(reply, hook: sendNowHook, action: .sendNow)
     }
 
@@ -79,8 +86,12 @@ public final class ReplyQueueController<ID: Hashable & Sendable> {
         let words = replies.first(where: { $0.id == reply.id })?.text ?? reply.text
         let result = await remove(reply)
         if case .success = result {
-            // Read the draft after the network returns: words typed while waiting must survive.
-            draft = draft.isEmpty ? words : words + "\n\n" + draft
+            if let onEdit {
+                onEdit(words)
+            } else {
+                // Read the draft after the network returns: words typed while waiting must survive.
+                draft = draft.isEmpty ? words : words + "\n\n" + draft
+            }
         }
         return result
     }

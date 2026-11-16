@@ -64,6 +64,7 @@ struct DemoQueueScreen: View {
                     .accessibilityLabel("Draft")
                     .accessibilityIdentifier("fixture-queue-draft")
                 Toggle("Fail next action", isOn: $host.failNext)
+                Toggle("Offer Send now", isOn: $model.offersSendNow)
                 Button("Queue with Send now intent") {
                     let reply = Self.reply("once", index: 3)
                     model.sendNowWhenQueued(clientRef: reply.clientRef)
