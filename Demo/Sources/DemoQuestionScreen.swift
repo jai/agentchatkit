@@ -58,7 +58,8 @@ struct DemoStyledQuestion: View {
         let label: String
     }
 
-    private let question = String(repeating: "Should the agent move the thread's chat onto the kit's own parts now? ", count: 4)
+    // Long enough to need many lines on a wide Mac window too, so two lines are clearly less.
+    private let question = String(repeating: "Should the agent move the thread's chat onto the kit's own parts now? ", count: 10)
     private let context = "Blocked: two kit parts are missing, so the thread keeps its own chat until they ship."
     private let options = [Option(id: "yes", label: "Yes, move it now and keep the thread's history as it is"),
                            Option(id: "no", label: "No, wait until both parts ship in a release")]

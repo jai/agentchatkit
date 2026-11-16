@@ -249,7 +249,8 @@ final class AdoptionUITests: FixtureUITestCase {
     private func openMenu(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 5))
         #if os(macOS)
-        element.rightClick()
+        // The words select on a Mac, and a right click on them is the text's own menu: click the bubble's margin.
+        element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: -6, dy: 6)).rightClick()
         #else
         element.press(forDuration: 1)
         #endif
