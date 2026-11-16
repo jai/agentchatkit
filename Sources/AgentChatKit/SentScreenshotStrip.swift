@@ -21,30 +21,48 @@ public struct SentScreenshotStrip: View {
         self.load = load
     }
 
+    private var thumbnails: some View {
+        HStack(spacing: theme.spacing.xs) {
+            ForEach(pictures) { picture in
+                Button {
+                    let target = viewing ?? localViewing
+                    target.identifiers = identifiers
+                    target.picture = picture
+                } label: {
+                    thumbnail(picture)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Screenshot \(picture.index + 1) of \(total)")
+                .chatIdentifier(identifiers.thumbnail(key, picture.index))
+            }
+        }
+    }
+
+    /// The picture fills a fixed square drawn behind it. Filled directly, a phone's screenshot is 64 × 140 before
+    /// its clip, and that whole height became the button's accessibility frame.
+    private func thumbnail(_ picture: SentPicture) -> some View {
+        let shape = RoundedRectangle(cornerRadius: ChatRadius.md)
+        return Color.clear
+            .frame(width: ChatStyle.attachmentSize, height: ChatStyle.attachmentSize)
+            .background {
+                picture.image.resizable().scaledToFill().accessibilityHidden(true)
+            }
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(theme.line))
+            .contentShape(shape)
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: theme.spacing.xs) {
             if !pictures.isEmpty {
-                ScrollView(.horizontal) {
-                    HStack(spacing: theme.spacing.xs) {
-                        ForEach(pictures) { picture in
-                            Button {
-                                let target = viewing ?? localViewing
-                                target.identifiers = identifiers
-                                target.picture = picture
-                            } label: {
-                                picture.image
-                                    .resizable().scaledToFill()
-                                    .frame(width: ChatStyle.attachmentSize, height: ChatStyle.attachmentSize)
-                                    .clipShape(.rect(cornerRadius: ChatRadius.md))
-                                    .overlay(RoundedRectangle(cornerRadius: ChatRadius.md).strokeBorder(theme.line))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Screenshot \(picture.index + 1) of \(total)")
-                            .chatIdentifier(identifiers.thumbnail(key, picture.index))
-                        }
-                    }
+                // The thumbnails sit in a plain row when they fit. A horizontal scroll view inside the
+                // conversation's vertical one left the Mac's accessibility frames behind as the conversation
+                // scrolled to its end, so clicks and VoiceOver missed the thumbnail (jai/agentchatkit#6).
+                ViewThatFits(in: .horizontal) {
+                    thumbnails
+                    ScrollView(.horizontal) { thumbnails }
+                        .scrollIndicators(.hidden)
                 }
-                .scrollIndicators(.hidden)
                 .frame(height: ChatStyle.attachmentSize)
             }
             if let problem {
