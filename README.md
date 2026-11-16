@@ -39,6 +39,10 @@ Each message is one accessibility element, `chat-message-you-<id>`, `chat-messag
 (`ChatMessage.accessibilityIdentifier`). `.chatMessageContent(when:content:)` lets the host draw the messages it claims
 inside the kit's bubble (link cards, a meal card); the rest stay Markdown.
 
+Around the chat, `ChatStatusLine(_:tone:systemImage:action:identifier:)` is one line of status in the header, footer or
+composer slot: a problem with Retry, an agent offline, a send error, or a context chip with Clear. `ChatCostLine(spent:
+limit:)` reads "$0.42 so far, of $2".
+
 ## Theme
 
 A chat takes its fonts, colours and icons from `ChatTheme`, set once at the host's root:
