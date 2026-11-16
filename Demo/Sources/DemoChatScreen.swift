@@ -28,7 +28,7 @@ struct DemoChatScreen: View {
             EmptyView()
         } footer: {
             if let activity = chat.activity {
-                WorkingLine(activity: activity)
+                ChatWorkingLine(activity: activity, identifier: "demo-activity")
             }
         } composer: {
             SessionComposer(
@@ -64,25 +64,6 @@ struct DemoChatScreen: View {
 }
 
 /// The footer while the agent works: a spinner and what it is doing ("Reading ChatView.swift").
-struct WorkingLine: View {
-    @Environment(\.chatTheme) private var theme
-    let activity: String
-
-    var body: some View {
-        HStack(spacing: ChatSpace.sm) {
-            ProgressView()
-                .controlSize(.small)
-            Text(activity + "…")
-                .font(theme.font(.footnote))
-                .foregroundStyle(theme.inkQuiet)
-                .contentTransition(.opacity)
-        }
-        .padding(.horizontal, ChatSpace.md)
-        .animation(ChatMotion.swap, value: activity)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("demo-activity")
-    }
-}
 
 /// The screenshots that went with a message, small, under its bubble.
 private struct Thumbnails: View {

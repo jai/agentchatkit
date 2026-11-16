@@ -207,7 +207,7 @@ LiveQuestionView(controls: controls, identifiers: .init(
     question: .init(question: "feedback-question", answer: { "feedback-answer-\($0)" }),
     text: "feedback-answer-text", submit: "feedback-answer-submit", decline: "feedback-answer-decline"
 ))
-// WorkingLine reads model.chat.state?.working / activity, as DemoLiveScreen does.
+// ChatWorkingLine reads model.chat.state?.working / activity, as DemoLiveScreen does.
 
 // Above the host composer; FeedbackKit never queues, so this is naturally empty there.
 LiveQueuedReplies(controls: controls, draft: $draft, identifiers: queueIDs)

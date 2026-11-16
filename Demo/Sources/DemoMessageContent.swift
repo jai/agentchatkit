@@ -22,6 +22,7 @@ struct DemoMessageContent: View {
         } header: {
             EmptyView()
         } footer: {
+            ChatWorkingLine(activity: "Searching threads")
             DemoFixtureNotice(text: host.notice)
         } composer: {
             SessionComposer(draft: $draft, isSending: false, send: {}, focused: $focused)

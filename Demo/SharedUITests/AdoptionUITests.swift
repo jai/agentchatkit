@@ -203,6 +203,8 @@ final class AdoptionUITests: FixtureUITestCase {
         let agents = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH 'chat-message-agent-'"))
         XCTAssertEqual(agents.count, 3)
+        // The agent at work, the kit's line under the messages (#13).
+        wait(element("chat-working"), "label CONTAINS 'Searching threads…'")
         activate(app.buttons["card-link-pr12"])
         wait(element("fixture-notice"), "label CONTAINS 'Opened: PR #12;'")
         activate(app.buttons["card-log"])

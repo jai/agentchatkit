@@ -29,11 +29,15 @@ ChatView(messages: messages, sent: sentCount, readsEnd: $readsEnd, focus: $focus
 } header: {
     EmptyView()
 } footer: {
-    EmptyView()
+    if isWorking { ChatWorkingLine(activity: activity) }   // "Searching threads…", identifier chat-working
 } composer: {
     SessionComposer(draft: $draft, isSending: isSending, send: send, focused: $focused)
 }
 ```
+
+Each message is one accessibility element, `chat-message-you-<id>`, `chat-message-agent-<id>` or `chat-message-tool-<id>`
+(`ChatMessage.accessibilityIdentifier`). `.chatMessageContent(when:content:)` lets the host draw the messages it claims
+inside the kit's bubble (link cards, a meal card); the rest stay Markdown.
 
 ## Theme
 

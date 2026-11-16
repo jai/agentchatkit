@@ -58,7 +58,7 @@ struct DemoLiveScreen: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("demo-live-question")
             } else if let state = chat.model.chat.state, state.working {
-                WorkingLine(activity: state.activity ?? "Working")
+                ChatWorkingLine(activity: state.activity ?? "Working")
             }
         } composer: {
             VStack(spacing: theme.spacing.sm) {
