@@ -93,8 +93,8 @@ public final class LiveChatModel {
     /// Told of each (re)connect's timing, for the host to log or report.
     @ObservationIgnored public var onTiming: (@MainActor (LiveConnectTiming) -> Void)?
 
-    @ObservationIgnored private let endpoint: LiveEndpoint
-    @ObservationIgnored private let http: any HTTPTransport
+    @ObservationIgnored let endpoint: LiveEndpoint
+    @ObservationIgnored let http: any HTTPTransport
     @ObservationIgnored private let streams: any StreamingTransport
     @ObservationIgnored private let timing: LiveTiming
     @ObservationIgnored private let random: @Sendable () -> Double
@@ -391,6 +391,19 @@ public final class LiveChatModel {
     private func call(_ method: String, _ params: JSONValue) async throws -> JSONValue {
         let id = take()
         return try await send(Acp.request(id, method, params), id: id)
+    }
+
+    /// `call`, for `LiveUpload.swift`'s writes.
+    func callForUpload(_ method: String, _ params: JSONValue) async throws -> JSONValue {
+        try await call(method, params)
+    }
+
+    /// The bearer, asked for once.
+    func currentBearer() async throws -> String {
+        if bearer == nil {
+            bearer = try await endpoint.bearer(false)
+        }
+        return bearer ?? ""
     }
 
     /// Posts a request and waits for its answer on the stream.
