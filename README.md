@@ -43,6 +43,11 @@ Around the chat, `ChatStatusLine(_:tone:systemImage:action:identifier:)` is one 
 composer slot: a problem with Retry, an agent offline, a send error, or a context chip with Clear. `ChatCostLine(spent:
 limit:)` reads "$0.42 so far, of $2".
 
+In a chat list, `ChatAgentStateLine(.working("Reading")|.needsYou|.idle|.offline)` is a row's agent state (put it in
+`ChatThreadRow`'s accessory), and `ChatThreadList(...).emptyText("No chats yet")` stands in for no rows; a list that
+failed to load shows a `ChatStatusLine` with Retry in its header. `ChatLoadEarlier(isLoading:load:)` goes in a chat's
+header while there is more.
+
 ## Theme
 
 A chat takes its fonts, colours and icons from `ChatTheme`, set once at the host's root:

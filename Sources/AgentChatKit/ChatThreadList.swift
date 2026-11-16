@@ -17,6 +17,7 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     private let footer: AnyView
     private let hostSelection: Binding<Item.ID?>?
     private let open: ((Item) -> Void)?
+    private var emptyWords: String?
 
     private enum Navigation {
         case host
@@ -116,6 +117,14 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     @ViewBuilder private var rows: some View {
         Section { header }
         Section {
+            if items.isEmpty, let emptyWords {
+                Text(emptyWords)
+                    .chatTextStyle(.body)
+                    .foregroundStyle(theme.inkQuiet)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowSeparator(.hidden)
+                    .accessibilityIdentifier("chat-thread-list-empty")
+            }
             ForEach(items) { item in
                 VStack(alignment: .leading, spacing: 0) { link(item) }
                     .chatThreadActions(title: title(item), actions: actions(item),
@@ -125,6 +134,14 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
             }
         }
         Section { footer }
+    }
+
+    /// Words in place of the rows while there are none ("No chats yet"). A list that failed to load shows a
+    /// `ChatStatusLine` with Retry in its header instead.
+    public func emptyText(_ words: String?) -> Self {
+        var list = self
+        list.emptyWords = words
+        return list
     }
 
     /// The row whose delete confirmation or failure is showing.
