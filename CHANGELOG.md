@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0](https://github.com/jai/agentchatkit/compare/v0.7.1...v0.8.0) (2026-11-16)
+
+
+### Features
+
+* a video can stay a video, its poster with a play badge and length in the composer and sent strip, played in the viewer; ComposerAttachments.keepsVideos and SentScreenshotStrip(loadMedia:) opt in ([#4](https://github.com/jai/agentchatkit/issues/4)) ([69d1dea](https://github.com/jai/agentchatkit/commit/69d1deaecb8cc215b940ee0c08c1bd81d8426638))
+* ChatAgentStateLine for a thread row's agent state, ChatThreadList.emptyText for no rows, and ChatLoadEarlier for a chat's header ([#25](https://github.com/jai/agentchatkit/issues/25)) ([ba518f5](https://github.com/jai/agentchatkit/commit/ba518f55bbf16c0face4c0f4ff16641ca5df4061))
+* ChatStatusLine, a status line around a chat (a problem with Retry, an agent offline, a composer notice or context chip), and ChatCostLine ([#24](https://github.com/jai/agentchatkit/issues/24)) ([7057915](https://github.com/jai/agentchatkit/commit/7057915d3e1d250c8a52b3fd49db36226a1b380d))
+* ChatThreadList.grouped folds titled groups of rows, ChatThreadRow.markGutter hangs the title mark in a column, ChatThreadActions.leadingSwipe adds host swipe buttons, and ChatReplyPreview shows the last reply ([#25](https://github.com/jai/agentchatkit/issues/25)) ([161eca9](https://github.com/jai/agentchatkit/commit/161eca97919eb194827755c12f1cd8fd1e948271))
+* **live:** LiveChatModel.send(_:videos:) puts each video where the host's upload ticket says, retrying a failed attempt, and names it in the message as a resource_link with its length ([#4](https://github.com/jai/agentchatkit/issues/4)) ([92fb157](https://github.com/jai/agentchatkit/commit/92fb157b68ee83e83f3e07dc26dfedb79b326e48))
+* **live:** LiveScreenshotStrip.loadsVideos shows a video attachment by its poster and length and plays it; without it a video keeps an empty slot as before ([#4](https://github.com/jai/agentchatkit/issues/4)) ([4c6b192](https://github.com/jai/agentchatkit/commit/4c6b19268f07f7f5958931775f89d81f77f656c3))
+* **server:** _agentchatkit/upload makes room for a file too large for the prompt (a video): the host's ticket says where to PUT it and the uri its resource_link names; refused 413/415 with a reason ([#4](https://github.com/jai/agentchatkit/issues/4)) ([8ea4e64](https://github.com/jai/agentchatkit/commit/8ea4e648be0c859a82c55d74b3c362f9d7e9391a))
+
 ## [0.7.1](https://github.com/jai/agentchatkit/compare/v0.7.0...v0.7.1) (2026-11-16)
 
 
