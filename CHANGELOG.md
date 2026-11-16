@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/jai/agentchatkit/compare/v0.5.0...v0.6.0) (2026-11-16)
+
+
+### Features
+
+* chatMessageContent takes a claimed message's Copy text and VoiceOver label and can leave out the bubble's menu; ChatWorkingLine adds no second ellipsis ([#20](https://github.com/jai/agentchatkit/issues/20)) ([2c14a03](https://github.com/jai/agentchatkit/commit/2c14a0312d673f45c5eb39214265346f5853666c))
+* ChatTheme.controls sets the action buttons' style and the Reply button's words, and symbols.reply its symbol, for a host's own design ([#18](https://github.com/jai/agentchatkit/issues/18)) ([a8f0889](https://github.com/jai/agentchatkit/commit/a8f0889949f8101a6be70bbd5ece8c2120018ef2))
+* ReplyQueueController.offersSendNow follows a thread whose reply modes change while open ([#16](https://github.com/jai/agentchatkit/issues/16)), and onEdit hands an edited reply's words to a host's own draft ([#17](https://github.com/jai/agentchatkit/issues/17)) ([53094ac](https://github.com/jai/agentchatkit/commit/53094acdc6fd4e1b9e7d1c1104bc769f1d4d9549))
+* Summarize on a long agent reply writes a short summary under its bubble with Apple Intelligence on the device; on by default, a host turns it off with chatSummaries(.off) ([#2](https://github.com/jai/agentchatkit/issues/2)) ([b774162](https://github.com/jai/agentchatkit/commit/b7741629e8c8a427ea93cf8a6873245cd256a0f8))
+* ThreadQuestion takes a context role, colour and line limit, a question line limit that leaves the answers alone, and a container identifier ([#15](https://github.com/jai/agentchatkit/issues/15)) ([3afb5ca](https://github.com/jai/agentchatkit/commit/3afb5cac132d73b7523e8daba3d435e8230deb15))
+* ThreadQueuedReplies.compact() puts each reply on one line with icon buttons, and maxHeight(_:) scrolls the replies past a limit, for a phone ([#19](https://github.com/jai/agentchatkit/issues/19)) ([6d9d82c](https://github.com/jai/agentchatkit/commit/6d9d82cd758ad82e3854ac14adc8d2c69ef31cd2))
+
 ## [0.5.0](https://github.com/jai/agentchatkit/compare/v0.4.2...v0.5.0) (2026-11-16)
 
 
