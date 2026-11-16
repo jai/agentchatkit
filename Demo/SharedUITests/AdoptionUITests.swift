@@ -212,6 +212,57 @@ final class AdoptionUITests: FixtureUITestCase {
         wait(app.buttons["card-log"], "label == 'Logged'")
     }
 
+    /// Tap and hold (a right click on a Mac) a long agent reply: Summarize writes a short summary under it, which
+    /// closes with its button (jai/agentchatkit#2).
+    func testSummarizeALongReply() {
+        launch("reply-summary")
+        openMenu(words("CI on main"))
+        activate(summarizeItem)
+        wait(element("bubble-summary"), "exists == true")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(
+            format: "label BEGINSWITH 'Short version' OR value BEGINSWITH 'Short version'")).firstMatch
+            .waitForExistence(timeout: 5))
+        activate(app.buttons["bubble-summary-dismiss"])
+        wait(element("bubble-summary"), "exists == false")
+    }
+
+    /// No Summarize on a short reply, nor in a host that turned summaries off.
+    func testNoSummarizeOnAShortReplyOrWhenOff() {
+        for (fixture, message) in [("reply-summary", "Done."), ("reply-summary-off", "CI on main")] {
+            launch(fixture)
+            openMenu(words(message))
+            XCTAssertTrue(copyItem.waitForExistence(timeout: 5), "The menu did not open")
+            XCTAssertFalse(summarizeItem.exists, "Summarize offered on \(message) in \(fixture)")
+        }
+    }
+
+    private func openMenu(_ element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 5))
+        #if os(macOS)
+        element.rightClick()
+        #else
+        element.press(forDuration: 1)
+        #endif
+    }
+
+    /// A message's words, where a press opens its bubble's menu (a short bubble is narrower than its row).
+    private func words(_ start: String) -> XCUIElement {
+        let shown = NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", start, start)
+        let text = app.staticTexts.matching(shown).firstMatch
+        return text.waitForExistence(timeout: 5) ? text : app.textViews.matching(shown).firstMatch
+    }
+
+    private var summarizeItem: XCUIElement { menuItem("Summarize") }
+    private var copyItem: XCUIElement { menuItem("Copy") }
+
+    private func menuItem(_ title: String) -> XCUIElement {
+        #if os(macOS)
+        app.menuItems[title]
+        #else
+        app.buttons[title]
+        #endif
+    }
+
     func testHostStringRoutesAndHeaderFooterRemainOwnedByHost() {
         launch("host-routes")
         XCTAssertTrue(element("host-new").waitForExistence(timeout: 5))

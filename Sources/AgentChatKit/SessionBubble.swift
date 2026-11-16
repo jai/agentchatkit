@@ -5,6 +5,8 @@ import SwiftUI
 /// where a reply of his stands, or the question waiting on him.
 public struct SessionBubble<Accessory: View>: View {
     @Environment(\.chatTheme) private var theme
+    @Environment(\.chatSummaries) private var summaries
+    @State private var summary = ReplySummary.none
     public let title: String?
     public let text: String
     public let date: Date?
@@ -56,6 +58,13 @@ public struct SessionBubble<Accessory: View>: View {
             .contextMenu {
                 Button("Copy", systemImage: theme.symbols.copy) { Pasteboard.copy(text) }
                     .accessibilityIdentifier("bubble-copy")
+                if !isMine, summaries.offers(text) {
+                    Button("Summarize", systemImage: "apple.intelligence") { summarize() }
+                        .accessibilityIdentifier("bubble-summarize")
+                }
+            }
+            if summary != .none {
+                ReplySummaryView(summary: summary) { summary = .none }
             }
             if !caption.isEmpty {
                 Text(caption)
@@ -72,6 +81,22 @@ public struct SessionBubble<Accessory: View>: View {
         var bubble = self
         bubble.content = content
         return bubble
+    }
+
+    /// The agent's words, summarized on the device (`ChatSummaries`), shown under the bubble until dismissed.
+    private func summarize() {
+        let summaries = summaries
+        let text = text
+        withAnimation(ChatMotion.fold) { summary = .writing }
+        Task {
+            let result: ReplySummary
+            do {
+                result = try await .written(summaries.summarize(text))
+            } catch {
+                result = .failed("Could not summarize this reply on this device.")
+            }
+            withAnimation(ChatMotion.fold) { summary = result }
+        }
     }
 
     /// Selection on a Mac; on the phone the bubble's long press is Copy.
