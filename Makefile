@@ -7,7 +7,7 @@
 # server/tsconfig.json covers src, test and dev (what --type-check reads); server/tsconfig.build.json builds src.
 # The py test checks that protocol/generate.py still writes protocol/fixtures. pyrefly needs uv: mise.toml pins it.
 # kit-test runs the Live suites against a dev host it starts with node; CI starts the host itself and sets
-# AGENTCHAT_DEV_HOST and AGENTCHAT_LIVE_TESTS=off. The demo app's builds, UI tests and the API break check stay in
+# AGENTCHAT_DEV_HOST. The demo app's builds, UI tests and the API break check stay in
 # CI (ci.yml demo, mac-ui, api).
 # <<< repo header
 #

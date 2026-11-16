@@ -6,9 +6,9 @@ import Testing
 /// `LiveChatModel` following the loopback host over the profile: initialize, the stream, resume (from start, from a
 /// cursor, from start again when the cursor expired), reconnects, the writes, and a question answered on one of two
 /// clients.
-/// The suites that follow the server package's dev host. `AGENTCHAT_LIVE_TESTS=off` leaves them out: GitHub's macOS
-/// 26 runner aborted the test process in them (SIGBUS), so CI runs them in a step of their own that may fail while
-/// the cause is found. They always run here.
+/// The suites that follow the server package's dev host. `AGENTCHAT_LIVE_TESTS=off` leaves them out, for a machine
+/// with no dev host. (Their SIGBUS on the macOS 26 runtime came from awaiting a stored pause closure in
+/// `LiveChatModel`, jai/agentchatkit#3; CI runs them with the rest.)
 enum LiveHostSuites {
     static let run = ProcessInfo.processInfo.environment["AGENTCHAT_LIVE_TESTS"] != "off"
 }

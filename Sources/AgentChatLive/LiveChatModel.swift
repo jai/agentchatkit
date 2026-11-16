@@ -97,7 +97,6 @@ public final class LiveChatModel {
     @ObservationIgnored private let http: any HTTPTransport
     @ObservationIgnored private let streams: any StreamingTransport
     @ObservationIgnored private let timing: LiveTiming
-    @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     @ObservationIgnored private let random: @Sendable () -> Double
     @ObservationIgnored private let parser = LiveEventParser()
     @ObservationIgnored private var bearer: String?
@@ -110,8 +109,9 @@ public final class LiveChatModel {
     public init(
         endpoint: LiveEndpoint, http: any HTTPTransport, streams: any StreamingTransport, kept: LiveChat = LiveChat(),
         timing: LiveTiming = .standard,
-        // DurableNetworking's named pause: `Task.sleep(for:)` passed as a closure aborts the test process on the
-        // macOS 26 runtime ("freed pointer was not the last allocation").
+        // Not used: the model pauses with `Task.sleep(for:)` called directly. Awaiting a stored pause closure from a
+        // main-actor task crashed the macOS 26.5 runtime's task allocator (SIGBUS, jai/agentchatkit#3). Kept so hosts
+        // still build.
         sleep: @escaping @Sendable (Duration) async throws -> Void = Outbox.pause,
         random: @escaping @Sendable () -> Double = { Double.random(in: 0...1) }
     ) {
@@ -120,7 +120,6 @@ public final class LiveChatModel {
         self.streams = streams
         chat = kept
         self.timing = timing
-        self.sleep = sleep
         self.random = random
     }
 
@@ -174,7 +173,7 @@ public final class LiveChatModel {
                 phase = .reconnecting
                 let base = timing.backoff(attempt: attempt)
                 attempt += 1
-                try? await sleep(base * (1 + timing.jitter * (random() * 2 - 1)))
+                try? await Task.sleep(for: base * (1 + timing.jitter * (random() * 2 - 1)))
             }
         }
         failWaiting()
@@ -400,9 +399,8 @@ public final class LiveChatModel {
             throw LiveRequestError.noAnswer
         }
         let limit = timing.answerLimit
-        let sleep = sleep
         let timer = Task { @MainActor [weak self] in
-            try? await sleep(limit)
+            try? await Task.sleep(for: limit)
             self?.waiting.removeValue(forKey: id)?.resume(throwing: LiveRequestError.noAnswer)
         }
         defer { timer.cancel() }

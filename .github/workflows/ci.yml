@@ -62,16 +62,9 @@ jobs:
           node-version: 24
       - run: node server/dev/host.ts --port 8789 > "$RUNNER_TEMP/dev-host.log" 2>&1 &
       - run: make setup
-      # swift test, the server package's tests and the protocol fixtures check.
+      # swift test (the live suites on the dev host included), the server package's tests and the protocol fixtures
+      # check. The live suites' SIGBUS on the macOS 26 runtime is fixed (jai/agentchatkit#3), so they count again.
       - run: make test
-        env:
-          AGENTCHAT_DEV_HOST: http://127.0.0.1:8789
-          AGENTCHAT_LIVE_TESTS: "off"
-      # The two suites on the dev host, on their own and allowed to fail: on this runner the test process has died
-      # in them with SIGBUS. Their result is still shown; it does not turn main red.
-      - name: Live suites on the dev host (allowed to fail)
-        continue-on-error: true
-        run: swift test --filter "AgentChatLiveTests.(FollowTests|LiveControlsTests)"
         env:
           AGENTCHAT_DEV_HOST: http://127.0.0.1:8789
       # A test process that crashes says nothing in the log: print its crash report.
