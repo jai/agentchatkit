@@ -1,3 +1,6 @@
+#if os(macOS)
+import AppKit
+#endif
 import XCTest
 
 /// Runs on both platforms. Existing ExtractionUITests and the main iPhone demo suite remain separate.
@@ -236,6 +239,25 @@ final class AdoptionUITests: FixtureUITestCase {
         wait(element("bubble-summary"), "exists == false")
     }
 
+    #if os(macOS)
+    /// A right click on a reply's words is the bubble's menu (Copy, Summarize, Select Text); after Select Text a drag
+    /// selects the words and Command-C copies them (jai/agentchatkit#21).
+    func testRightClickOnWordsOffersTheBubbleMenuAndSelectText() {
+        launch("reply-summary")
+        openMenu(words("CI on main"))
+        XCTAssertTrue(summarizeItem.waitForExistence(timeout: 5), "The words' right click is not the bubble's menu")
+        XCTAssertTrue(copyItem.exists)
+        activate(app.menuItems["Select Text"])
+        NSPasteboard.general.clearContents()
+        let reply = words("CI on main")
+        reply.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.08))
+            .press(forDuration: 0.3, thenDragTo: reply.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.08)))
+        app.typeKey("c", modifierFlags: .command)
+        let copied = NSPasteboard.general.string(forType: .string) ?? ""
+        XCTAssertTrue(copied.hasPrefix("CI on main"), "Selected and copied: \(copied)")
+    }
+    #endif
+
     /// No Summarize on a short reply, nor in a host that turned summaries off.
     func testNoSummarizeOnAShortReplyOrWhenOff() {
         for (fixture, message) in [("reply-summary", "Done."), ("reply-summary-off", "CI on main")] {
@@ -249,8 +271,7 @@ final class AdoptionUITests: FixtureUITestCase {
     private func openMenu(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 5))
         #if os(macOS)
-        // The words select on a Mac, and a right click on them is the text's own menu: click the bubble's margin.
-        element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: -6, dy: 6)).rightClick()
+        element.rightClick() // On the words: the bubble's menu, not the text's (#21).
         #else
         element.press(forDuration: 1)
         #endif

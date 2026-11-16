@@ -7,6 +7,9 @@ public struct SessionBubble<Accessory: View>: View {
     @Environment(\.chatTheme) private var theme
     @Environment(\.chatSummaries) private var summaries
     @State private var summary = ReplySummary.none
+    /// On a Mac, the words select once Select Text is chosen from the bubble's menu: selectable words take a right
+    /// click for the text's own menu, which hid the bubble's Copy and Summarize (jai/agentchatkit#21).
+    @State private var isSelectingWords = false
     public let title: String?
     public let text: String
     public let date: Date?
@@ -39,15 +42,15 @@ public struct SessionBubble<Accessory: View>: View {
                     Text(title)
                         .font(theme.font(.body).weight(.semibold))
                 }
-                // An agent writes Markdown; Jai's own words are drawn as he typed them. On a Mac the words select; on the
-                // phone a long press is Copy, below.
+                // An agent writes Markdown; Jai's own words are drawn as he typed them. On a Mac they select after
+                // Select Text in the bubble's menu; on the phone a long press is Copy, below.
                 if let content {
                     content.modifier(ContentLabel(label: contentLabel))
                 } else if isMine {
                     Text(text)
-                        .selectable(Self.selectsWords)
+                        .selectable(isSelectingWords)
                 } else {
-                    MarkdownText(text, isSelectable: Self.selectsWords)
+                    MarkdownText(text, isSelectable: isSelectingWords)
                 }
             }
             .font(theme.font(.callout))
@@ -66,6 +69,12 @@ public struct SessionBubble<Accessory: View>: View {
                     Button("Summarize", systemImage: "apple.intelligence") { summarize() }
                         .accessibilityIdentifier("bubble-summarize")
                 }
+                #if os(macOS)
+                Button(isSelectingWords ? "Stop Selecting" : "Select Text", systemImage: "character.cursor.ibeam") {
+                    isSelectingWords.toggle()
+                }
+                .accessibilityIdentifier("bubble-select")
+                #endif
             })
             if summary != .none {
                 ReplySummaryView(summary: summary) { summary = .none }
@@ -104,15 +113,6 @@ public struct SessionBubble<Accessory: View>: View {
             }
             withAnimation(ChatMotion.fold) { summary = result }
         }
-    }
-
-    /// Selection on a Mac; on the phone the bubble's long press is Copy.
-    private static var selectsWords: Bool {
-        #if os(macOS)
-        true
-        #else
-        false
-        #endif
     }
 
     private var caption: String {
