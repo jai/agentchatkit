@@ -33,8 +33,11 @@ private final class DemoQueueHost {
 struct DemoQueueScreen: View {
     @State private var host: DemoQueueHost
     @State private var model: ReplyQueueController<String>
+    /// A phone's compact strip, at most 160 points tall (jai/agentchatkit#19).
+    var isCompact = false
 
-    init() {
+    init(compact: Bool = false) {
+        isCompact = compact
         let host = DemoQueueHost()
         _host = State(initialValue: host)
         _model = State(initialValue: ReplyQueueController(
@@ -59,6 +62,9 @@ struct DemoQueueScreen: View {
                         edit: "edit-\(reply.id)", remove: "remove-\(reply.id)", sendNow: "send-\(reply.id)"
                     ) : .init()
                 })
+                .compact(isCompact)
+                .maxHeight(isCompact ? 160 : nil)
+                .modifier(DemoStripName(isNamed: isCompact))
                 TextEditor(text: $model.draft)
                     .frame(minHeight: ChatStyle.attachmentSize)
                     .accessibilityLabel("Draft")
@@ -82,6 +88,19 @@ struct DemoQueueScreen: View {
         .navigationTitle("Reply queue")
         .safeAreaInset(edge: .bottom) {
             DemoFixtureNotice(text: "Remove calls: \(host.removes), Send now calls: \(host.sends)")
+        }
+    }
+}
+
+/// The compact strip as one element, so its test can measure it; the full strip's tests find its rows directly.
+private struct DemoStripName: ViewModifier {
+    let isNamed: Bool
+
+    func body(content: Content) -> some View {
+        if isNamed {
+            content.accessibilityElement(children: .contain).accessibilityIdentifier("queue-strip")
+        } else {
+            content
         }
     }
 }

@@ -306,6 +306,34 @@ final class AdoptionUITests: FixtureUITestCase {
         XCTAssertTrue(app.buttons["send-now"].exists)
     }
 
+    /// A phone's compact queue: each reply on one line with icon buttons that keep their names and touch targets, and a
+    /// strip that stays within its height limit and still acts (#19).
+    func testCompactQueueRowsAndHeightLimit() {
+        launch("queue")
+        XCTAssertTrue(element("queue-edit").waitForExistence(timeout: 5))
+        let fullRow = element("queue-edit").frame.height
+        launch("queue-compact")
+        let edit = app.buttons["edit-edit"], send = app.buttons["send-edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        #if os(iOS)
+        let target: CGFloat = 44
+        #else
+        let target: CGFloat = 28
+        #endif
+        for button in [edit, app.buttons["remove-edit"], send] {
+            XCTAssertGreaterThanOrEqual(button.frame.height, target, button.identifier)
+            XCTAssertGreaterThanOrEqual(button.frame.width, target, button.identifier)
+        }
+        XCTAssertTrue(edit.label.contains("Edit"), "An icon keeps its name: \(edit.label)")
+        XCTAssertTrue(send.label.contains("Send now"), send.label)
+        let compactRow = element("queue-edit").frame.height
+        XCTAssertLessThan(compactRow, fullRow * 0.6, "The row is not compact: \(compactRow) of \(fullRow)")
+        XCTAssertLessThanOrEqual(element("queue-strip").frame.height, 161, "The strip grew past its limit")
+        activate(edit)
+        wait(element("queue-edit"), "exists == false")
+        XCTAssertEqual(app.textViews["fixture-queue-draft"].value as? String, "Queue edit\n\nExisting draft")
+    }
+
     func testHostStringRoutesAndHeaderFooterRemainOwnedByHost() {
         launch("host-routes")
         XCTAssertTrue(element("host-new").waitForExistence(timeout: 5))

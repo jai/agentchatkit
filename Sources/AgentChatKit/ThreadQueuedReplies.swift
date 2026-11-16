@@ -7,6 +7,8 @@ public struct ThreadQueuedReplies<ID: Hashable & Sendable>: View {
     public let model: ReplyQueueController<ID>
     public var interrupts: Bool
     private let identifiers: (QueuedReply<ID>) -> QueuedReplyIdentifiers
+    private var isCompact = false
+    private var heightLimit: CGFloat?
 
     public init(model: ReplyQueueController<ID>, interrupts: Bool = false,
                 identifiers: @escaping (QueuedReply<ID>) -> QueuedReplyIdentifiers = { _ in .init() }) {
@@ -16,13 +18,43 @@ public struct ThreadQueuedReplies<ID: Hashable & Sendable>: View {
     }
 
     public var body: some View {
+        Group {
+            if let heightLimit {
+                // As tall as its replies up to the limit, then they scroll: the reply box stays above the keyboard.
+                ViewThatFits(in: .vertical) {
+                    rows
+                    ScrollView { rows }.scrollIndicators(.automatic)
+                }
+                .frame(maxHeight: heightLimit)
+            } else {
+                rows
+            }
+        }
+        .animation(ChatMotion.fold, value: model.queued)
+        .animation(ChatMotion.fold, value: model.errors)
+    }
+
+    /// Each reply on one line with its buttons as icons beside its status, for a phone's narrow column (under 60% of
+    /// a full row's height). The buttons keep their names for VoiceOver and their touch targets.
+    public func compact(_ isCompact: Bool = true) -> Self {
+        var replies = self
+        replies.isCompact = isCompact
+        return replies
+    }
+
+    /// At most `limit` points tall; more replies than fit scroll inside it. Nil: as tall as the replies.
+    public func maxHeight(_ limit: CGFloat?) -> Self {
+        var replies = self
+        replies.heightLimit = limit
+        return replies
+    }
+
+    private var rows: some View {
         VStack(alignment: .leading, spacing: theme.spacing.sm) {
             ForEach(model.queued) { reply in
                 row(reply).transition(.opacity)
             }
         }
-        .animation(ChatMotion.fold, value: model.queued)
-        .animation(ChatMotion.fold, value: model.errors)
     }
 
     private func row(_ reply: QueuedReply<ID>) -> some View {
@@ -31,6 +63,7 @@ public struct ThreadQueuedReplies<ID: Hashable & Sendable>: View {
                        edit: { Task { await model.edit(reply) } },
                        remove: { Task { await model.remove(reply) } },
                        sendNow: model.canSendNow ? { Task { await model.sendNow(reply) } } : nil)
+            .compact(isCompact)
             .disabled(model.isBusy(reply))
     }
 }
@@ -47,6 +80,7 @@ public struct QueuedReplyRow: View {
     private let edit: () -> Void
     private let remove: () -> Void
     private let sendNow: (() -> Void)?
+    private var isCompact = false
 
     public init(text: String, status: String, error: ChatActionError? = nil,
                 interrupts: Bool = false, identifiers: QueuedReplyIdentifiers = .init(),
@@ -69,7 +103,48 @@ public struct QueuedReplyRow: View {
         #endif
     }
 
+    /// The reply on one line, its buttons as icons beside its status (`ThreadQueuedReplies.compact()`).
+    public func compact(_ isCompact: Bool = true) -> Self {
+        var row = self
+        row.isCompact = isCompact
+        return row
+    }
+
     public var body: some View {
+        Group {
+            if isCompact { compactBody } else { fullBody }
+        }
+        .padding(theme.spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.groundCard, in: .rect(cornerRadius: ChatRadius.md))
+        .accessibilityElement(children: .contain)
+        .chatIdentifier(identifiers.row)
+    }
+
+    private var compactBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(ChatQuickReply.shown(text))
+                .chatTextStyle(.body)
+                .chatIdentifier(identifiers.text)
+                .lineLimit(1)
+            HStack(spacing: theme.spacing.xs) {
+                Text(error?.message ?? status)
+                    .chatTextStyle(.meta)
+                    .chatIdentifier(identifiers.status)
+                    .foregroundStyle(error != nil ? theme.toneBad : theme.inkQuiet)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                editAndRemove
+                sendNowButton
+            }
+            .labelStyle(.iconOnly)
+            .chatTextStyle(.control)
+            // Regular chrome round an icon: the large size's padding doubled the row; the frame keeps the touch target.
+            .controlSize(.regular)
+        }
+    }
+
+    private var fullBody: some View {
         VStack(alignment: .leading, spacing: theme.spacing.xs) {
             Text(ChatQuickReply.shown(text))
                 .chatTextStyle(.body)
@@ -94,11 +169,6 @@ public struct QueuedReplyRow: View {
             .chatTextStyle(.control)
             .controlSize(theme.controlSize)
         }
-        .padding(theme.spacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.groundCard, in: .rect(cornerRadius: ChatRadius.md))
-        .accessibilityElement(children: .contain)
-        .chatIdentifier(identifiers.row)
     }
 
     @ViewBuilder private var leftControls: some View {
@@ -111,12 +181,12 @@ public struct QueuedReplyRow: View {
 
     @ViewBuilder private var editAndRemove: some View {
         Button(action: edit) {
-            Label("Edit", systemImage: theme.symbols.edit).frame(minHeight: minimumHeight)
+            Label("Edit", systemImage: theme.symbols.edit).frame(minWidth: isCompact ? minimumHeight : nil, minHeight: minimumHeight)
         }
         .chatControlButton()
         .chatIdentifier(identifiers.edit)
         Button(role: .destructive, action: remove) {
-            Label("Remove", systemImage: theme.symbols.delete).frame(minHeight: minimumHeight)
+            Label("Remove", systemImage: theme.symbols.delete).frame(minWidth: isCompact ? minimumHeight : nil, minHeight: minimumHeight)
         }
         .chatControlButton()
         .tint(theme.toneBad)
@@ -127,7 +197,7 @@ public struct QueuedReplyRow: View {
         if let sendNow {
             Button(action: sendNow) {
                 Label(interrupts ? "Send now · stops its turn" : "Send now", systemImage: theme.symbols.sendNow)
-                    .frame(minHeight: minimumHeight)
+                    .frame(minWidth: isCompact ? minimumHeight : nil, minHeight: minimumHeight)
             }
             .chatControlButton(prominent: true)
             .chatIdentifier(identifiers.sendNow)

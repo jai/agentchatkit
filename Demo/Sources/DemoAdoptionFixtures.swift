@@ -13,6 +13,7 @@ struct DemoAdoptionFixtures: View {
             case "host-routes": DemoHostThreadList(usesValueNavigation: true)
             case "row": DemoThreadRows()
             case "queue": DemoQueueScreen()
+            case "queue-compact": DemoQueueScreen(compact: true)
             case "delivery": DemoDeliveryScreen()
             case "question": DemoQuestionScreen()
             case "question-host-controls": DemoHostControls { DemoQuestionScreen() }
