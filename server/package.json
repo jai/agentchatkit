@@ -30,11 +30,13 @@
   "scripts": {
     "fixtures": "node scripts/embed-fixtures.mjs",
     "test": "node --test --test-timeout=20000 --test-force-exit test/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-    "build": "rm -rf dist && tsc -p tsconfig.json && cp -R ../protocol/fixtures dist/fixtures"
+    "typecheck": "tsc -p tsconfig.build.json --noEmit && tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R ../protocol/fixtures dist/fixtures"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2007",
     "typescript": "7.0.2"
   }
 }

@@ -223,7 +223,7 @@ async function knob(id: string, name: string, body: Record<string, unknown>): Pr
     case "ask": {
       const options = (body.options as { id: string; label: string }[]) ?? [];
       const choice = { type: "string", enum: options.map((o) => o.id), enumNames: options.map((o) => o.label) };
-      const properties: Record<string, unknown> = {};
+      const properties: Record<string, Record<string, unknown>> = {};
       if (body.multiple) {
         properties.choices = { type: "array", items: choice };
       } else if (options.length > 0) {

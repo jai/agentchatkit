@@ -13,14 +13,22 @@ concurrency:
 
 jobs:
   lint:
-    # SwiftLint with this repo's rules and the rules of the libraries it builds on
-    # (.swiftlint.yml's parent_config), such as DurableNetworking's no_direct_networking.
+    name: Lint
+    # make lint typecheck: SwiftFormat and SwiftLint with this repo's rules and the rules of the libraries it builds
+    # on (.swiftlint.yml's parent_config), such as DurableNetworking's no_direct_networking; oxfmt, oxlint and
+    # swift build; ruff and Pyrefly.
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    env:
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
-      - run: command -v swiftlint || brew install swiftlint
-      - run: swiftlint lint --quiet
+      - uses: jdx/mise-action@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: make setup
+      - run: make lint typecheck
 
   api:
     # Apps take every release (`from:` ranges): a change adds to the public API and never removes or changes it
@@ -38,18 +46,24 @@ jobs:
           swift package diagnose-api-breaking-changes "$tag"
 
   test:
+    name: Unit Tests
     # GitHub's own Mac runner: free for a public repo.
     runs-on: macos-latest
     timeout-minutes: 20
+    env:
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v5
       # AgentChatLive's tests follow the server package's dev host. CI starts it, rather than the test process
       # (launching node from inside swift test died with SIGBUS on the macOS 26 runner).
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - run: node server/dev/host.ts --port 8789 > "$RUNNER_TEMP/dev-host.log" 2>&1 &
-      - run: swift test
+      - run: make setup
+      # swift test, the server package's tests and the protocol fixtures check.
+      - run: make test
         env:
           AGENTCHAT_DEV_HOST: http://127.0.0.1:8789
           AGENTCHAT_LIVE_TESTS: "off"
@@ -64,6 +78,7 @@ jobs:
       - name: Crash reports
         if: failure()
         run: |
+          # shellcheck disable=SC2012 # the two newest: ls -t sorts by time
           for report in $(ls -t ~/Library/Logs/DiagnosticReports/*.ips 2>/dev/null | head -2); do
             echo "== $report"; head -c 12000 "$report"; echo
           done
