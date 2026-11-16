@@ -17,6 +17,7 @@ struct DemoAdoptionFixtures: View {
             case "question": DemoQuestionScreen()
             case "screenshots": DemoScreenshotsScreen()
             case "screenshots-local": DemoScreenshotsScreen(sharesViewer: false)
+            case "screenshots-conversation": DemoScreenshotConversation()
             default: ContentUnavailableView("Unknown fixture", systemImage: "questionmark")
             }
         }

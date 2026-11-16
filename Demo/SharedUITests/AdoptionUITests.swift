@@ -158,6 +158,30 @@ final class AdoptionUITests: FixtureUITestCase {
         }
     }
 
+    /// Portrait screenshots that load as the conversation scrolls to its end: each thumbnail is found where it is
+    /// drawn, at its drawn size, as soon as it shows, and one click opens the viewer (jai/agentchatkit#6).
+    func testConversationScreenshotFramesAreWhereTheyAreDrawn() {
+        launch("screenshots-conversation")
+        let picture = app.buttons["picture-conversation-1"]
+        XCTAssertTrue(picture.waitForExistence(timeout: 5))
+        let frame = picture.frame
+        let window = app.windows.firstMatch.frame
+        XCTAssertEqual(frame.width, 64, accuracy: 1, "\(frame)")
+        XCTAssertEqual(frame.height, 64, accuracy: 1, "\(frame)")
+        XCTAssertTrue(window.contains(frame), "thumbnail \(frame) outside window \(window)")
+        // The chat stops short of its end when a strip loads after its message, leaving the thumbnails under the
+        // reply bar (its own issue, jai/agentchatkit#7); here the page is taken to its end first.
+        #if os(macOS)
+        app.scrollViews.firstMatch.scroll(byDeltaX: 0, deltaY: -600)
+        #else
+        app.scrollViews.firstMatch.swipeUp()
+        #endif
+        activate(picture)
+        XCTAssertTrue(element("host-viewer").waitForExistence(timeout: 5))
+        activate(app.buttons["viewer-close"])
+        wait(element("host-viewer"), "exists == false")
+    }
+
     func testHostStringRoutesAndHeaderFooterRemainOwnedByHost() {
         launch("host-routes")
         XCTAssertTrue(element("host-new").waitForExistence(timeout: 5))

@@ -5,9 +5,11 @@ import UniformTypeIdentifiers
 /// A made-up screenshot of a failing build, drawn here: what the toolbar's "Add sample screenshot" attaches, so the
 /// demo (and its UI test) can send a picture without Photos.
 enum SampleScreenshot {
+    /// `portrait` draws it a phone's shape (390 × 844), as an app's screenshot of itself is.
     @MainActor
-    static func png() -> Data? {
-        let renderer = ImageRenderer(content: Picture())
+    static func png(portrait: Bool = false) -> Data? {
+        let renderer = ImageRenderer(content: Picture(size: portrait ? CGSize(width: 390, height: 844)
+                                                                     : CGSize(width: 320, height: 200)))
         renderer.scale = 2
         guard let image = renderer.cgImage else {
             return nil
@@ -21,6 +23,8 @@ enum SampleScreenshot {
     }
 
     private struct Picture: View {
+        let size: CGSize
+
         var body: some View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Build failed", systemImage: "xmark.octagon.fill")
@@ -35,7 +39,7 @@ enum SampleScreenshot {
                 }
             }
             .padding(20)
-            .frame(width: 320, height: 200, alignment: .topLeading)
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
             .background(.white)
             .environment(\.colorScheme, .light)
         }
