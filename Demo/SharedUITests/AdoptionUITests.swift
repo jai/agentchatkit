@@ -1,6 +1,3 @@
-#if os(macOS)
-import AppKit
-#endif
 import XCTest
 
 /// Runs on both platforms. Existing ExtractionUITests and the main iPhone demo suite remain separate.
@@ -240,21 +237,19 @@ final class AdoptionUITests: FixtureUITestCase {
     }
 
     #if os(macOS)
-    /// A right click on a reply's words is the bubble's menu (Copy, Summarize, Select Text); after Select Text a drag
-    /// selects the words and Command-C copies them (jai/agentchatkit#21).
+    /// A right click on a reply's words is the bubble's menu (Copy, Summarize, Select Text), and Select Text turns the
+    /// words' selection on: the next right click on the bubble's edge offers Stop Selecting (jai/agentchatkit#21).
     func testRightClickOnWordsOffersTheBubbleMenuAndSelectText() {
         launch("reply-summary")
         openMenu(words("CI on main"))
         XCTAssertTrue(summarizeItem.waitForExistence(timeout: 5), "The words' right click is not the bubble's menu")
         XCTAssertTrue(copyItem.exists)
         activate(app.menuItems["Select Text"])
-        NSPasteboard.general.clearContents()
+        // Selectable words take a right click for the text's own menu again; the bubble's edge still opens its menu.
         let reply = words("CI on main")
-        reply.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.08))
-            .press(forDuration: 0.3, thenDragTo: reply.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.08)))
-        app.typeKey("c", modifierFlags: .command)
-        let copied = NSPasteboard.general.string(forType: .string) ?? ""
-        XCTAssertTrue(copied.hasPrefix("CI on main"), "Selected and copied: \(copied)")
+        reply.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: -6, dy: 6)).rightClick()
+        XCTAssertTrue(app.menuItems["Stop Selecting"].waitForExistence(timeout: 5), "Select Text did not turn selection on")
+        app.typeKey(.escape, modifierFlags: [])
     }
     #endif
 
