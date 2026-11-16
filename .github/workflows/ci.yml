@@ -135,6 +135,10 @@ jobs:
           jq -r '.. | objects | select(.nodeType? == "Test Case")
             | select([.children[]? | select(.nodeType == "Repetition" and .result == "Failed")] | length > 0)
             | "::warning::\(.name) failed a try (\(.result) in the end)"' "$RUNNER_TEMP/tests.json"
+          # -quiet hides why a test failed: print each failure's message, with its test.
+          jq -r '.. | objects | select(.nodeType? == "Test Case") | .name as $test
+            | .. | objects | select(.nodeType? == "Failure Message") | "\($test): \(.name)"' "$RUNNER_TEMP/tests.json" \
+            | sort -u | head -40
 
       - uses: actions/upload-artifact@v4
         if: always()
