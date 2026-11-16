@@ -8,6 +8,7 @@ public struct ChatThreadRow<Accessory: View, Chips: View>: View {
     public var about: String?
     public var identifiers: ChatThreadRowIdentifiers
     private let titleMark: AnyView?
+    private var gutter: CGFloat?
     private let accessory: Accessory
     private let chips: Chips
 
@@ -52,9 +53,15 @@ public struct ChatThreadRow<Accessory: View, Chips: View>: View {
                         .chatIdentifier(identifiers.context)
                     status
                 }
+                .padding(.leading, pastGutter)
             }
             HStack(alignment: .firstTextBaseline, spacing: theme.spacing.sm) {
-                if let titleMark { titleMark.chatIdentifier(identifiers.titleMark) }
+                if let titleMark {
+                    titleMark.chatIdentifier(identifiers.titleMark)
+                        .frame(width: gutter, alignment: .trailing)
+                } else if let gutter {
+                    Color.clear.frame(width: gutter, height: 0)
+                }
                 Text(title)
                     .foregroundStyle(theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
@@ -69,12 +76,25 @@ public struct ChatThreadRow<Accessory: View, Chips: View>: View {
                     .foregroundStyle(theme.inkQuiet)
                     .fixedSize(horizontal: false, vertical: true)
                     .chatIdentifier(identifiers.about)
+                    .padding(.leading, pastGutter)
             }
             chips.chatTextStyle(.meta).chatIdentifier(identifiers.chips)
+                .padding(.leading, pastGutter)
         }
         .padding(.vertical, theme.spacing.xs)
         .accessibilityElement(children: .contain)
         .chatIdentifier(identifiers.row)
+    }
+
+    /// A line under the title starts where the title does: past the gutter and the space after it.
+    private var pastGutter: CGFloat { gutter.map { $0 + theme.spacing.sm } ?? 0 }
+
+    /// The title mark hangs in a column this wide, so every row's title, and the lines under it, start at one edge
+    /// whatever its mark (an app's icon, a state's). Nil: the mark sits just before the title.
+    public func markGutter(_ width: CGFloat?) -> Self {
+        var row = self
+        row.gutter = width
+        return row
     }
 
     private var status: some View {

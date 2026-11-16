@@ -8,6 +8,7 @@ public struct ChatThreadActions {
     public var delete: Action?
     public var identifiers: ChatThreadActionIdentifiers
     fileprivate var hostMenu: (@MainActor () -> AnyView)?
+    fileprivate var hostSwipe: (@MainActor () -> AnyView)?
 
     public init(archive: Action? = nil, delete: Action? = nil, identifiers: ChatThreadActionIdentifiers = .init()) {
         self.archive = archive
@@ -19,6 +20,14 @@ public struct ChatThreadActions {
     public func menuItems<Menu: View>(@ViewBuilder _ content: @escaping @MainActor () -> Menu) -> Self {
         var actions = self
         actions.hostMenu = { AnyView(content()) }
+        return actions
+    }
+
+    /// The host's own swipe buttons on the row's leading edge (Pin, Dismiss), on iPhone; Archive and Delete stay on
+    /// the trailing edge.
+    public func leadingSwipe<Buttons: View>(@ViewBuilder _ content: @escaping @MainActor () -> Buttons) -> Self {
+        var actions = self
+        actions.hostSwipe = { AnyView(content()) }
         return actions
     }
 }
@@ -91,7 +100,13 @@ private struct ChatThreadActionModifier: ViewModifier {
 
     @ViewBuilder private func swipeContent(_ content: Content) -> some View {
         #if os(iOS)
-        content.swipeActions(edge: .trailing, allowsFullSwipe: false) { buttons }
+        if let leading = actions.hostSwipe {
+            content
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) { buttons }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) { leading() }
+        } else {
+            content.swipeActions(edge: .trailing, allowsFullSwipe: false) { buttons }
+        }
         #else
         content
         #endif

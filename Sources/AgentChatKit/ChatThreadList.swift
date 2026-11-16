@@ -18,6 +18,8 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     private let hostSelection: Binding<Item.ID?>?
     private let open: ((Item) -> Void)?
     private var emptyWords: String?
+    private var groups: [ChatThreadGroup<Item.ID>]?
+    @State private var folded: Set<String> = []
 
     private enum Navigation {
         case host
@@ -116,6 +118,29 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     /// its menu or dialog closes made UICollectionView's item count disagree and crash the app on iPhone.
     @ViewBuilder private var rows: some View {
         Section { header }
+        if let groups {
+            ForEach(groups) { group in
+                Section {
+                    if !folded.contains(group.id) {
+                        ForEach(group.rows(from: items)) { item in
+                            threadRow(item)
+                        }
+                    }
+                } header: {
+                    ChatThreadGroupHeader(group: group, isFolded: folded.contains(group.id)) {
+                        withAnimation(ChatMotion.fold) {
+                            if folded.contains(group.id) { folded.remove(group.id) } else { folded.insert(group.id) }
+                        }
+                    }
+                }
+            }
+        } else {
+            ungroupedRows
+        }
+        Section { footer }
+    }
+
+    @ViewBuilder private var ungroupedRows: some View {
         Section {
             if items.isEmpty, let emptyWords {
                 Text(emptyWords)
@@ -126,18 +151,29 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
                     .accessibilityIdentifier("chat-thread-list-empty")
             }
             ForEach(items) { item in
-                VStack(alignment: .leading, spacing: 0) { link(item) }
-                    .chatThreadActions(title: title(item), actions: actions(item),
-                                       controller: controllers.controller(for: item.id), presentsDialogs: false)
-                    .tag(item.id)
-                    .listRowInsets(theme.spacing.rowInsets)
+                threadRow(item)
             }
         }
-        Section { footer }
+    }
+
+    private func threadRow(_ item: Item) -> some View {
+        VStack(alignment: .leading, spacing: 0) { link(item) }
+            .chatThreadActions(title: title(item), actions: actions(item),
+                               controller: controllers.controller(for: item.id), presentsDialogs: false)
+            .tag(item.id)
+            .listRowInsets(theme.spacing.rowInsets)
     }
 
     /// Words in place of the rows while there are none ("No chats yet"). A list that failed to load shows a
     /// `ChatStatusLine` with Retry in its header instead.
+    /// The rows in titled groups, in the groups' order; a foldable group's header folds its rows away and back.
+    /// Rows in no group are not shown. Nil: one plain section, as before.
+    public func grouped(_ groups: [ChatThreadGroup<Item.ID>]?) -> Self {
+        var list = self
+        list.groups = groups
+        return list
+    }
+
     public func emptyText(_ words: String?) -> Self {
         var list = self
         list.emptyWords = words
