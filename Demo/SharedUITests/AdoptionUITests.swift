@@ -205,8 +205,18 @@ final class AdoptionUITests: FixtureUITestCase {
         XCTAssertEqual(agents.count, 3)
         // The agent at work, the kit's line under the messages (#13).
         wait(element("chat-working"), "label CONTAINS 'Searching threads…'")
+        XCTAssertFalse(element("chat-working").label.contains("……"), "A second ellipsis (#20)")
+        // A card gives its own words to VoiceOver; the link card keeps its own long press, no bubble menu (#20).
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == 'Lunch, 640 kilocalories'")).firstMatch.exists)
         activate(app.buttons["card-link-pr12"])
         wait(element("fixture-notice"), "label CONTAINS 'Opened: PR #12;'")
+        #if os(iOS)
+        // With the bubble's menu left out, a long press is the card's own: no Copy menu, and the card acts.
+        app.buttons["card-link-pr12"].press(forDuration: 1)
+        XCTAssertFalse(app.buttons["Copy"].waitForExistence(timeout: 2), "The bubble's menu wrapped the link card")
+        wait(element("fixture-notice"), "label CONTAINS 'Opened: PR #12, PR #12;'")
+        #endif
         activate(app.buttons["card-log"])
         wait(element("fixture-notice"), "label CONTAINS 'Logged: 1'")
         wait(app.buttons["card-log"], "label == 'Logged'")

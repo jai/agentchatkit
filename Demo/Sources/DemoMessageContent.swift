@@ -22,13 +22,18 @@ struct DemoMessageContent: View {
         } header: {
             EmptyView()
         } footer: {
-            ChatWorkingLine(activity: "Searching threads")
+            ChatWorkingLine(activity: "Searching threads…") // Already ends in an ellipsis: no second one.
             DemoFixtureNotice(text: host.notice)
         } composer: {
             SessionComposer(draft: $draft, isSending: false, send: {}, focused: $focused)
                 .composerBar()
         }
-        .chatMessageContent(when: { $0.id == "links" || $0.id == "meal" }) { [host] message in
+        .chatMessageContent(
+            when: { $0.id == "links" || $0.id == "meal" },
+            copyText: { $0.id == "meal" ? "Lunch: 640 kcal, 32 g protein, 71 g carbs" : nil },
+            accessibilityLabel: { $0.id == "meal" ? "Lunch, 640 kilocalories" : nil },
+            bubbleMenu: { $0.id != "links" } // The link card has its own long press.
+        ) { [host] message in
             if message.id == "links" {
                 Button("Open PR #12", systemImage: "arrow.triangle.pull") { host.opened.append("PR #12") }
                     .accessibilityIdentifier("card-link-pr12")

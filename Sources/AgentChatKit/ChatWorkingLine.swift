@@ -9,7 +9,8 @@ public struct ChatWorkingLine: View {
     public let identifier: String
 
     /// - Parameters:
-    ///   - activity: What the agent is doing, without the ellipsis ("Working" when the host knows no more).
+    ///   - activity: What the agent is doing ("Working" when the host knows no more). The line adds an ellipsis unless
+    ///     the words end with one.
     ///   - identifier: The line's accessibility identifier, for a host's UI tests.
     public init(activity: String = "Working", identifier: String = "chat-working") {
         self.activity = activity
@@ -20,7 +21,7 @@ public struct ChatWorkingLine: View {
         HStack(spacing: ChatSpace.sm) {
             ProgressView()
                 .controlSize(.small)
-            Text(activity + "…")
+            Text(activity.hasSuffix("…") || activity.hasSuffix("...") ? activity : activity + "…")
                 .font(theme.font(.footnote))
                 .foregroundStyle(theme.inkQuiet)
                 .contentTransition(.opacity)

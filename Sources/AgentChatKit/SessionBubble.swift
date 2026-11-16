@@ -15,6 +15,10 @@ public struct SessionBubble<Accessory: View>: View {
     public let accessory: Accessory
     /// What the host draws in the bubble in place of the words (`chatMessageContent`).
     var content: AnyView?
+    /// The host's words for a claimed message's Copy and VoiceOver, and whether the bubble's menu wraps it.
+    var copyText: String?
+    var contentLabel: String?
+    var showsMenu = true
 
     public init(
         title: String?, text: String, date: Date?, isMine: Bool, footnote: String? = nil,
@@ -38,7 +42,7 @@ public struct SessionBubble<Accessory: View>: View {
                 // An agent writes Markdown; Jai's own words are drawn as he typed them. On a Mac the words select; on the
                 // phone a long press is Copy, below.
                 if let content {
-                    content
+                    content.modifier(ContentLabel(label: contentLabel))
                 } else if isMine {
                     Text(text)
                         .selectable(Self.selectsWords)
@@ -55,14 +59,14 @@ public struct SessionBubble<Accessory: View>: View {
             )
             // Tap and hold (a right click on a Mac): Copy, the whole message as it was written (Jai, 2026-11-14).
             .contentShape(.rect(cornerRadius: ChatStyle.radius, style: .continuous))
-            .contextMenu {
-                Button("Copy", systemImage: theme.symbols.copy) { Pasteboard.copy(text) }
+            .modifier(BubbleMenu(isOn: showsMenu) {
+                Button("Copy", systemImage: theme.symbols.copy) { Pasteboard.copy(copyText ?? text) }
                     .accessibilityIdentifier("bubble-copy")
                 if !isMine, summaries.offers(text) {
                     Button("Summarize", systemImage: "apple.intelligence") { summarize() }
                         .accessibilityIdentifier("bubble-summarize")
                 }
-            }
+            })
             if summary != .none {
                 ReplySummaryView(summary: summary) { summary = .none }
             }
@@ -77,9 +81,12 @@ public struct SessionBubble<Accessory: View>: View {
     }
 
     /// The bubble with the host's drawing in place of its words, when the host claims its message.
-    func drawing(_ content: AnyView?) -> Self {
+    func drawing(_ drawing: HostDrawing?) -> Self {
         var bubble = self
-        bubble.content = content
+        bubble.content = drawing?.view
+        bubble.copyText = drawing?.copyText
+        bubble.contentLabel = drawing?.label
+        bubble.showsMenu = drawing?.bubbleMenu ?? true
         return bubble
     }
 
@@ -157,5 +164,32 @@ private struct BubbleColumnLayout: Layout {
 extension SessionBubble where Accessory == EmptyView {
     public init(title: String?, text: String, date: Date?, isMine: Bool, footnote: String? = nil) {
         self.init(title: title, text: text, date: date, isMine: isMine, footnote: footnote) { EmptyView() }
+    }
+}
+
+/// The bubble's long-press menu, unless a host card has its own long press.
+private struct BubbleMenu<Items: View>: ViewModifier {
+    let isOn: Bool
+    @ViewBuilder let items: () -> Items
+
+    func body(content: Content) -> some View {
+        if isOn {
+            content.contextMenu { items() }
+        } else {
+            content
+        }
+    }
+}
+
+/// The host's words for its card, read by VoiceOver; the card's controls stay reachable inside it.
+private struct ContentLabel: ViewModifier {
+    let label: String?
+
+    func body(content: Content) -> some View {
+        if let label {
+            content.accessibilityElement(children: .contain).accessibilityLabel(label)
+        } else {
+            content
+        }
     }
 }
