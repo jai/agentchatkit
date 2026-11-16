@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.1](https://github.com/jai/agentchatkit/compare/v0.7.0...v0.7.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **live:** LiveChatModel pauses with Task.sleep directly; awaiting its stored pause closure from a main-actor task crashed the macOS 26.5 runtime (SIGBUS), and CI runs the live suites again ([#3](https://github.com/jai/agentchatkit/issues/3)) ([ad6ac23](https://github.com/jai/agentchatkit/commit/ad6ac23155654379dc7a76e6e289aa68c404ba61))
+* **mac:** a right click on a bubble's words is the bubble's menu, Copy, Summarize and Select Text; the words select after Select Text ([#21](https://github.com/jai/agentchatkit/issues/21)) ([c1f4a8b](https://github.com/jai/agentchatkit/commit/c1f4a8bd0967cff794ad7a38bf9ed8060221e6f7))
+* **mac:** Command-V attaches a picture while the window's text cursor is in the composer, not only while the host's focus flag says so ([#10](https://github.com/jai/agentchatkit/issues/10)) ([ae22a03](https://github.com/jai/agentchatkit/commit/ae22a03069f1b8b638dafb94545ca44949951a77))
+
 ## [0.7.0](https://github.com/jai/agentchatkit/compare/v0.6.0...v0.7.0) (2026-11-16)
 
 
