@@ -105,8 +105,21 @@ jobs:
             fi
           }
           trap finish_recording EXIT
+          # A test that fails is tried once more and passes if either try does: on this hosted runner a different
+          # iPhone test failed once in each of two runs and passed everywhere else. The next step names every
+          # test that needed the second try; one that keeps needing it gets fixed.
           xcodebuild test -project AgentChatDemo.xcodeproj -scheme AgentChatDemo-iOS -destination "id=$device" \
-            -skip-testing:AgentChatDemoUITests/DemoUITests/testReadmeScreenshots -quiet
+            -skip-testing:AgentChatDemoUITests/DemoUITests/testReadmeScreenshots \
+            -retry-tests-on-failure -test-iterations 2 \
+            -resultBundlePath "$GITHUB_WORKSPACE/tmp/demo-ui.xcresult" -quiet
+      - name: Tests that needed a second try
+        if: always()
+        run: |
+          [ -d tmp/demo-ui.xcresult ] || exit 0
+          xcrun xcresulttool get test-results tests --path tmp/demo-ui.xcresult > "$RUNNER_TEMP/tests.json"
+          jq -r '.. | objects | select(.nodeType? == "Test Case")
+            | select([.children[]? | select(.nodeType == "Repetition" and .result == "Failed")] | length > 0)
+            | "::warning::\(.name) failed a try (\(.result) in the end)"' "$RUNNER_TEMP/tests.json"
 
       - uses: actions/upload-artifact@v4
         if: always()
