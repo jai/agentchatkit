@@ -12,6 +12,8 @@ public struct SentPicture: Identifiable, Sendable {
     public let id: ID
     public let index: Int
     public let preview: CGImage
+    /// Set when this is a video's poster frame: the viewer plays it.
+    public internal(set) var video: ChatVideoClip?
 
     public init?(key: String, index: Int, jpeg: Data) {
         guard let source = CGImageSourceCreateWithData(jpeg as CFData, nil),
@@ -32,6 +34,20 @@ public struct SentPicture: Identifiable, Sendable {
 
     public static func decode(_ jpegs: [Data], key: String) -> [SentPicture] {
         jpegs.enumerated().compactMap { SentPicture(key: key, index: $0.offset, jpeg: $0.element) }
+    }
+
+    /// Pictures and videos' posters, in order, each keeping its index even if another could not be read.
+    public static func decode(media: [SentMedia], key: String) -> [SentPicture] {
+        media.enumerated().compactMap { index, item in
+            switch item {
+            case let .picture(jpeg):
+                return SentPicture(key: key, index: index, jpeg: jpeg)
+            case let .video(poster, clip):
+                var picture = SentPicture(key: key, index: index, jpeg: poster)
+                picture?.video = clip
+                return picture
+            }
+        }
     }
 
     public var image: Image { Image(preview, scale: 1, label: Text("Screenshot")) }

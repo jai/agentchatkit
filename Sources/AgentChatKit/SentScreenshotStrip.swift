@@ -5,11 +5,13 @@ import SwiftUI
 /// Host supplies ordered JPEGs asynchronously. The kit owns no disk paths, persistence or reply-ID aliases.
 public struct SentScreenshotStrip: View {
     public typealias Loader = @Sendable (String) async -> Result<[Data], ChatActionError>
+    /// Pictures and videos (`SentMedia`), for a host that sends videos.
+    public typealias MediaLoader = @Sendable (String) async -> Result<[SentMedia], ChatActionError>
     @Environment(\.chatTheme) private var theme
     @Environment(SentScreenshotViewing.self) private var viewing: SentScreenshotViewing?
     public let key: String
     public var identifiers: SentScreenshotIdentifiers
-    private let load: Loader
+    private let load: MediaLoader
     @State private var pictures: [SentPicture] = []
     @State private var total = 0
     @State private var problem: ChatActionError?
@@ -19,7 +21,15 @@ public struct SentScreenshotStrip: View {
     public init(key: String, identifiers: SentScreenshotIdentifiers = .init(), load: @escaping Loader) {
         self.key = key
         self.identifiers = identifiers
-        self.load = load
+        self.load = { key in await load(key).map { $0.map(SentMedia.picture) } }
+    }
+
+    /// A strip of pictures and videos: a video shows its poster with a play badge and its length, and plays in the
+    /// viewer (jai/agentchatkit#4).
+    public init(key: String, identifiers: SentScreenshotIdentifiers = .init(), loadMedia: @escaping MediaLoader) {
+        self.key = key
+        self.identifiers = identifiers
+        load = loadMedia
     }
 
     private var thumbnails: some View {
@@ -47,6 +57,9 @@ public struct SentScreenshotStrip: View {
             .frame(width: ChatStyle.attachmentSize, height: ChatStyle.attachmentSize)
             .background {
                 picture.image.resizable().scaledToFill().accessibilityHidden(true)
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let video = picture.video { ChatVideoBadge(duration: video.duration) }
             }
             .clipShape(shape)
             .overlay(shape.strokeBorder(theme.line))
@@ -91,13 +104,13 @@ public struct SentScreenshotStrip: View {
             guard !Task.isCancelled else { return }
             defer { isLoading = false }
             switch loaded {
-            case let .success(jpegs):
+            case let .success(media):
                 let key = key
                 let decoded = await Task.detached(priority: .userInitiated) {
-                    SentPicture.decode(jpegs, key: key)
+                    SentPicture.decode(media: media, key: key)
                 }.value
                 guard !Task.isCancelled else { return }
-                total = jpegs.count
+                total = media.count
                 withAnimation(ChatMotion.swap) { pictures = decoded }
             case let .failure(error): problem = error
             }

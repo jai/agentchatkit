@@ -17,6 +17,8 @@ public struct ComposerImage: Identifiable {
     /// What is sent: a JPEG at most `ComposerImageEncoder.maxPixels` on its long side.
     public let jpeg: Data
     let preview: CGImage
+    /// Set when this is a video kept as a video (`ComposerAttachments.keepsVideos`): `jpeg` is then its poster frame.
+    public internal(set) var video: ChatVideoClip?
 }
 
 /// The screenshots on one message box, before they are sent (`SessionComposer`'s `attachments`). Each is made small enough
@@ -29,6 +31,9 @@ public final class ComposerAttachments {
     public private(set) var images: [ComposerImage] = []
     /// Why the last image could not be added.
     public private(set) var problem: String?
+    /// Keep a video as one video (its file, a poster frame and its length) for a host that sends videos. Off: a video
+    /// is added as stills from across it, as before.
+    public var keepsVideos = false
 
     public init() {}
 
@@ -60,6 +65,10 @@ public final class ComposerAttachments {
             problem = "At most \(Self.limit) screenshots on one message."
             return
         }
+        if keepsVideos {
+            await addKept(video: url)
+            return
+        }
         let room = min(ComposerVideo.stills, Self.limit - images.count)
         let stills = await ComposerVideo.stills(of: url, count: room)
         guard !stills.isEmpty else {
@@ -68,6 +77,23 @@ public final class ComposerAttachments {
         }
         for still in stills {
             await add(still)
+        }
+    }
+
+    private func addKept(video url: URL) async {
+        guard let duration = await ComposerVideo.duration(of: url),
+              let poster = await ComposerVideo.stills(of: url, count: 1).first,
+              let encoded = await Task.detached(priority: .userInitiated, operation: {
+                  ComposerImageEncoder.encode(poster)
+              }).value
+        else {
+            problem = "That video couldn't be read."
+            return
+        }
+        problem = nil
+        if !isFull {
+            images.append(ComposerImage(jpeg: encoded.jpeg, preview: encoded.preview,
+                                        video: ChatVideoClip(url: url, duration: duration)))
         }
     }
 
@@ -132,6 +158,14 @@ public enum ComposerImageEncoder {
 /// Stills from a video, evenly across it, each a JPEG that `ComposerImageEncoder` then makes small enough to send.
 public enum ComposerVideo {
     public static let stills = 4
+
+    /// How long a video runs; nil if it can't be read.
+    public static func duration(of url: URL) async -> Duration? {
+        guard let time = try? await AVURLAsset(url: url).load(.duration), time.seconds > 0 else {
+            return nil
+        }
+        return .milliseconds(Int64(time.seconds * 1000))
+    }
 
     /// `count` stills, from the middle of each of `count` equal stretches, upright; none if it can't be read.
     public static func stills(of url: URL, count: Int) async -> [Data] {
@@ -234,6 +268,9 @@ struct ComposerAttachmentTray: View {
             .resizable()
             .scaledToFill()
             .frame(width: ChatStyle.attachmentSize, height: ChatStyle.attachmentSize)
+            .overlay(alignment: .bottomLeading) {
+                if let video = image.video { ChatVideoBadge(duration: video.duration) }
+            }
             .clipShape(.rect(cornerRadius: ChatRadius.md, style: .continuous))
             // A light screenshot on the page's grey needs its edge drawn.
             .overlay(RoundedRectangle(cornerRadius: ChatRadius.md, style: .continuous).strokeBorder(theme.line))
@@ -273,12 +310,18 @@ struct ComposerImageViewer: View {
         ZStack(alignment: .topTrailing) {
             // design-lint: allow a picture viewer's black, as Photos draws one
             Color.black.ignoresSafeArea()
-            Image(decorative: image.preview, scale: 1)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityLabel("Screenshot")
-                .accessibilityIdentifier("composerAttachmentViewer")
+            Group {
+                if let video = image.video {
+                    ChatVideoPlayer(clip: video)
+                } else {
+                    Image(decorative: image.preview, scale: 1)
+                        .resizable()
+                        .scaledToFit()
+                        .accessibilityLabel("Screenshot")
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("composerAttachmentViewer")
             Button("Close", systemImage: theme.symbols.close, action: close)
                 .labelStyle(.iconOnly)
                 .buttonStyle(.glass)
