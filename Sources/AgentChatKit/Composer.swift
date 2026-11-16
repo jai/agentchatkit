@@ -98,7 +98,7 @@ public struct SessionComposer: View {
         }
         .chatBarWidth()
         #if os(macOS)
-        .modifier(OptionalCommandV(attachments: attachments, isActive: focused.wrappedValue))
+        .modifier(OptionalCommandV(attachments: attachments))
         #endif
     }
 
@@ -154,11 +154,10 @@ public struct SessionComposer: View {
 #if os(macOS)
 private struct OptionalCommandV: ViewModifier {
     let attachments: ComposerAttachments?
-    let isActive: Bool
 
     func body(content: Content) -> some View {
         if let attachments {
-            content.modifier(CommandVPictures(attachments: attachments, isActive: isActive))
+            content.modifier(CommandVPictures(attachments: attachments))
         } else {
             content
         }

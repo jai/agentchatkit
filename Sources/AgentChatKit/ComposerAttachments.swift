@@ -463,16 +463,18 @@ enum ClipboardPicture {
 
 /// Command-V in the field: the field takes only words, so a screenshot on the clipboard is caught before it and
 /// attached. Words on the clipboard paste as always.
+/// Command-V with a picture on the clipboard attaches it while the text cursor is in this composer; with words, the
+/// field pastes them. It listens while the composer shows and asks where the window's text cursor is, rather than
+/// trusting the host's focus flag, which did not follow the Mac's field: ⌘V pasted words only (jai/agentchatkit#10).
 struct CommandVPictures: ViewModifier {
     let attachments: ComposerAttachments
-    let isActive: Bool
     @State private var monitor: Any?
+    @State private var place = ComposerPlace()
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: isActive, initial: true) { _, active in
-                active ? start() : stop()
-            }
+            .background(ComposerPlaceView(place: place))
+            .onAppear { start() }
             .onDisappear { stop() }
     }
 
@@ -480,9 +482,12 @@ struct CommandVPictures: ViewModifier {
         guard monitor == nil else {
             return
         }
+        let place = place
+        let attachments = attachments
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-                  event.charactersIgnoringModifiers == "v", let data = ClipboardPicture.take()
+                  event.charactersIgnoringModifiers == "v", place.holdsTextCursor(of: event.window),
+                  let data = ClipboardPicture.take()
             else {
                 return event
             }
@@ -496,6 +501,33 @@ struct CommandVPictures: ViewModifier {
             NSEvent.removeMonitor(monitor)
         }
         monitor = nil
+    }
+}
+
+/// Where the composer is in its window, to tell whether the window's text cursor is in it.
+@MainActor
+final class ComposerPlace {
+    weak var view: NSView?
+
+    func holdsTextCursor(of window: NSWindow?) -> Bool {
+        guard let view, let window, view.window === window, let cursor = window.firstResponder as? NSText else {
+            return false
+        }
+        return cursor.convert(cursor.bounds, to: nil).intersects(view.convert(view.bounds, to: nil))
+    }
+}
+
+private struct ComposerPlaceView: NSViewRepresentable {
+    let place: ComposerPlace
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        place.view = view
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        place.view = view
     }
 }
 #endif
