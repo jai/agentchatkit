@@ -127,21 +127,45 @@ public struct QueuedReplyRow: View {
                 .chatTextStyle(.body)
                 .chatIdentifier(identifiers.text)
                 .lineLimit(1)
-            HStack(spacing: theme.spacing.xs) {
-                Text(error?.message ?? status)
-                    .chatTextStyle(.meta)
-                    .chatIdentifier(identifiers.status)
-                    .foregroundStyle(error != nil ? theme.toneBad : theme.inkQuiet)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                editAndRemove
-                sendNowButton
+            if typeSize.isAccessibilitySize {
+                // Beside three buttons the status was one letter ("Q…") at the largest sizes: it gets its own lines,
+                // the buttons theirs. Both stop growing at the first accessibility size, so the row still leaves room
+                // above the keyboard; a long press on an icon shows its name large (Large Content Viewer).
+                VStack(alignment: .trailing, spacing: theme.spacing.xs) {
+                    compactStatus
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: theme.spacing.xs) { compactButtons }
+                }
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            } else {
+                HStack(spacing: theme.spacing.xs) {
+                    compactStatus.lineLimit(1)
+                    Spacer(minLength: 0)
+                    compactButtons
+                }
             }
-            .labelStyle(.iconOnly)
-            .chatTextStyle(.control)
-            // Regular chrome round an icon: the large size's padding doubled the row; the frame keeps the touch target.
-            .controlSize(.regular)
         }
+    }
+
+    private var compactStatus: some View {
+        Text(error?.message ?? status)
+            .chatTextStyle(.meta)
+            .chatIdentifier(identifiers.status)
+            .foregroundStyle(error != nil ? theme.toneBad : theme.inkQuiet)
+    }
+
+    /// Edit, Remove and Send now as icons, each with its name for VoiceOver and the Large Content Viewer.
+    private var compactButtons: some View {
+        Group {
+            editAndRemove
+            sendNowButton
+        }
+        .labelStyle(.iconOnly)
+        .chatTextStyle(.control)
+        // Regular chrome round an icon: the large size's padding doubled the row; the frame keeps the touch target.
+        .controlSize(.regular)
+        .accessibilityShowsLargeContentViewer()
     }
 
     private var fullBody: some View {
