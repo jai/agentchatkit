@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/jai/agentchatkit/compare/v0.8.0...v0.8.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* at the accessibility text sizes a compact queued reply puts its status and its buttons each on their own line, both capped at the first accessibility size, so the status reads in full and the icons stay small ([8ba5a1a](https://github.com/jai/agentchatkit/commit/8ba5a1a5791069109076de1d4b7487a1d37fafc2))
+
 ## [0.8.0](https://github.com/jai/agentchatkit/compare/v0.7.1...v0.8.0) (2026-11-16)
 
 
