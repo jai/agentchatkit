@@ -43,7 +43,8 @@ public struct SentScreenshotStrip: View {
                     thumbnail(picture)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Screenshot \(picture.index + 1) of \(total)")
+                .accessibilityLabel(picture.video.map { "\($0.spokenLabel), \(picture.index + 1) of \(total)" }
+                    ?? "Screenshot \(picture.index + 1) of \(total)")
                 .chatIdentifier(identifiers.thumbnail(key, picture.index))
             }
         }

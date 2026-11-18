@@ -11,6 +11,9 @@ public struct ChatVideoClip: Equatable, Sendable {
         self.duration = duration
     }
 
+    /// What VoiceOver reads for a video's thumbnail: "Video, 0:07".
+    var spokenLabel: String { "Video, \(Self.durationText(duration))" }
+
     /// "0:07", "1:05", "1:02:03": how a video's length reads on its thumbnail.
     public static func durationText(_ duration: Duration) -> String {
         let total = max(0, Int(duration.components.seconds))
@@ -45,10 +48,11 @@ struct ChatVideoBadge: View {
     }
 }
 
-/// A video played in the viewer.
+/// A video played in the viewer. Its accessibility value says whether it is playing.
 struct ChatVideoPlayer: View {
     let clip: ChatVideoClip
     @State private var player: AVPlayer?
+    @State private var isPlaying = false
 
     var body: some View {
         VideoPlayer(player: player)
@@ -58,6 +62,15 @@ struct ChatVideoPlayer: View {
                 player.play()
             }
             .onDisappear { player?.pause() }
-            .accessibilityLabel("Video, \(ChatVideoClip.durationText(clip.duration))")
+            .task(id: player.map(ObjectIdentifier.init)) {
+                // Read a few times a second while the viewer is open: what VoiceOver and the UI tests see.
+                guard let player else { return }
+                while !Task.isCancelled {
+                    isPlaying = player.timeControlStatus == .playing
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
+            }
+            .accessibilityLabel(clip.spokenLabel)
+            .accessibilityValue(isPlaying ? "Playing" : "Paused")
     }
 }

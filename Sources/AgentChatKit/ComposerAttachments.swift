@@ -291,11 +291,11 @@ struct ComposerAttachmentTray: View {
                 }
                 .buttonStyle(.plain)
                 .offset(x: ChatSpace.xs, y: -ChatSpace.xs)
-                .accessibilityLabel("Remove screenshot")
+                .accessibilityLabel(image.video == nil ? "Remove screenshot" : "Remove video")
                 .accessibilityIdentifier("composerAttachmentRemove")
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Screenshot")
+            .accessibilityLabel(image.video?.spokenLabel ?? "Screenshot")
             .accessibilityIdentifier("composerAttachment")
     }
 }

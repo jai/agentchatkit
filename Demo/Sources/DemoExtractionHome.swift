@@ -10,6 +10,7 @@ struct DemoExtractionHome: View {
             NavigationLink("Delivery status") { DemoDeliveryScreen() }
             NavigationLink("Question") { DemoQuestionScreen() }
             NavigationLink("Sent screenshots") { DemoScreenshotsScreen() }
+            NavigationLink("Videos") { DemoVideoScreen() }
         }
         .navigationTitle("Shared pieces")
     }
