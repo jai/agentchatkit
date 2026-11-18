@@ -329,6 +329,10 @@ struct ComposerImageViewer: View {
                 .padding(ChatSpace.lg)
                 .accessibilityIdentifier("composerAttachmentViewerClose")
         }
+        #if os(macOS)
+        // A video player has no size of its own: without this the Mac's sheet was only as tall as its Close button.
+        .frame(minWidth: ChatStyle.screenshotViewerMinWidth, minHeight: ChatStyle.screenshotViewerMinHeight)
+        #endif
         .gesture(DragGesture().onEnded { drag in
             if drag.translation.height > ChatStyle.viewerDismissDrag {
                 close()
