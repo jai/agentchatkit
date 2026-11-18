@@ -3,6 +3,7 @@ import SwiftUI
 /// Context and its right-hand status, marked object title, About body, then host chips.
 public struct ChatThreadRow<Accessory: View, Chips: View>: View {
     @Environment(\.chatTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
     public var title: String
     public var context: String?
     public var about: String?
@@ -51,7 +52,7 @@ public struct ChatThreadRow<Accessory: View, Chips: View>: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .chatIdentifier(identifiers.context)
-                    status
+                    if !statusOnOwnLine { status }
                 }
                 .padding(.leading, pastGutter)
             }
@@ -67,9 +68,14 @@ public struct ChatThreadRow<Accessory: View, Chips: View>: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .chatIdentifier(identifiers.title)
-                if context == nil || context?.isEmpty == true { status }
+                if !hasContext, !statusOnOwnLine { status }
             }
             .chatTextStyle(.objectTitle)
+            if statusOnOwnLine {
+                status
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, pastGutter)
+            }
             if let about {
                 Text("About: \(about)")
                     .chatTextStyle(.body)
@@ -85,6 +91,12 @@ public struct ChatThreadRow<Accessory: View, Chips: View>: View {
         .accessibilityElement(children: .contain)
         .chatIdentifier(identifiers.row)
     }
+
+    private var hasContext: Bool { context?.isEmpty == false }
+
+    /// At the accessibility text sizes the status takes a line of its own under the title: beside it, its words were
+    /// cut ("Running a…") and the title had a third of the row (Jai, Agent Pager build 565).
+    private var statusOnOwnLine: Bool { typeSize.isAccessibilitySize }
 
     /// A line under the title starts where the title does: past the gutter and the space after it.
     private var pastGutter: CGFloat { gutter.map { $0 + theme.spacing.sm } ?? 0 }

@@ -88,7 +88,8 @@ Existing `DeliveryTicksLine` and `WaitWhatButton` keep their caption2 and semibo
 
 `ChatThreadRow` orders context (`meta`), object title, `About:` body text, then chips. Its optional `titleMark`
 ViewBuilder sits immediately before the title. Status sits at the right of the context's **first baseline**, or the
-title's first baseline when context is nil/empty. Text wraps at Dynamic Type sizes rather than being truncated.
+title's first baseline when context is nil/empty; at the accessibility text sizes it takes its own line under the
+title. Text wraps at Dynamic Type sizes rather than being truncated.
 The original two-slot initializer remains available; add the third slot when adopting a mark:
 
 ```swift
