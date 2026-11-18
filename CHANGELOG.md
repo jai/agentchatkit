@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.21.0](https://github.com/jai/agentchatkit/compare/v0.20.0...v0.21.0) (2026-11-18)
+
+
+### Features
+
+* a video can stay a video, its poster with a play badge and length in the composer and sent strip, played in the viewer; ComposerAttachments.keepsVideos and SentScreenshotStrip(loadMedia:) opt in ([#4](https://github.com/jai/agentchatkit/issues/4)) ([69d1dea](https://github.com/jai/agentchatkit/commit/69d1deaecb8cc215b940ee0c08c1bd81d8426638))
+* ChatAgentStateLine for a thread row's agent state, ChatThreadList.emptyText for no rows, and ChatLoadEarlier for a chat's header ([#25](https://github.com/jai/agentchatkit/issues/25)) ([ba518f5](https://github.com/jai/agentchatkit/commit/ba518f55bbf16c0face4c0f4ff16641ca5df4061))
+* chatMessageContent lets a host draw the messages it claims inside the kit's bubble (a link card, a meal card); the rest stay Markdown ([#11](https://github.com/jai/agentchatkit/issues/11)) ([49412d3](https://github.com/jai/agentchatkit/commit/49412d373d91da3d26eb6f6947908bcf4469cd74))
+* chatMessageContent takes a claimed message's Copy text and VoiceOver label and can leave out the bubble's menu; ChatWorkingLine adds no second ellipsis ([#20](https://github.com/jai/agentchatkit/issues/20)) ([2c14a03](https://github.com/jai/agentchatkit/commit/2c14a0312d673f45c5eb39214265346f5853666c))
+* ChatStatusLine, a status line around a chat (a problem with Retry, an agent offline, a composer notice or context chip), and ChatCostLine ([#24](https://github.com/jai/agentchatkit/issues/24)) ([7057915](https://github.com/jai/agentchatkit/commit/7057915d3e1d250c8a52b3fd49db36226a1b380d))
+* ChatTheme.controls sets the action buttons' style and the Reply button's words, and symbols.reply its symbol, for a host's own design ([#18](https://github.com/jai/agentchatkit/issues/18)) ([a8f0889](https://github.com/jai/agentchatkit/commit/a8f0889949f8101a6be70bbd5ece8c2120018ef2))
+* ChatThreadList.grouped folds titled groups of rows, ChatThreadRow.markGutter hangs the title mark in a column, ChatThreadActions.leadingSwipe adds host swipe buttons, and ChatReplyPreview shows the last reply ([#25](https://github.com/jai/agentchatkit/issues/25)) ([161eca9](https://github.com/jai/agentchatkit/commit/161eca97919eb194827755c12f1cd8fd1e948271))
+* ChatWorkingLine, the agent at work under a chat's messages (a spinner and its activity, identifier chat-working), out of the demo into the kit ([#13](https://github.com/jai/agentchatkit/issues/13)) ([e3b531e](https://github.com/jai/agentchatkit/commit/e3b531efae49249dfadc4f88c99ccf4c1e62af4f))
+* each ChatView message is one accessibility element, chat-message-you-/agent-/tool- and its id, for a host's UI tests ([#12](https://github.com/jai/agentchatkit/issues/12)) ([08c9292](https://github.com/jai/agentchatkit/commit/08c9292951e37be7d468211d0acc92aa35d05a18))
+* **live:** LiveChatModel.send(_:videos:) puts each video where the host's upload ticket says, retrying a failed attempt, and names it in the message as a resource_link with its length ([#4](https://github.com/jai/agentchatkit/issues/4)) ([92fb157](https://github.com/jai/agentchatkit/commit/92fb157b68ee83e83f3e07dc26dfedb79b326e48))
+* **live:** LiveScreenshotStrip.loadsVideos shows a video attachment by its poster and length and plays it; without it a video keeps an empty slot as before ([#4](https://github.com/jai/agentchatkit/issues/4)) ([4c6b192](https://github.com/jai/agentchatkit/commit/4c6b19268f07f7f5958931775f89d81f77f656c3))
+* ReplyQueueController.offersSendNow follows a thread whose reply modes change while open ([#16](https://github.com/jai/agentchatkit/issues/16)), and onEdit hands an edited reply's words to a host's own draft ([#17](https://github.com/jai/agentchatkit/issues/17)) ([53094ac](https://github.com/jai/agentchatkit/commit/53094acdc6fd4e1b9e7d1c1104bc769f1d4d9549))
+* scrolled up a chat, a round arrow button over the field goes back to its newest words in one tap ([e3fd3a8](https://github.com/jai/agentchatkit/commit/e3fd3a8db38c7b12f2adfb46d974762de3562042))
+* **server:** _agentchatkit/upload makes room for a file too large for the prompt (a video): the host's ticket says where to PUT it and the uri its resource_link names; refused 413/415 with a reason ([#4](https://github.com/jai/agentchatkit/issues/4)) ([8ea4e64](https://github.com/jai/agentchatkit/commit/8ea4e648be0c859a82c55d74b3c362f9d7e9391a))
+* Summarize on a long agent reply writes a short summary under its bubble with Apple Intelligence on the device; on by default, a host turns it off with chatSummaries(.off) ([#2](https://github.com/jai/agentchatkit/issues/2)) ([b774162](https://github.com/jai/agentchatkit/commit/b7741629e8c8a427ea93cf8a6873245cd256a0f8))
+* ThreadQuestion takes a context role, colour and line limit, a question line limit that leaves the answers alone, and a container identifier ([#15](https://github.com/jai/agentchatkit/issues/15)) ([3afb5ca](https://github.com/jai/agentchatkit/commit/3afb5cac132d73b7523e8daba3d435e8230deb15))
+* ThreadQueuedReplies.compact() puts each reply on one line with icon buttons, and maxHeight(_:) scrolls the replies past a limit, for a phone ([#19](https://github.com/jai/agentchatkit/issues/19)) ([6d9d82c](https://github.com/jai/agentchatkit/commit/6d9d82cd758ad82e3854ac14adc8d2c69ef31cd2))
+
+
+### Bug Fixes
+
+* a sent screenshot strip keeps its row while its pictures load, so a chat read at its end does not grow past it and leave the thumbnails under the reply bar; the chat's end marker includes its bottom margin ([#7](https://github.com/jai/agentchatkit/issues/7)) ([d920c96](https://github.com/jai/agentchatkit/commit/d920c9685964d34bbeb424b503aad9424aeaf9fb))
+* a sent screenshot's thumbnail is a fixed square whose accessibility frame is where it is drawn, and the strip scrolls only when its thumbnails do not fit ([#6](https://github.com/jai/agentchatkit/issues/6)) ([0a9a08d](https://github.com/jai/agentchatkit/commit/0a9a08d72ba442e5b8357e7cdadb51bfe9ec2e74))
+* at the accessibility text sizes a compact queued reply puts its status and its buttons each on their own line, both capped at the first accessibility size, so the status reads in full and the icons stay small ([8ba5a1a](https://github.com/jai/agentchatkit/commit/8ba5a1a5791069109076de1d4b7487a1d37fafc2))
+* **live:** LiveChatModel pauses with Task.sleep directly; awaiting its stored pause closure from a main-actor task crashed the macOS 26.5 runtime (SIGBUS), and CI runs the live suites again ([#3](https://github.com/jai/agentchatkit/issues/3)) ([ad6ac23](https://github.com/jai/agentchatkit/commit/ad6ac23155654379dc7a76e6e289aa68c404ba61))
+* **mac:** a right click on a bubble's words is the bubble's menu, Copy, Summarize and Select Text; the words select after Select Text ([#21](https://github.com/jai/agentchatkit/issues/21)) ([c1f4a8b](https://github.com/jai/agentchatkit/commit/c1f4a8bd0967cff794ad7a38bf9ed8060221e6f7))
+* **mac:** Command-V attaches a picture while the window's text cursor is in the composer, not only while the host's focus flag says so ([#10](https://github.com/jai/agentchatkit/issues/10)) ([ae22a03](https://github.com/jai/agentchatkit/commit/ae22a03069f1b8b638dafb94545ca44949951a77))
+* **mac:** the composer's attachment viewer opens at the sent viewer's minimum size, so a video plays in it; its sheet was as tall as its Close button, since a video player has no size of its own ([#4](https://github.com/jai/agentchatkit/issues/4)) ([e7bc7e0](https://github.com/jai/agentchatkit/commit/e7bc7e03abe2fc3733b592432931dc1d87771972))
+* **row:** at the accessibility text sizes a thread row's status takes its own line under the title, so its words are never cut ("Running a…") (Jai, Agent Pager build 565) ([#30](https://github.com/jai/agentchatkit/issues/30)) ([e96e066](https://github.com/jai/agentchatkit/commit/e96e0666a30e1dc894d2dbbefb65e03882e57453))
+
 ## [0.20.0](https://github.com/jai/agentchatkit/compare/v0.19.0...v0.20.0) (2026-11-18)
 
 
