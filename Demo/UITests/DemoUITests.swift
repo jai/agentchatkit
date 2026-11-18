@@ -86,6 +86,20 @@ final class DemoUITests: XCTestCase {
         let newest = element(containing: "Checked Wait, what?")
         waitFor(newest, "the newest message")
         XCTAssertTrue(newest.isHittable, "The long chat did not open at its end")
+        XCTAssertFalse(app.buttons["chat-scroll-to-end"].exists, "Scroll to the newest shown at the end")
+
+        // Scrolled up it, one tap goes back to the newest words, and the button goes.
+        let chat = app.scrollViews.firstMatch
+        for _ in 0 ..< 3 {
+            chat.swipeDown()
+        }
+        let toEnd = app.buttons["chat-scroll-to-end"]
+        waitFor(toEnd, "Scroll to the newest, scrolled up")
+        XCTAssertFalse(newest.isHittable, "The chat did not scroll up")
+        toEnd.tap()
+        let reached = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: newest)
+        XCTAssertEqual(XCTWaiter().wait(for: [reached], timeout: 5), .completed, "Scroll to the newest did not reach the end")
+        XCTAssertTrue(toEnd.waitForNonExistence(timeout: 5), "Scroll to the newest stayed at the end")
 
         // A long answer streams in, and the page follows it to its last part.
         send("Write something long about scrolling")

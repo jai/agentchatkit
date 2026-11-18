@@ -67,6 +67,8 @@ public struct ChatTheme: Sendable {
         public var edit = "pencil"
         /// A question's Reply button.
         public var reply = "square.and.pencil"
+        /// Back to a chat's newest words, from higher up it (`ChatView`).
+        public var scrollToEnd = "arrow.down"
 
         public init() {}
     }

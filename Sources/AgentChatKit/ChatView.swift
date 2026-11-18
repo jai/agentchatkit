@@ -127,6 +127,18 @@ public struct ChatView<Extras: View, Header: View, Footer: View, Composer: View>
             }
             .followsChatEnd(proxy, endID: Self.end, readsEnd: $readsEnd, isLoadingEarlier: isLoadingEarlier, sent: sent)
             .dismissesKeyboard(focus)
+            // Scrolled up a long chat, one tap goes back to its newest words, over the field (Jai, 2026-11-18).
+            .overlay(alignment: .bottomTrailing) {
+                if !readsEnd {
+                    ChatScrollToEndButton {
+                        readsEnd = true
+                        withAnimation(ChatMotion.fold) { proxy.scrollTo(Self.end, anchor: .bottom) }
+                    }
+                    .padding(ChatSpace.lg)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .animation(ChatMotion.fold, value: readsEnd)
             .onAppear { proxy.scrollTo(Self.end, anchor: .bottom) }
         }
         .safeAreaBar(edge: .bottom) { composer() }
@@ -165,6 +177,28 @@ public struct ChatView<Extras: View, Header: View, Footer: View, Composer: View>
                     .equatable()
             }
         }
+    }
+}
+
+/// Back to the chat's newest words: shown while the reader is scrolled up it (`readsEnd` is false), at the chat's
+/// bottom trailing corner over the field, in the system's glass.
+struct ChatScrollToEndButton: View {
+    @Environment(\.chatTheme) private var theme
+    let action: () -> Void
+
+    static let label = "Scroll to the newest"
+    static let identifier = "chat-scroll-to-end"
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: theme.symbols.scrollToEnd)
+                .chatTextStyle(.control)
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .controlSize(theme.controlSize)
+        .accessibilityLabel(Self.label)
+        .accessibilityIdentifier(Self.identifier)
     }
 }
 
