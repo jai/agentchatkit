@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/jai/agentchatkit/compare/v0.9.0...v0.9.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **row:** at the accessibility text sizes a thread row's status takes its own line under the title, so its words are never cut ("Running a…") (Jai, Agent Pager build 565) ([#30](https://github.com/jai/agentchatkit/issues/30)) ([e96e066](https://github.com/jai/agentchatkit/commit/e96e0666a30e1dc894d2dbbefb65e03882e57453))
+
 ## [0.9.0](https://github.com/jai/agentchatkit/compare/v0.8.1...v0.9.0) (2026-11-18)
 
 
