@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/jai/agentchatkit/compare/v0.8.1...v0.9.0) (2026-11-18)
+
+
+### Features
+
+* scrolled up a chat, a round arrow button over the field goes back to its newest words in one tap ([e3fd3a8](https://github.com/jai/agentchatkit/commit/e3fd3a8db38c7b12f2adfb46d974762de3562042))
+
 ## [0.8.1](https://github.com/jai/agentchatkit/compare/v0.8.0...v0.8.1) (2026-11-17)
 
 
