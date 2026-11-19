@@ -6,8 +6,15 @@ import XCTest
 final class VideoUITests: FixtureUITestCase {
     /// The sample video plays for ten seconds.
     private var playingVideo: XCUIElement {
+        #if os(macOS)
+        // AVKit exposes playback through its native checkbox; a Mac accessibility group has no value.
+        app.checkBoxes.matching(NSPredicate(
+            format: "label == 'play/pause' AND (value == 1 OR value == '1')"
+        )).firstMatch
+        #else
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == 'Video, 0:10' AND value == 'Playing'")).firstMatch
+        #endif
     }
 
     func testAVideoIsAttachedSentOpenedAndPlayed() {
