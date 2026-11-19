@@ -43,9 +43,19 @@ PLATFORM ?= ios
 SIMULATOR ?=
 UI_SCHEME = $(if $(filter mac,$(PLATFORM)),AgentChatDemo-macOS,AgentChatDemo-iOS)
 UI_PLAN = $(if $(filter mac,$(PLATFORM)),SDK-macOS,SDK-iOS)
-UI_DESTINATION = $(if $(filter mac,$(PLATFORM)),platform=macOS,id=$(SIMULATOR))
+ifeq ($(PLATFORM),mac)
+UI_DESTINATION = platform=macOS
+else
+UI_DESTINATION = platform=iOS Simulator,id=$(SIMULATOR)
+endif
 test-ui-sdk:
-	xcodebuild test -project Demo/AgentChatDemo.xcodeproj -scheme $(UI_SCHEME) -testPlan $(UI_PLAN) 		-destination '$(UI_DESTINATION)' -derivedDataPath Demo/build/DerivedData 		-resultBundlePath Demo/build/ui-$(PLATFORM).xcresult -parallel-testing-enabled NO 		-retry-tests-on-failure -test-iterations 2 -jobs $(JOBS)
+ifeq ($(PLATFORM),mac)
+	swift test -j $(JOBS) --filter AgentChatRenderingTests
+endif
+	xcodebuild test -project Demo/AgentChatDemo.xcodeproj -scheme $(UI_SCHEME) -testPlan $(UI_PLAN) \
+		-destination '$(UI_DESTINATION)' -derivedDataPath Demo/build/DerivedData \
+		-resultBundlePath Demo/build/ui-$(PLATFORM).xcresult -parallel-testing-enabled NO \
+		-retry-tests-on-failure -test-iterations 2 -jobs $(JOBS)
 
 lint: lint-sdk lint-workflows
 all-tests: test-unit-sdk test-integration-sdk test-ui-sdk

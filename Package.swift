@@ -31,6 +31,7 @@ let package = Package(
         .testTarget(name: "AgentChatKitTests", dependencies: ["AgentChatKit"], path: "Tests/AgentChatKitTests/Unit"),
         .testTarget(name: "AgentChatKitIntegrationTests", dependencies: ["AgentChatKit"],
                     path: "Tests/AgentChatKitTests/Integration"),
+        .testTarget(name: "AgentChatRenderingTests", dependencies: ["AgentChatKit"]),
         .testTarget(name: "AgentChatLiveUnitTests", dependencies: ["AgentChatLive"]),
         .testTarget(name: "AgentChatLiveIntegrationTests", dependencies: [
             "AgentChatLive", "AgentChatLiveTesting",

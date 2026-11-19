@@ -89,6 +89,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AgentChat Demo.app/AgentChat Demo"
         BUNDLE_LOADER: "$(TEST_HOST)"
+  AgentChatRenderingTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [../Tests/AgentChatRenderingTests]
+    dependencies:
+      - target: AgentChatDemo_iOS
+      - package: AgentChatKit
+        product: AgentChatKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.govindani.agentchatdemo.renderingtests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AgentChat Demo.app/AgentChat Demo"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 schemes:
   AgentChatDemo-iOS:
     build:

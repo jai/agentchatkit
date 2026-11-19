@@ -295,7 +295,7 @@ The sidebar's **Shared pieces** (or `-DemoChat extraction`) opens independent fi
 queue, delivery status, question and sent screenshots. They show host callback counts, deliberate failures,
 pending/disabled controls and repeated queue snapshots without changing the scripted tour. `ExtractionUITests`
 drives Archive/Delete and confirmation cancellation, queue Edit/Remove/Send now, Retry/Cancel, all question callbacks,
-adaptive answer stacking and screenshot viewer Close/swipe-down. Package unit tests cover queue failure/success,
+adaptive answer stacking and screenshot viewer Close/swipe-down. Package tests cover queue failure/success,
 ordering and concurrent/send-once behavior, delivery tick mapping, and image decode/order/orientation.
 
 `AdoptionUITests` runs on both platforms and captures each piece plus the viewer in light, dark and large text.
@@ -312,7 +312,11 @@ step; the parent owns the permitted CI run and rendered-image review.
 Never breaking (Jai, 2026-11-16): apps take every release, so the public API only grows. Add, never remove a public
 declaration or change its signature; to replace one, add the new one and mark the old `@available(*, deprecated)`. A
 deliberate break needs Jai's OK first and a major version. `swift package diagnose-api-breaking-changes <latest release
-tag>` must find no break; CI's `api` job checks it and a release waits for CI.
+tag>` must find no break; `make lint-sdk` checks it and release waits for that gate.
+
+`Tests/AgentChatRenderingTests` contains window/cursor and hosted-layout checks: the three Mac cases run with the
+SwiftPM rendering target in `make test-ui-sdk PLATFORM=mac`; the iOS width case runs in the SDK-iOS test plan.
+Key-command and image/codec integrations keep their separate SDK-integration-iOS plan.
 
 The demo is this repo's UI-test host: `AgentChatDemo-iOS`'s tests (`Demo/UITests`) walk the main flows on an iPhone, and
 `testReadmeScreenshots` takes the pictures above (they are kept on its test result).

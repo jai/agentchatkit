@@ -107,11 +107,12 @@ The cleanup standard was approved for this repository on 2026-11-19. CI changes 
 
 ## Test boundaries
 
-- `AgentChatKitTests` and `AgentChatLiveUnitTests` contain controlled logic. Codec/filesystem/window integration lives in `AgentChatKitIntegrationTests`; live host and contract-file checks live in `AgentChatLiveIntegrationTests`.
+- `AgentChatKitTests` and `AgentChatLiveUnitTests` contain controlled logic. Codec/filesystem and platform-service integration lives in `AgentChatKitIntegrationTests`; live host and contract-file checks live in `AgentChatLiveIntegrationTests`.
 - Server `test/unit` contains isolated parsers, connection tokens and in-memory state. Undici disables network connections there; oxlint bans filesystem, process and networking imports. Node 26’s native randomized test order runs in CI and pre-push. Server connection/stream orchestration and fixture-file comparisons live in `test/integration`.
-- Platform rendering cases in the integration folder are compiled on the appropriate platform; iOS-specific checks require the iOS integration test bundle. They are not claimed as passing by a Mac-only run.
+- `Tests/AgentChatRenderingTests` owns window/cursor and hosted-layout checks. The three macOS `ComposerPlaceTests` run through the SwiftPM rendering target from `make test-ui-sdk PLATFORM=mac`. The iOS `ChatWidthTests` runs once in the complete `AgentChatRenderingTests` target in `SDK-iOS`.
+- UIKit key-command and image/codec integrations stay in the separate `SDK-integration-iOS` plan, run by the existing iOS integration job. The UI plan does not repeat that integration target.
 
-Native UI plans include complete XCTest targets, with Xcode’s standard retry-on-failure and two iterations. They drive demo screens against controlled data/local hosts. These are UI/component integration checks, not deployed-system E2E checks. This repository does not add deployed E2E tests during cleanup.
+Native UI plans include complete test targets, with Xcode’s standard retry-on-failure and two iterations. They drive demo screens against controlled data/local hosts. These are UI/component integration checks, not deployed-system E2E checks. This repository does not add deployed E2E tests during cleanup.
 
 ## Setup, checks and cleanup
 
@@ -127,5 +128,5 @@ Jobs clean their own `.build`, generated Xcode projects, derived data, Node depe
 - `make lint-workflows`: actionlint.
 - `make test-unit-sdk`: isolated Swift and randomized Node tests.
 - `make test-integration-sdk`: local storage/service and fixture tests; prepare the local chat host where applicable.
-- `make test-ui-sdk PLATFORM=ios SIMULATOR=<owned-id>` or `PLATFORM=mac`: native UI plan against prepared local services.
+- `make test-ui-sdk PLATFORM=ios SIMULATOR=<owned-id>` or `PLATFORM=mac`: the platform rendering cases and native UI plan against prepared local services.
 - `make lint` and `make all-tests`: all corresponding named targets; UI setup remains explicit.
