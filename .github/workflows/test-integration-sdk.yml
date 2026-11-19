@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   check:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 20
     env:
       AGENTCHAT_DEV_HOST: http://127.0.0.1:8789
@@ -46,7 +46,7 @@ jobs:
         if: always()
         run: rm -rf -- .build .venv Demo/build Demo/*.xcodeproj server/node_modules server/dist
   ios:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
