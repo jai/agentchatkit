@@ -17,6 +17,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: jdx/mise-action@v5
+        with:
+          cache: false
       - name: Install server dependencies
         run: npm ci --prefix server --no-audit --no-fund
       - name: Generate the demo project
