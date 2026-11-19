@@ -1,0 +1,73 @@
+name: test-integration-sdk
+on:
+  push:
+    branches: [main]
+    paths: ["Sources/**", "Tests/**", "Demo/**", "Package.swift", "Package.resolved", "Makefile", ".swiftlint.yml", ".swiftformat", "mise.toml", "cliff.toml", ".github/workflows/**", "server/**", "protocol/**"]
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: [self-hosted, zoomies, mac]
+    timeout-minutes: 20
+    env:
+      AGENTCHAT_DEV_HOST: http://127.0.0.1:8789
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v5
+      - name: Install server dependencies
+        run: npm ci --prefix server --no-audit --no-fund
+      - name: Start the local chat host
+        run: |
+          node server/dev/host.ts --port 8789 > "$RUNNER_TEMP/chat-host.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/chat-host.pid"
+          for _ in {1..30}; do
+            kill -0 "$(cat "$RUNNER_TEMP/chat-host.pid")"
+            if grep -q "^ready " "$RUNNER_TEMP/chat-host.log"; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/chat-host.log"
+          exit 1
+      - name: Run test-integration checks
+        run: make test-integration-sdk
+      - name: Stop the local chat host
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/chat-host.pid" ]; then kill "$(cat "$RUNNER_TEMP/chat-host.pid")" 2>/dev/null || true; fi
+      - name: Remove disposable products
+        if: always()
+        run: rm -rf -- .build .venv Demo/build Demo/*.xcodeproj server/node_modules server/dist
+  ios:
+    runs-on: [self-hosted, zoomies, mac]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v5
+      - name: Prepare the project and owned simulator
+        run: |
+          mise exec xcodegen@2.46.0 -- xcodegen generate --spec Demo/project.yml --quiet
+          runtime=$(xcrun simctl list runtimes -j | jq -r '[.runtimes[] | select(.isAvailable and (.name | startswith("iOS")))] | last | .identifier')
+          simulator=$(xcrun simctl create "chat-integration-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" 'iPhone 17' "$runtime")
+          echo "SIMULATOR=$simulator" >> "$GITHUB_ENV"
+          xcrun simctl boot "$simulator"
+          xcrun simctl bootstatus "$simulator" -b
+      - name: Run UIKit and media integration checks
+        run: xcodebuild test -project Demo/AgentChatDemo.xcodeproj -scheme AgentChatDemo-integration-iOS -testPlan SDK-integration-iOS -destination "id=$SIMULATOR" -derivedDataPath Demo/build/Integration -resultBundlePath Demo/build/integration.xcresult -jobs 4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdk-ios-integration
+          path: Demo/build/integration.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Delete the owned simulator and generated products
+        if: always()
+        run: |
+          if [ -n "${SIMULATOR:-}" ]; then
+            xcrun simctl shutdown "$SIMULATOR" || true
+            xcrun simctl delete "$SIMULATOR"
+          fi
+          rm -rf -- Demo/build Demo/*.xcodeproj .build

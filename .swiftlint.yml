@@ -57,3 +57,11 @@ disabled_rules:
   - multiple_closures_with_trailing_closure
   # String(decoding:as:) is meant: the dev host's output is read leniently, never dropped.
   - optional_data_string_conversion
+
+custom_rules:
+  unit_outside_resources:
+    included: "Tests/AgentChatKitTests/Unit/.*\\.swift|Tests/AgentChatLiveUnitTests/.*\\.swift"
+    name: Unit tests use controlled inputs
+    regex: '\b(FileManager|UserDefaults|URLSession|Process|ContinuousClock)\b|Task\.sleep|Thread\.sleep|DispatchQueue|Data\(contentsOf:'
+    message: Move storage, network, process, platform and elapsed-time checks to integration; inject dependencies for unit logic.
+    severity: error

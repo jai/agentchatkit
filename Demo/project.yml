@@ -75,16 +75,42 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.govindani.agentchatdemo.macuitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: AgentChatDemo_macOS
+  AgentChatDemoIntegrationTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [../Tests/AgentChatKitTests/Integration]
+    dependencies:
+      - target: AgentChatDemo_iOS
+      - package: AgentChatKit
+        product: AgentChatKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.govindani.agentchatdemo.integrationtests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AgentChat Demo.app/AgentChat Demo"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 schemes:
   AgentChatDemo-iOS:
     build:
       targets:
         AgentChatDemo_iOS: all
     test:
-      targets: [AgentChatDemoUITests]
+      testPlans:
+        - path: SDK-iOS.xctestplan
+          defaultPlan: true
   AgentChatDemo-macOS:
     build:
       targets:
         AgentChatDemo_macOS: all
     test:
-      targets: [AgentChatDemoMacUITests]
+      testPlans:
+        - path: SDK-macOS.xctestplan
+          defaultPlan: true
+  AgentChatDemo-integration-iOS:
+    build:
+      targets:
+        AgentChatDemo_iOS: all
+    test:
+      testPlans:
+        - path: SDK-integration-iOS.xctestplan
+          defaultPlan: true

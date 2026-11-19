@@ -1,8 +1,8 @@
 // The conformance suite against the in-memory host, as a host runs it in its own CI; and again as a host that never
 // queues and takes no questions (FeedbackKit's shape), so the capability skips are exercised too.
 import { describe, test } from "node:test";
-import { type ConformanceHarness, conformanceCases, type HostCapabilities } from "../src/conformance.ts";
-import { MemorySessions, type MemoryWho } from "../src/memory.ts";
+import { type ConformanceHarness, conformanceCases, type HostCapabilities } from "../../src/conformance.ts";
+import { MemorySessions, type MemoryWho } from "../../src/memory.ts";
 
 function harness(capabilities: HostCapabilities): ConformanceHarness<MemoryWho> {
   const sessions = new MemorySessions({ queues: capabilities.queues, names: { jai: "Jai" } });

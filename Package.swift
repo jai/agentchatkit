@@ -28,10 +28,13 @@ let package = Package(
         .target(name: "AgentChatLiveTesting", dependencies: [
             "AgentChatLive", .product(name: "DurableNetworking", package: "durable-networking"),
         ]),
-        .testTarget(name: "AgentChatKitTests", dependencies: ["AgentChatKit"]),
-        .testTarget(name: "AgentChatLiveTests", dependencies: [
+        .testTarget(name: "AgentChatKitTests", dependencies: ["AgentChatKit"], path: "Tests/AgentChatKitTests/Unit"),
+        .testTarget(name: "AgentChatKitIntegrationTests", dependencies: ["AgentChatKit"],
+                    path: "Tests/AgentChatKitTests/Integration"),
+        .testTarget(name: "AgentChatLiveUnitTests", dependencies: ["AgentChatLive"]),
+        .testTarget(name: "AgentChatLiveIntegrationTests", dependencies: [
             "AgentChatLive", "AgentChatLiveTesting",
             .product(name: "DurableNetworking", package: "durable-networking"),
-        ]),
+        ], path: "Tests/AgentChatLiveTests"),
     ]
 )

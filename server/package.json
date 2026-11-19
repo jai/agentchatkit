@@ -29,14 +29,18 @@
   "sideEffects": false,
   "scripts": {
     "fixtures": "node scripts/embed-fixtures.mjs",
-    "test": "node --test --test-timeout=20000 --test-force-exit test/*.test.ts",
+    "test": "npm run test:unit && npm run test:integration",
     "typecheck": "tsc -p tsconfig.build.json --noEmit && tsc -p tsconfig.json",
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R ../protocol/fixtures dist/fixtures"
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R ../protocol/fixtures dist/fixtures",
+    "test:unit": "node --import ./test/unit/no-network.mjs --test --test-randomize --test-timeout=20000 test/unit/*.test.ts",
+    "test:integration": "node --test --test-timeout=20000 test/integration/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
     "oxlint-tsgolint": "^7.0.2007",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "undici": "^8.12.4"
   }
 }

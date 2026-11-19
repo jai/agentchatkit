@@ -21,6 +21,25 @@
         "typescript/no-floating-promises": "off",
         "typescript/no-misused-spread": "off"
       }
+    },
+    {
+      "files": ["test/unit/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "node:fs",
+              "node:fs/*",
+              "node:child_process",
+              "node:net",
+              "node:http",
+              "node:https",
+              "cloudflare:*"
+            ]
+          }
+        ]
+      }
     }
   ]
 }

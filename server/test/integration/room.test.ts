@@ -2,11 +2,11 @@
 // messages kept until the stream opens, and timers that stop with the last stream.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { LiveAdapter, LiveRead } from "../src/adapter.ts";
-import { AcpTestClient, localRooms, ManualTimers } from "../src/conformance.ts";
-import { handleAcp } from "../src/handler.ts";
-import { MemorySessions, type MemoryWho } from "../src/memory.ts";
-import { LiveRoom, notifyChat } from "../src/room.ts";
+import type { LiveAdapter, LiveRead } from "../../src/adapter.ts";
+import { AcpTestClient, localRooms, ManualTimers } from "../../src/conformance.ts";
+import { handleAcp } from "../../src/handler.ts";
+import { MemorySessions, type MemoryWho } from "../../src/memory.ts";
+import { LiveRoom, notifyChat } from "../../src/room.ts";
 
 const text = (words: string) => [{ type: "text" as const, text: words }];
 const agent = (id: string, words: string) => ({

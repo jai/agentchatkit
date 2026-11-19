@@ -1,0 +1,65 @@
+name: test-ui-sdk
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  ui:
+    runs-on: [self-hosted, zoomies, mac-desktop]
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, mac]
+    env:
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+      PLATFORM: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v5
+      - name: Prepare the project, destination and local services
+        run: |
+          mise exec xcodegen@2.46.0 -- xcodegen generate --spec Demo/project.yml --quiet
+          mkdir -p "$RUNNER_TEMP/sdk-screens"
+          if [ "$PLATFORM" = ios ]; then
+            runtime=$(xcrun simctl list runtimes -j | jq -r '[.runtimes[] | select(.isAvailable and (.name | startswith("iOS")))] | last | .identifier')
+            simulator=$(xcrun simctl create "sdk-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" 'iPhone 17' "$runtime")
+            echo "SIMULATOR=$simulator" >> "$GITHUB_ENV"
+            xcrun simctl boot "$simulator"
+            xcrun simctl bootstatus "$simulator" -b
+          fi
+          node server/dev/host.ts --port 8788 > "$RUNNER_TEMP/sdk-host.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/sdk-host.pid"
+          for _ in {1..30}; do
+            kill -0 "$(cat "$RUNNER_TEMP/sdk-host.pid")"
+            if grep -q "^ready " "$RUNNER_TEMP/sdk-host.log"; then break; fi
+            sleep 1
+          done
+          grep -q "^ready " "$RUNNER_TEMP/sdk-host.log"
+      - name: Run native UI tests
+        env:
+          TEST_RUNNER_DEMO_SCREENSHOTS: ${{ runner.temp }}/sdk-screens
+          TEST_RUNNER_CHATDEMO_SCREENSHOTS: ${{ runner.temp }}/sdk-screens
+        run: make test-ui-sdk PLATFORM="$PLATFORM" SIMULATOR="${SIMULATOR:-}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdk-ui-${{ matrix.platform }}
+          path: |
+            Demo/build/*.xcresult
+            ${{ runner.temp }}/sdk-screens
+            ${{ runner.temp }}/sdk-*.log
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Release this job's services, simulator and build products
+        if: always()
+        run: |
+          for service in host relay link; do
+            file="$RUNNER_TEMP/sdk-$service.pid"
+            if [ -f "$file" ]; then kill "$(cat "$file")" 2>/dev/null || true; fi
+          done
+          if [ -n "${SIMULATOR:-}" ]; then
+            xcrun simctl shutdown "$SIMULATOR" || true
+            xcrun simctl delete "$SIMULATOR"
+          fi
+          rm -rf -- .build Demo/build Demo/*.xcodeproj server/node_modules server/dist "$RUNNER_TEMP/sdk-screens"
