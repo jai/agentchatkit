@@ -321,7 +321,6 @@ struct ComposerImageViewer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityIdentifier("composerAttachmentViewer")
             Button("Close", systemImage: theme.symbols.close, action: close)
                 .labelStyle(.iconOnly)
                 .buttonStyle(.glass)
@@ -329,6 +328,8 @@ struct ComposerImageViewer: View {
                 .padding(ChatSpace.lg)
                 .accessibilityIdentifier("composerAttachmentViewerClose")
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("composerAttachmentViewer")
         #if os(macOS)
         // A video player has no size of its own: without this the Mac's sheet was only as tall as its Close button.
         .frame(minWidth: ChatStyle.screenshotViewerMinWidth, minHeight: ChatStyle.screenshotViewerMinHeight)

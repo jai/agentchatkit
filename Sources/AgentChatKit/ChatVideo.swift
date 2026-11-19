@@ -55,22 +55,25 @@ struct ChatVideoPlayer: View {
     @State private var isPlaying = false
 
     var body: some View {
-        VideoPlayer(player: player)
-            .onAppear {
-                let player = AVPlayer(url: clip.url)
-                self.player = player
-                player.play()
+        ZStack {
+            VideoPlayer(player: player)
+        }
+        .onAppear {
+            let player = AVPlayer(url: clip.url)
+            self.player = player
+            player.play()
+        }
+        .onDisappear { player?.pause() }
+        .task(id: player.map(ObjectIdentifier.init)) {
+            // Read a few times a second while the viewer is open: what VoiceOver and the UI tests see.
+            guard let player else { return }
+            while !Task.isCancelled {
+                isPlaying = player.timeControlStatus == .playing
+                try? await Task.sleep(for: .milliseconds(250))
             }
-            .onDisappear { player?.pause() }
-            .task(id: player.map(ObjectIdentifier.init)) {
-                // Read a few times a second while the viewer is open: what VoiceOver and the UI tests see.
-                guard let player else { return }
-                while !Task.isCancelled {
-                    isPlaying = player.timeControlStatus == .playing
-                    try? await Task.sleep(for: .milliseconds(250))
-                }
-            }
-            .accessibilityLabel(clip.spokenLabel)
-            .accessibilityValue(isPlaying ? "Playing" : "Paused")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(clip.spokenLabel)
+        .accessibilityValue(isPlaying ? "Playing" : "Paused")
     }
 }
