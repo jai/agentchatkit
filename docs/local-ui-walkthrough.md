@@ -1,9 +1,9 @@
-# End-to-end walk-through
+# Local live-chat UI walkthrough
 
-The live chat, end to end, on 2026-11-15, on Borg Cube 03: the demo app on an iPhone 17 Simulator (iOS 27.2) of this
-walk's own (`agentchatkit-live`, headless, deleted afterwards), following a **real ACP host**: the server package
-(`server/`) behind `server/dev/host.ts`, over HTTP on the same Mac. Before apps adopt AgentChatLive and
-`@jai/agentchat-live`, this is the run that shows them working together.
+This local UI/component integration run on 2026-11-15, on Borg Cube 03, used the demo app on its own iPhone 17
+Simulator (iOS 27.2, `agentchatkit-live`, headless, deleted afterwards). The app followed a **real ACP host**: the
+server package (`server/`) behind `server/dev/host.ts`, over HTTP on the same Mac. It exercises AgentChatLive and
+`@jai/agentchat-live` together on controlled data; it does not test a deployed system.
 
 <img src="../Demo/Screenshots/real-host.png" width="300" alt="The Live chat on a real host: a streamed answer, the question answered, and the agent going on">
 
@@ -15,7 +15,8 @@ walk's own (`agentchatkit-live`, headless, deleted afterwards), following a **re
 - **The host's control routes stand in for the world:** `/control/drop` ends every stream (a lift, a network change),
   `/control/restart` forgets every connection (a deploy), `/control/expire` makes every cursor stale.
 - **The UI test is the script:** `testLiveChatReconnects` (`Demo/UITests`) drives it and keeps each reconnect's
-  time on its result. CI starts the host for the `demo` job, so this runs on every push.
+  time on its result. The `test-ui-sdk` workflow starts the local host and runs the complete native UI plans
+  from the release workflow; the focused command below is for local diagnosis.
 
 Run it yourself:
 
@@ -23,7 +24,7 @@ Run it yourself:
 node server/dev/host.ts --port 8788 &        # http://127.0.0.1:8788/acp; sessions named live… have the agent
 cd Demo && xcodegen
 xcodebuild test -project AgentChatDemo.xcodeproj \
-  -scheme AgentChatDemo-iOS -destination "id=<your simulator>" \
+  -scheme AgentChatDemo-iOS -testPlan SDK-iOS -destination "id=<your simulator>" \
   -only-testing:AgentChatDemoUITests/DemoUITests/testLiveChatReconnects
 ```
 

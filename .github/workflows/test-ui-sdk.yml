@@ -19,6 +19,9 @@ jobs:
       - uses: jdx/mise-action@v5
         with:
           cache: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26.13.1
       - name: Prepare the project, destination and local services
         run: |
           mise exec xcodegen@2.46.0 -- xcodegen generate --spec Demo/project.yml --quiet

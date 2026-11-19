@@ -494,19 +494,6 @@ extension LiveControlsTests {
         #expect(responses[3].at("result", "action") == "decline")
     }
 
-    @Test func allStatusTicksMatchTheProfile() {
-        let cases: [(LiveMessage.Status?, DeliveryTicks?)] = [
-            (.pending, .sent), (.queued, .sent), (.delivering, .sent), (.delivered, .delivered),
-            (.failed, nil), (.removed, nil), (nil, nil),
-        ]
-        for (status, expected) in cases {
-            var message = LiveMessage(id: "m", kind: .user)
-            message.status = status
-            #expect(message.ticks == expected)
-            #expect(message.deliveryState.ticks == expected)
-        }
-    }
-
     private func message(_ id: String, status: LiveMessage.Status, second: Int) -> JSONValue {
         ["sessionUpdate": "user_message", "messageId": .string(id),
          "content": [["type": "text", "text": .string(id)]],

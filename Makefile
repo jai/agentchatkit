@@ -2,9 +2,21 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := test-unit-sdk
 JOBS ?= 4
 X := mise exec
+# Git hooks must not leak their checkout-specific variables into SwiftPM subprocesses.
+unexport $(shell git rev-parse --local-env-vars 2>/dev/null)
 SWIFTFORMAT := $(X) swiftformat@0.64.7 -- swiftformat
 SWIFTLINT := $(X) swiftlint@0.65.1 -- swiftlint lint --strict --quiet
-.PHONY: lint-sdk lint-workflows test-unit-sdk test-integration-sdk test-ui-sdk lint all-tests
+RUFF := $(X) ruff@0.17.5 -- ruff
+OXFMT := $(X) node@26.13.1 -- npx --yes oxfmt@0.78.0 --threads=$(JOBS)
+.PHONY: fix lint-sdk lint-workflows test-unit-sdk test-integration-sdk test-ui-sdk lint all-tests
+
+# Format only the staged paths passed by the pre-commit hook.
+FILES ?= $(shell git diff --cached --name-only --diff-filter=ACMR)
+fix:
+	$(if $(filter %.swift,$(FILES)),$(SWIFTFORMAT) $(filter %.swift,$(FILES)),@:)
+	$(if $(filter %.py,$(FILES)),$(RUFF) check --fix $(filter %.py,$(FILES)),@:)
+	$(if $(filter %.py,$(FILES)),$(RUFF) format $(filter %.py,$(FILES)),@:)
+	$(if $(filter %.ts %.js %.mjs %.json,$(FILES)),$(OXFMT) $(filter %.ts %.js %.mjs %.json,$(FILES)),@:)
 
 lint-workflows:
 	$(X) actionlint@1.7.12 -- actionlint

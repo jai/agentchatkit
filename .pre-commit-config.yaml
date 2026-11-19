@@ -1,37 +1,17 @@
 default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
-      - id: swift-format
-        name: Format staged Swift files
-        entry: mise exec swiftformat@0.64.7 -- swiftformat
+      - id: fix
+        name: Fix and stage changed files
+        entry: bash -c 'make fix FILES="$*" && git add -- "$@"' --
         language: system
-        files: '\.swift$'
-      - id: swift-lint
-        name: Lint staged Swift files
-        entry: mise exec swiftlint@0.65.1 -- swiftlint lint --strict --quiet --force-exclude
+      - id: lint-sdk
+        name: Lint SDK
+        entry: make lint-sdk
         language: system
-        files: '\.swift$'
-      - id: python-format
-        name: Format staged Python files
-        entry: mise exec ruff@0.17.5 -- ruff format
-        language: system
-        types: [python]
-      - id: python-lint
-        name: Lint staged Python files
-        entry: mise exec ruff@0.17.5 -- ruff check
-        language: system
-        types: [python]
-      - id: js-format
-        name: Format staged JavaScript and TypeScript
-        entry: npx --yes oxfmt@0.78.0
-        language: system
-        files: '\.(mjs|js|ts)$'
-      - id: js-lint
-        name: Lint staged server JavaScript and TypeScript
-        entry: npx --no-install --prefix server oxlint --config server/.oxlintrc.json --deny-warnings
-        language: system
-        files: '^server/.*\.(mjs|js|ts)$'
+        pass_filenames: false
       - id: lint-workflows
         name: Lint changed workflows
         entry: make lint-workflows
@@ -44,4 +24,13 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
-        files: '^(Sources|Tests|server|protocol)/|^Package\.'
+        files: '^(Sources|Tests|server|protocol)/|^(Package\.|Makefile$|mise.toml$|\.swiftlint.yml$|\.swiftformat$)'
+      - id: author
+        name: Author uses personal email
+        entry: >-
+          sh -c 'case "$(git var GIT_AUTHOR_IDENT)" in
+          *"<jai.g@ewa-services.com>"*|*"<jai.g@finn-app.com>"*)
+          echo "Use jai@govindani.com in this personal repository" >&2; exit 1;; esac'
+        language: system
+        always_run: true
+        pass_filenames: false

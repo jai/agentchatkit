@@ -115,7 +115,7 @@ Native UI plans include complete XCTest targets, with Xcode’s standard retry-o
 
 ## Setup, checks and cleanup
 
-Each job checks out sources, prepares its pinned tools/dependencies and destination or local services, then runs its named checks. Lint includes typechecking/building shipped Swift products and the API compatibility comparison. The lint workflow also compiles both demo consumers, without running UI automation. Hooks format/lint staged files and run the unit target before push; they do not require a full app build.
+Each job checks out sources, prepares its pinned tools/dependencies and destination or local services, then runs its named checks. Jobs using Node install Node 26.13.1 after mise so npm child processes also use the pinned runtime. Lint includes typechecking/building shipped Swift products and the API compatibility comparison. The lint workflow also compiles both demo consumers, without running UI automation. Before commit, hooks run `make fix` on staged paths, stage the native formatter fixes, then run `make lint-sdk`. Before push, they run `make test-unit-sdk`. These hooks build the shipped package but do not launch a demo app.
 
 Native jobs use the dedicated Zoomies Mac pool; desktop UI jobs use `mac-desktop`. Push triggers are restricted to trusted `main`; RC test workflows are called from the repository’s release workflow. No fork pull-request trigger runs on the home lab. Small release/metadata and workflow-lint jobs use hosted Ubuntu runners.
 

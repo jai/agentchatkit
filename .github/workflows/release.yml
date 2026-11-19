@@ -33,7 +33,7 @@ jobs:
           token: ${{ steps.token.outputs.token }}
       - uses: actions/setup-node@v5
         with:
-          node-version: 26
+          node-version: 26.13.1
       - name: Prepare the server release package
         run: |
           npm ci --prefix server --no-audit --no-fund
