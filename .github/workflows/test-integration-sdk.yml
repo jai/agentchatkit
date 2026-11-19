@@ -64,11 +64,11 @@ jobs:
       - name: Run UIKit and media integration checks
         run: xcodebuild test -project Demo/AgentChatDemo.xcodeproj -scheme AgentChatDemo-integration-iOS -testPlan SDK-integration-iOS -destination "id=$SIMULATOR" -derivedDataPath Demo/build/Integration -resultBundlePath Demo/build/integration.xcresult -jobs 4
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: sdk-ios-integration
           path: Demo/build/integration.xcresult
-          retention-days: 7
+          retention-days: 3
           if-no-files-found: ignore
       - name: Delete the owned simulator and generated products
         if: always()
