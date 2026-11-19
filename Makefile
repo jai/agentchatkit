@@ -25,6 +25,9 @@
 # Everything outside the two "repo" blocks comes from jai/ci makefile.template; change it there.
 
 SHELL := /bin/bash
+# A git hook runs with git's GIT_DIR and friends set: SwiftPM's own checkouts must not inherit them, or a pre-push
+# build cannot read its dependencies' trees.
+unexport $(shell git rev-parse --local-env-vars 2>/dev/null)
 .DEFAULT_GOAL := check
 .PHONY: setup fmt lint typecheck test check
 
