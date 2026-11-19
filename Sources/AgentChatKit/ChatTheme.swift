@@ -46,6 +46,7 @@ public struct ChatTheme: Sendable {
         public var toolCall = "wrench.and.screwdriver"
         public var copy = "doc.on.doc"
         public var askAI = "questionmark.bubble"
+        /// No longer drawn: the delivery ticks draw their own (`DeliveryTickMarks`). Kept so a host that sets it builds.
         public var delivered = "checkmark.circle"
         public var close = "xmark"
         public var problem = "exclamationmark.triangle"
