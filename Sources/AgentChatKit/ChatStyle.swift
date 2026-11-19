@@ -21,9 +21,12 @@ public enum ChatStyle {
     /// A screenshot waiting to go with the message, above the field, and the button that takes it off.
     public static let attachmentSize: CGFloat = 64
     public static let attachmentRemove: CGFloat = 22
-    /// How far the second delivery tick sits over the first: half a glyph, so the two read as one mark (Jai,
-    /// 2026-11-14: at a quarter the edges only touched).
+    /// How far the second delivery tick sat over the first while the ticks were two `checkmark.circle` glyphs. The
+    /// ticks are drawn now (`DeliveryTickMarks`), with the second tick `tickGap` of a tick's width along.
     public static let tickOverlap: CGFloat = -6
+    /// How far along the second delivery tick sits, as a share of one tick's width: 4 pt on a 9 pt tick, picked from
+    /// a sheet of distances and styles (Jai, 2026-11-19: the overlapping circles read as rings).
+    public static let tickGap: CGFloat = 4.0 / 9.0
     /// How near the end of a chat counts as reading it, so a new message keeps the reader there.
     public static let followSlack: CGFloat = 40
     /// A message bar's widest on a wide iPad, centred: the width of an iPad in portrait.

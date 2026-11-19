@@ -37,12 +37,8 @@ public struct DeliveryTicksLine: View {
             if let date {
                 Text(date.formatted(date: .omitted, time: .shortened))
             }
-            HStack(spacing: ChatStyle.tickOverlap) {
-                ForEach(0..<ticks.rawValue, id: \.self) { _ in
-                    Image(systemName: theme.symbols.delivered)
-                }
-            }
-            .foregroundStyle(ticks == .delivered ? theme.toneGood : theme.inkQuiet)
+            DeliveryTickMarks(count: ticks.rawValue)
+                .foregroundStyle(ticks == .delivered ? theme.toneGood : theme.inkQuiet)
         }
         .chatTextStyle(.meta, fallback: ChatTextStyle(font: theme.font(.caption2)))
         .foregroundStyle(theme.inkQuiet)
@@ -51,5 +47,43 @@ public struct DeliveryTicksLine: View {
             .joined(separator: ", "))
         .accessibilityValue(about ?? "")
         .chatIdentifier(identifier)
+    }
+}
+
+/// The ticks themselves, drawn as a messaging app draws them: one tick, or a second tick a little along whose short
+/// arm would only cross the first, so only its long arm is drawn. They grow with the text.
+struct DeliveryTickMarks: View {
+    let count: Int
+    @ScaledMetric(relativeTo: .caption2) private var width = 9.0
+
+    var body: some View {
+        let height = width * 7 / 9
+        let gap = width * ChatStyle.tickGap
+        let style = StrokeStyle(lineWidth: width * 0.2, lineCap: .round, lineJoin: .round)
+        ZStack(alignment: .leading) {
+            Tick(arms: .both).stroke(style: style).frame(width: width, height: height)
+            if count > 1 {
+                Tick(arms: .long).stroke(style: style).frame(width: width, height: height).offset(x: gap)
+            }
+        }
+        .frame(width: count > 1 ? width + gap : width, height: height, alignment: .leading)
+    }
+
+    private struct Tick: Shape {
+        enum Arms { case both, long }
+        let arms: Arms
+
+        func path(in rect: CGRect) -> Path {
+            let corner = CGPoint(x: rect.minX + rect.width * 0.36, y: rect.maxY - rect.height * 0.12)
+            var path = Path()
+            if arms == .both {
+                path.move(to: CGPoint(x: rect.minX, y: rect.midY + rect.height * 0.05))
+                path.addLine(to: corner)
+            } else {
+                path.move(to: corner)
+            }
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.12))
+            return path
+        }
     }
 }
