@@ -8,16 +8,21 @@ import SwiftUI
 public final class FoldSet {
     private var flipped: Set<String>
     /// Where the folds are kept between launches; `nil` keeps them for this screen only.
-    private let store: (defaults: UserDefaults, key: String)?
+    private let saveFolds: (([String]) -> Void)?
 
     public init() {
         flipped = []
-        store = nil
+        saveFolds = nil
     }
 
-    public init(defaults: UserDefaults, key: String) {
-        flipped = Set(defaults.stringArray(forKey: key) ?? [])
-        store = (defaults, key)
+    public convenience init(defaults: UserDefaults, key: String) {
+        self.init(load: { defaults.stringArray(forKey: key) ?? [] }, save: { defaults.set($0, forKey: key) })
+    }
+
+    /// A host-provided store; in-memory stores can exercise the same relaunch behavior.
+    public init(load: () -> [String], save: @escaping ([String]) -> Void) {
+        flipped = Set(load())
+        saveFolds = save
     }
 
     public func isFlipped(_ id: String) -> Bool {
@@ -44,8 +49,6 @@ public final class FoldSet {
     }
 
     private func save() {
-        if let store {
-            store.defaults.set(flipped.sorted(), forKey: store.key)
-        }
+        saveFolds?(flipped.sorted())
     }
 }
