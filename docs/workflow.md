@@ -118,9 +118,9 @@ Native UI plans include complete test targets, with Xcode’s standard retry-on-
 
 Each job checks out sources, prepares its pinned tools/dependencies and destination or local services, then runs its named checks. Jobs using Node install Node 26.13.1 after mise so npm child processes also use the pinned runtime. Lint includes typechecking/building shipped Swift products and the API compatibility comparison. The lint workflow also compiles both demo consumers, without running UI automation. Before commit, hooks run `make fix` on staged paths, stage the native formatter fixes, then run `make lint-sdk`. Before push, they run `make test-unit-sdk`. These hooks build the shipped package but do not launch a demo app.
 
-Native jobs use the dedicated Zoomies Mac pool; desktop UI jobs use `mac-desktop`. Push triggers are restricted to trusted `main`; RC test workflows are called from the repository’s release workflow. No fork pull-request trigger runs on the home lab. Small release/metadata and workflow-lint jobs use hosted Ubuntu runners.
+Native checks and both UI platforms use GitHub-hosted `macos-26` runners. Release metadata and workflow lint use hosted Ubuntu. Push checks run on trusted `main`; RC test workflows are called from the repository's release workflow.
 
-Jobs clean their own `.build`, generated Xcode projects, derived data, Node dependencies and local services. UI jobs create and delete their own simulator, and upload original result bundles/screenshots on failure before cleanup. Toolchain, SwiftPM download, npm and mise caches belong to host maintenance and remain reusable, so net-zero job products does not promise identical host disk usage. Keep failure diagnostics for three days; bound host caches between jobs rather than deleting another job’s shared state.
+Jobs clean their own build products, generated projects and local services. UI jobs create and delete their own simulator, and upload original result bundles/screenshots only on failure, retained for three days. GitHub discards each job's VM afterward, including tool/download caches and any products left by an interrupted cleanup.
 
 ## Commands
 
