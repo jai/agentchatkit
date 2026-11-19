@@ -12,20 +12,20 @@ lint-workflows:
 lint-sdk:
 	$(SWIFTFORMAT) Sources Tests Demo Package.swift --lint
 	$(SWIFTLINT)
-	cd server && $(X) -- npx --no-install oxfmt --check .
-	cd server && $(X) -- npx --no-install oxlint --deny-warnings
-	cd server && $(X) -- npm run typecheck
-	cd server && $(X) -- npm run build
+	cd server && $(X) node@26.13.1 -- npx --no-install oxfmt --check .
+	cd server && $(X) node@26.13.1 -- npx --no-install oxlint --deny-warnings
+	cd server && $(X) node@26.13.1 -- npm run typecheck
+	cd server && $(X) node@26.13.1 -- npm run build
 	swift build -j $(JOBS)
 	base=$$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1); test -n "$$base"; swift package -j $(JOBS) diagnose-api-breaking-changes "$$base"
 
 test-unit-sdk:
 	swift test -j $(JOBS) --filter "AgentChatKitTests|AgentChatLiveUnitTests"
-	cd server && $(X) -- npm run test:unit
+	cd server && $(X) node@26.13.1 -- npm run test:unit
 
 test-integration-sdk:
 	swift test -j $(JOBS) --filter "AgentChatKitIntegrationTests|AgentChatLiveIntegrationTests"
-	cd server && $(X) -- npm run test:integration
+	cd server && $(X) node@26.13.1 -- npm run test:integration
 
 PLATFORM ?= ios
 SIMULATOR ?=
