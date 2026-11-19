@@ -68,7 +68,7 @@ jobs:
         with:
           name: sdk-ios-integration
           path: Demo/build/integration.xcresult
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: ignore
       - name: Delete the owned simulator and generated products
         if: always()
