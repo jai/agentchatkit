@@ -14,6 +14,12 @@ class FixtureUITestCase: XCTestCase {
                                "-DemoCustomIDs", customIDs ? "YES" : "NO",
                                "-DemoLegacyTypography", legacyTypography ? "YES" : "NO"]
         app.launch()
+        #if os(macOS)
+        if !app.windows.firstMatch.waitForExistence(timeout: 2) {
+            app.menuBars.menuBarItems["File"].click()
+            app.menuItems["New Window"].click()
+        }
+        #endif
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
