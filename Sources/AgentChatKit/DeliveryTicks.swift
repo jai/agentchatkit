@@ -16,7 +16,7 @@ public enum DeliveryTicks: Int, Equatable, Sendable {
     }
 }
 
-/// Under one of Jai's bubbles: its time, then its ticks, the second over the first.
+/// Under one of Jai's bubbles: its time, then its ticks, the second tucked behind the first.
 public struct DeliveryTicksLine: View {
     @Environment(\.chatTheme) private var theme
     public let ticks: DeliveryTicks
@@ -50,8 +50,8 @@ public struct DeliveryTicksLine: View {
     }
 }
 
-/// The ticks themselves, drawn as a messaging app draws them: one tick, or a second tick a little along whose short
-/// arm would only cross the first, so only its long arm is drawn. They grow with the text.
+/// The ticks themselves, drawn as a messaging app draws them: one tick, or a second whole tick tucked behind the first,
+/// cut where the first passes over it. The cut is clear, so it shows whatever is behind. They grow with the text.
 struct DeliveryTickMarks: View {
     let count: Int
     @ScaledMetric(relativeTo: .caption2) private var width = 9.0
@@ -59,29 +59,28 @@ struct DeliveryTickMarks: View {
     var body: some View {
         let height = width * 7 / 9
         let gap = width * ChatStyle.tickGap
-        let style = StrokeStyle(lineWidth: width * 0.2, lineCap: .round, lineJoin: .round)
+        let stroke = width * ChatStyle.tickStroke
         ZStack(alignment: .leading) {
-            Tick(arms: .both).stroke(style: style).frame(width: width, height: height)
             if count > 1 {
-                Tick(arms: .long).stroke(style: style).frame(width: width, height: height).offset(x: gap)
+                tick(stroke, height: height).offset(x: gap)
+                tick(stroke + 2 * width * ChatStyle.tickCut, height: height).blendMode(.destinationOut)
             }
+            tick(stroke, height: height)
         }
+        .compositingGroup()
         .frame(width: count > 1 ? width + gap : width, height: height, alignment: .leading)
     }
 
-    private struct Tick: Shape {
-        enum Arms { case both, long }
-        let arms: Arms
+    private func tick(_ lineWidth: CGFloat, height: CGFloat) -> some View {
+        Tick().stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+            .frame(width: width, height: height)
+    }
 
+    private struct Tick: Shape {
         func path(in rect: CGRect) -> Path {
-            let corner = CGPoint(x: rect.minX + rect.width * 0.36, y: rect.maxY - rect.height * 0.12)
             var path = Path()
-            if arms == .both {
-                path.move(to: CGPoint(x: rect.minX, y: rect.midY + rect.height * 0.05))
-                path.addLine(to: corner)
-            } else {
-                path.move(to: corner)
-            }
+            path.move(to: CGPoint(x: rect.minX, y: rect.midY + rect.height * 0.05))
+            path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.36, y: rect.maxY - rect.height * 0.12))
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.12))
             return path
         }
