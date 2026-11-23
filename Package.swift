@@ -21,7 +21,9 @@ let package = Package(
     ],
     targets: [
         .target(name: "AgentChatCore"),
-        .target(name: "AgentChatKit", dependencies: ["AgentChatCore"]),
+        // SwiftUI's VideoPlayer subclasses AVKit's views, but nothing here names an AVKit symbol, so Xcode 27's linker
+        // left AVKit out and a Mac app crashed as a video opened.
+        .target(name: "AgentChatKit", dependencies: ["AgentChatCore"], linkerSettings: [.linkedFramework("AVKit")]),
         .target(name: "AgentChatLive", dependencies: [
             "AgentChatKit", .product(name: "DurableNetworking", package: "durable-networking"),
         ]),
