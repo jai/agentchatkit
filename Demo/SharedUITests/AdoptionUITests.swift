@@ -299,8 +299,12 @@ final class AdoptionUITests: FixtureUITestCase {
     /// A message's words, where a press opens its bubble's menu (a short bubble is narrower than its row).
     private func words(_ start: String) -> XCUIElement {
         let shown = NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", start, start)
-        let text = app.staticTexts.matching(shown).firstMatch
-        return text.waitForExistence(timeout: 5) ? text : app.textViews.matching(shown).firstMatch
+        let texts = app.staticTexts.matching(shown)
+        guard texts.firstMatch.waitForExistence(timeout: 5) else { return app.textViews.matching(shown).firstMatch }
+        // On macOS 27 a bubble whose words select is a text around its words' own text: the words are the smaller.
+        return texts.allElementsBoundByIndex.min {
+            $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
+        } ?? texts.firstMatch
     }
 
     private var summarizeItem: XCUIElement { menuItem("Summarize") }
