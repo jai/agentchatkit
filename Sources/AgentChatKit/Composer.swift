@@ -119,35 +119,64 @@ public struct SessionComposer: View {
                     #endif
                 }
                 .accessibilityIdentifier("sessionReplyField")
-            Button(action: send) {
-                // The arrow stays, hidden, while sending: its baseline is the one the Mac lines the button up by.
-                Image(systemName: "arrow.up")
-                    .font(theme.font(.body).weight(.semibold))
-                    .frame(width: 22, height: 22)
-                    .opacity(isSending ? 0 : 1)
-                    .overlay {
-                        if isSending {
-                            ProgressView()
-                        }
-                    }
+            sendButton
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .disabled(!canSend)
+                .accessibilityLabel("Send reply")
+                .accessibilityIdentifier("sessionReplySend")
+        }
+    }
+
+    /// The tap sends; with `sendNow`, the long-press (a right-click on the Mac) offers it. On the phone that is a menu
+    /// on the button, not a context menu: a context menu takes the keyboard away as it comes up (Jai, 2026-11-24).
+    @ViewBuilder private var sendButton: some View {
+        #if os(iOS)
+        if let sendNow {
+            Menu {
+                sendNowButton(sendNow)
+            } label: {
+                sendLabel
+            } primaryAction: {
+                send()
             }
-            .buttonStyle(.glassProminent)
-            .buttonBorderShape(.circle)
-            .disabled(!canSend)
+            .menuStyle(.button)
+            .transition(.identity)
+        } else {
+            Button(action: send) { sendLabel }
+                .transition(.identity)
+        }
+        #else
+        Button(action: send) { sendLabel }
             .contextMenu {
                 if let sendNow {
-                    // As the tap: nothing for an empty box, or while the last one is still going.
-                    Button(sendNow.label) {
-                        if canSend {
-                            sendNow.action()
-                        }
-                    }
-                    .accessibilityIdentifier("sessionReplySendNow")
+                    sendNowButton(sendNow)
                 }
             }
-            .accessibilityLabel("Send reply")
-            .accessibilityIdentifier("sessionReplySend")
+        #endif
+    }
+
+    private func sendNowButton(_ sendNow: SendNow) -> some View {
+        // As the tap: nothing for an empty box, or while the last one is still going.
+        Button(sendNow.label) {
+            if canSend {
+                sendNow.action()
+            }
         }
+        .accessibilityIdentifier("sessionReplySendNow")
+    }
+
+    private var sendLabel: some View {
+        // The arrow stays, hidden, while sending: its baseline is the one the Mac lines the button up by.
+        Image(systemName: "arrow.up")
+            .font(theme.font(.body).weight(.semibold))
+            .frame(width: 22, height: 22)
+            .opacity(isSending ? 0 : 1)
+            .overlay {
+                if isSending {
+                    ProgressView()
+                }
+            }
     }
 }
 
