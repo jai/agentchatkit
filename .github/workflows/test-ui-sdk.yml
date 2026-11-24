@@ -25,13 +25,6 @@ jobs:
       - name: Prepare the project, destination and local services
         run: |
           mise exec xcodegen@2.46.0 -- xcodegen generate --spec Demo/project.yml --quiet
-          if [ "$PLATFORM" = ios ]; then
-            runtime=$(xcrun simctl list runtimes -j | jq -r --arg device 'iPhone 17' '[.runtimes[] | select(.isAvailable and (.name | startswith("iOS")) and any(.supportedDeviceTypes[]; .name == $device))] | last | .identifier')
-            simulator=$(xcrun simctl create "sdk-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" 'iPhone 17' "$runtime")
-            echo "SIMULATOR=$simulator" >> "$GITHUB_ENV"
-            xcrun simctl boot "$simulator"
-            xcrun simctl bootstatus "$simulator" -b
-          fi
           node server/dev/host.ts --port 8788 > "$RUNNER_TEMP/sdk-host.log" 2>&1 &
           echo "$!" > "$RUNNER_TEMP/sdk-host.pid"
           for _ in {1..30}; do
@@ -40,6 +33,13 @@ jobs:
             sleep 1
           done
           grep -q "^ready " "$RUNNER_TEMP/sdk-host.log"
+          if [ "$PLATFORM" = ios ]; then
+            runtime=$(xcrun simctl list runtimes -j | jq -r --arg device 'iPhone 17' '[.runtimes[] | select(.isAvailable and (.name | startswith("iOS")) and any(.supportedDeviceTypes[]; .name == $device))] | last | .identifier')
+            simulator=$(xcrun simctl create "sdk-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" 'iPhone 17' "$runtime")
+            echo "SIMULATOR=$simulator" >> "$GITHUB_ENV"
+            xcrun simctl boot "$simulator"
+            xcrun simctl bootstatus "$simulator" -b
+          fi
       - name: Run native UI tests
         # Screenshots stay in XCTest attachments, inside the result bundle.
         run: make test-ui-sdk PLATFORM="$PLATFORM" SIMULATOR="${SIMULATOR:-}"
