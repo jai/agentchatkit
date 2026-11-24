@@ -202,11 +202,20 @@ private struct ComposerBar: ViewModifier {
     @Environment(\.chatTheme) private var theme
     @State private var keyboardUp = false
 
+    /// A Mac window has no safe area under the bar, so the bar clears its rounded corner by as much as its sides do.
+    private var bottom: CGFloat {
+        #if os(macOS)
+        ChatSpace.lg
+        #else
+        keyboardUp ? ChatSpace.lg : ChatSpace.sm
+        #endif
+    }
+
     func body(content: Content) -> some View {
         content
             .padding(.horizontal)
             .padding(.top, ChatStyle.barFade)
-            .padding(.bottom, keyboardUp ? ChatSpace.lg : ChatSpace.sm)
+            .padding(.bottom, bottom)
             .background {
                 VStack(spacing: 0) {
                     LinearGradient(colors: [theme.groundPage.opacity(0), theme.groundPage],
