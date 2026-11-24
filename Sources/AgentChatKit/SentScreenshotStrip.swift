@@ -38,6 +38,8 @@ public struct SentScreenshotStrip: View {
                 Button {
                     let target = viewing ?? localViewing
                     target.identifiers = identifiers
+                    // All of the message's, so the viewer pages through them from the one tapped.
+                    target.pictures = pictures
                     target.picture = picture
                 } label: {
                     thumbnail(picture)
@@ -122,7 +124,11 @@ public struct SentScreenshotStrip: View {
 @MainActor
 @Observable
 public final class SentScreenshotViewing {
+    /// The picture the viewer opens on; nil closes it.
     public var picture: SentPicture?
+    /// The pictures of the message `picture` is from, in order: the viewer pages through them. Empty shows `picture`
+    /// alone, as a host that sets only `picture` always has.
+    public var pictures: [SentPicture] = []
     var identifiers: SentScreenshotIdentifiers = .init()
 
     public init() {}
@@ -142,13 +148,14 @@ struct SentScreenshotPresentation: ViewModifier {
 
     func body(content: Content) -> some View {
         #if os(iOS)
-        content.fullScreenCover(item: $viewing.picture) { picture in
-            SentScreenshotViewer(picture: picture, identifiers: identifiers ?? viewing.identifiers) { viewing.picture = nil }
-        }
+        content.fullScreenCover(item: $viewing.picture) { viewer($0) }
         #else
-        content.sheet(item: $viewing.picture) { picture in
-            SentScreenshotViewer(picture: picture, identifiers: identifiers ?? viewing.identifiers) { viewing.picture = nil }
-        }
+        content.sheet(item: $viewing.picture) { viewer($0) }
         #endif
+    }
+
+    private func viewer(_ picture: SentPicture) -> some View {
+        SentScreenshotViewer(pictures: viewing.pictures, starting: picture,
+                             identifiers: identifiers ?? viewing.identifiers) { viewing.picture = nil }
     }
 }

@@ -272,8 +272,8 @@ struct ComposerPicture: Transferable {
 struct ComposerAttachmentTray: View {
     @Environment(\.chatTheme) private var theme
     let attachments: ComposerAttachments
-    /// The attachment open full screen, from a tap on its thumbnail.
-    @State private var viewing: ComposerImage?
+    /// The attachment open full screen, from a tap on its thumbnail: the viewer pages through the tray from it.
+    @State private var viewing: ComposerImage.ID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: ChatSpace.xs) {
@@ -303,7 +303,7 @@ struct ComposerAttachmentTray: View {
         .animation(ChatMotion.fold, value: attachments.problem)
         .fullScreenCoverOrSheet(isPresented: Binding(get: { viewing != nil }, set: { if !$0 { viewing = nil } })) {
             if let viewing {
-                ComposerImageViewer(image: viewing) { self.viewing = nil }
+                ComposerImageViewer(images: attachments.images, starting: viewing) { self.viewing = nil }
             }
         }
     }
@@ -320,9 +320,9 @@ struct ComposerAttachmentTray: View {
             // A light screenshot on the page's grey needs its edge drawn.
             .overlay(RoundedRectangle(cornerRadius: ChatRadius.md, style: .continuous).strokeBorder(theme.line))
             .contentShape(.rect(cornerRadius: ChatRadius.md, style: .continuous))
-            .onTapGesture { viewing = image }
+            .onTapGesture { viewing = image.id }
             .accessibilityAddTraits(.isButton)
-            .accessibilityAction(named: "View") { viewing = image }
+            .accessibilityAction(named: "View") { viewing = image.id }
             .overlay(alignment: .topTrailing) {
                 Button {
                     attachments.remove(image.id)
@@ -345,45 +345,24 @@ struct ComposerAttachmentTray: View {
     }
 }
 
-/// An attachment on the whole screen, as Photos shows one: fitted on black, closed by its button or a swipe down.
+/// The tray's attachments on the whole screen, as Photos shows them: it opens on the one tapped and pages through the
+/// others, saying which it shows ("2 of 4"). Closed by its button or a swipe down.
 struct ComposerImageViewer: View {
-    @Environment(\.chatTheme) private var theme
-    let image: ComposerImage
+    let images: [ComposerImage]
+    let starting: ComposerImage.ID
     let close: () -> Void
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // design-lint: allow a picture viewer's black, as Photos draws one
-            Color.black.ignoresSafeArea()
-            Group {
-                if let video = image.video {
-                    ChatVideoPlayer(clip: video)
-                } else {
-                    Image(decorative: image.preview, scale: 1)
-                        .resizable()
-                        .scaledToFit()
-                        .accessibilityLabel("Screenshot")
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Button("Close", systemImage: theme.symbols.close, action: close)
-                .labelStyle(.iconOnly)
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .padding(ChatSpace.lg)
-                .accessibilityIdentifier("composerAttachmentViewerClose")
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("composerAttachmentViewer")
-        #if os(macOS)
-        // A video player has no size of its own: without this the Mac's sheet was only as tall as its Close button.
-        .frame(minWidth: ChatStyle.screenshotViewerMinWidth, minHeight: ChatStyle.screenshotViewerMinHeight)
-        #endif
-        .gesture(DragGesture().onEnded { drag in
-            if drag.translation.height > ChatStyle.viewerDismissDrag {
-                close()
-            }
-        })
+        ChatMediaPager(
+            pages: images.map { ChatMediaPage(id: $0.id, image: $0.preview, video: $0.video) },
+            start: images.firstIndex { $0.id == starting } ?? 0,
+            identifiers: .init(
+                container: "composerAttachmentViewer", close: "composerAttachmentViewerClose",
+                position: "composerAttachmentViewerPosition", previous: "composerAttachmentViewerPrevious",
+                next: "composerAttachmentViewerNext"
+            ),
+            close: close
+        )
     }
 }
 

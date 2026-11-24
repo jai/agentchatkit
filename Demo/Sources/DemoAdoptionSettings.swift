@@ -55,7 +55,12 @@ enum DemoAdoptionSettings {
     }
 
     static var screenshotIDs: SentScreenshotIdentifiers {
-        customIDs ? .init(thumbnail: { key, index in "picture-\(key)-\(index)" },
-                          viewer: "host-viewer", close: "viewer-close") : .init()
+        guard customIDs else { return .init() }
+        var identifiers = SentScreenshotIdentifiers(thumbnail: { key, index in "picture-\(key)-\(index)" },
+                                                    viewer: "host-viewer", close: "viewer-close")
+        identifiers.position = "viewer-position"
+        identifiers.previous = "viewer-previous"
+        identifiers.next = "viewer-next"
+        return identifiers
     }
 }

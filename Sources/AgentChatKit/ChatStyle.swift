@@ -16,6 +16,8 @@ public enum ChatStyle {
     public static let radius = ChatRadius.lg
     /// How far down an attachment open full screen is swiped to close it.
     public static let viewerDismissDrag: CGFloat = 120
+    /// How far across an attachment open full screen is swiped to go to the next one, or the one before.
+    public static let viewerPageDrag: CGFloat = 60
     /// The fade over the page above the field's bar, and the room it leaves over the field.
     public static let barFade: CGFloat = 14
     /// A screenshot waiting to go with the message, above the field, and the button that takes it off.

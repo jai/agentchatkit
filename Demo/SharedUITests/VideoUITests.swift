@@ -45,4 +45,26 @@ final class VideoUITests: FixtureUITestCase {
         activate(app.buttons["sent-video-viewer-close"])
         wait(element("sent-video-viewer"), "exists == false")
     }
+
+    /// Two videos on one message: the composer's viewer opens on the one picked and its buttons go to the other; a
+    /// video's player keeps a drag across it for itself. Only the video shown plays.
+    func testTheComposersViewerGoesFromOneVideoToTheOther() {
+        launch("video")
+        activate(app.buttons["demo-sample-video"])
+        let attached = app.descendants(matching: .any).matching(identifier: "composerAttachment")
+        XCTAssertTrue(attached.firstMatch.waitForExistence(timeout: 30), "the sample video was not attached")
+        activate(app.buttons["demo-sample-video"])
+        let second = attached.element(boundBy: 1)
+        XCTAssertTrue(second.waitForExistence(timeout: 30), "the second video was not attached")
+        activate(second)
+        let position = element("composerAttachmentViewerPosition")
+        XCTAssertTrue(position.waitForExistence(timeout: 5), "the viewer does not say which attachment it shows")
+        wait(position, "label == 'Attachment 2 of 2'")
+        XCTAssertTrue(playingVideo.waitForExistence(timeout: 10), "the second video did not play")
+        activate(app.buttons["composerAttachmentViewerPrevious"])
+        wait(position, "label == 'Attachment 1 of 2'")
+        XCTAssertTrue(playingVideo.waitForExistence(timeout: 10), "the first video did not play")
+        activate(app.buttons["composerAttachmentViewerClose"])
+        wait(element("composerAttachmentViewer"), "exists == false")
+    }
 }

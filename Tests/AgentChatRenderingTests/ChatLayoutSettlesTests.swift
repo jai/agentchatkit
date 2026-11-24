@@ -92,6 +92,22 @@ struct ChatLayoutSettlesTests {
         return root.layouts
     }
 
+    /// The viewer over a message's attachments (`ChatMediaPager`): its pages are sized from the room it is given, and
+    /// it must not ask for that room again as it lays them out.
+    @Test func aViewerOverSeveralPicturesSettles() async throws {
+        let pages = try (0..<3).map { index in
+            let context = try #require(CGContext(
+                data: nil, width: 60, height: 130, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+            ))
+            context.setFillColor(CGColor(gray: 0.3 + 0.2 * CGFloat(index), alpha: 1))
+            context.fill(CGRect(x: 0, y: 0, width: 60, height: 130))
+            return ChatMediaPage(id: index, image: try #require(context.makeImage()))
+        }
+        let layouts = try await Self.layouts(ChatMediaPager(pages: pages, start: 1, identifiers: .init(), close: {}))
+        #expect(layouts < 100)
+    }
+
     @Test func theWorkingLineSettles() async throws {
         let layouts = try await Self.layouts(ChatWorkingLine().frame(maxWidth: .infinity, maxHeight: .infinity))
         #expect(layouts < 100)
