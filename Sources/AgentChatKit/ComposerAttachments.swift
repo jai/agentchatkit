@@ -32,8 +32,12 @@ public final class ComposerAttachments {
     /// Why the last image could not be added.
     public private(set) var problem: String?
     /// Keep a video as one video (its file, a poster frame and its length) for a host that sends videos. Off: a video
-    /// is added as stills from across it, as before.
+    /// is added as stills from across it, as before. A kept video's file is a copy the tray owns (`ComposerVideo.keep`):
+    /// the picker's own is gone, or closed to the app, as soon as it is added. Taking it off the tray removes the copy;
+    /// whoever takes the tray's contents (`take()`) removes it once it is sent (`ComposerAttachments.discard`).
     public var keepsVideos = false
+    /// The most videos kept on one message, for a host that takes fewer videos than attachments.
+    public var videoLimit = ComposerAttachments.limit
 
     public init() {}
 
@@ -81,25 +85,44 @@ public final class ComposerAttachments {
     }
 
     private func addKept(video url: URL) async {
-        guard let duration = await ComposerVideo.duration(of: url),
-              let poster = await ComposerVideo.stills(of: url, count: 1).first,
-              let encoded = await Task.detached(priority: .userInitiated, operation: {
-                  ComposerImageEncoder.encode(poster)
-              }).value
+        guard images.count(where: { $0.video != nil }) < videoLimit else {
+            problem = videoLimit == 1 ? "At most 1 video on one message." : "At most \(videoLimit) videos on one message."
+            return
+        }
+        // Read from the tray's own copy: the caller's file may be gone before the message is sent.
+        guard let kept = await Task.detached(priority: .userInitiated, operation: { ComposerVideo.keep(url) }).value
         else {
             problem = "That video couldn't be read."
             return
         }
-        problem = nil
-        if !isFull {
-            images.append(ComposerImage(jpeg: encoded.jpeg, preview: encoded.preview,
-                                        video: ChatVideoClip(url: url, duration: duration)))
+        guard let duration = await ComposerVideo.duration(of: kept),
+              let poster = await ComposerVideo.stills(of: kept, count: 1).first,
+              let encoded = await Task.detached(priority: .userInitiated, operation: {
+                  ComposerImageEncoder.encode(poster)
+              }).value,
+              !isFull
+        else {
+            try? FileManager.default.removeItem(at: kept)
+            problem = isFull ? "At most \(Self.limit) screenshots on one message." : "That video couldn't be read."
+            return
         }
+        problem = nil
+        images.append(ComposerImage(jpeg: encoded.jpeg, preview: encoded.preview,
+                                    video: ChatVideoClip(url: kept, duration: duration)))
     }
 
     public func remove(_ id: ComposerImage.ID) {
+        Self.discard(images.filter { $0.id == id })
         images.removeAll { $0.id == id }
         problem = nil
+    }
+
+    /// Removes the files of the kept videos among `images`: for whoever took them with `take()`, once they are sent
+    /// or given up. A picture has no file.
+    public nonisolated static func discard(_ images: [ComposerImage]) {
+        for video in images.compactMap(\.video) where ComposerVideo.isKept(video.url) {
+            try? FileManager.default.removeItem(at: video.url)
+        }
     }
 
     /// Everything in the tray, which empties: the message is on its way.
@@ -111,7 +134,9 @@ public final class ComposerAttachments {
 
     /// Puts back what `take()` gave, when the send did not go.
     public func restore(_ taken: [ComposerImage]) {
-        images = Array((taken + images).prefix(Self.limit))
+        let all = taken + images
+        images = Array(all.prefix(Self.limit))
+        Self.discard(Array(all.dropFirst(Self.limit)))
     }
 
     func failed(_ why: String) {
@@ -186,6 +211,26 @@ public enum ComposerVideo {
             stills.append(jpeg)
         }
         return stills
+    }
+
+    /// Where kept videos wait to be sent: the app's temporary folder, which the system empties in its own time.
+    static let keptFolder = FileManager.default.temporaryDirectory
+        .appending(path: "AgentChatKit-videos", directoryHint: .isDirectory)
+
+    /// A copy of the video that stays until it is removed, with the same extension; nil if it can't be copied.
+    static func keep(_ url: URL) -> URL? {
+        let copy = keptFolder.appending(path: UUID().uuidString).appendingPathExtension(url.pathExtension)
+        do {
+            try FileManager.default.createDirectory(at: keptFolder, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: url, to: copy)
+            return copy
+        } catch {
+            return nil
+        }
+    }
+
+    static func isKept(_ url: URL) -> Bool {
+        url.deletingLastPathComponent().standardizedFileURL.path == keptFolder.standardizedFileURL.path
     }
 
     static func jpeg(_ image: CGImage) -> Data? {

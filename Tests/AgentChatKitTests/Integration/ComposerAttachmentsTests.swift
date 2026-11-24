@@ -74,6 +74,66 @@ struct ComposerAttachmentsTests {
         #expect(attachments.problem != nil, "a full tray takes no more")
     }
 
+    /// The pickers' file does not last: Photos' copy is deleted and a Files URL is closed to the app as soon as the
+    /// video is added. A kept video pointed at that file, so there was nothing to play or send.
+    @Test @MainActor func aKeptVideoOutlivesTheFileItCameFrom() async throws {
+        let url = try await film()
+        let attachments = ComposerAttachments()
+        attachments.keepsVideos = true
+        await attachments.add(video: url)
+        try FileManager.default.removeItem(at: url)
+        #expect(attachments.problem == nil)
+        #expect(attachments.images.count == 1, "one video, not stills")
+        let clip = try #require(attachments.images.first?.video)
+        #expect(clip.url != url)
+        #expect(clip.url.pathExtension == "mov")
+        #expect(clip.duration > .seconds(1))
+        #expect(FileManager.default.fileExists(atPath: clip.url.path), "the tray kept no file of its own")
+        let length = await ComposerVideo.duration(of: clip.url)
+        #expect(length != nil, "the kept file does not play")
+        ComposerAttachments.discard(attachments.take())
+    }
+
+    @Test @MainActor func aKeptVideosFileGoesWhenItIsTakenOffOrDiscardedAndStaysWhileItIsBeingSent() async throws {
+        let url = try await film()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let attachments = ComposerAttachments()
+        attachments.keepsVideos = true
+        await attachments.add(video: url)
+        let removed = try #require(attachments.images.first)
+        let removedFile = try #require(removed.video).url
+        attachments.remove(removed.id)
+        #expect(!FileManager.default.fileExists(atPath: removedFile.path))
+
+        await attachments.add(video: url)
+        let taken = attachments.take()
+        let sending = try #require(taken.first?.video)
+        #expect(FileManager.default.fileExists(atPath: sending.url.path), "taken to be sent, it is still there")
+        attachments.restore(taken)
+        #expect(FileManager.default.fileExists(atPath: sending.url.path), "put back, it is still there")
+        ComposerAttachments.discard(attachments.take())
+        #expect(!FileManager.default.fileExists(atPath: sending.url.path))
+        #expect(FileManager.default.fileExists(atPath: url.path), "the file it came from is not the tray's to remove")
+    }
+
+    @Test @MainActor func aHostsVideoLimitRefusesTheNextVideoAndSaysWhy() async throws {
+        let url = try await film()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let attachments = ComposerAttachments()
+        attachments.keepsVideos = true
+        attachments.videoLimit = 2
+        await attachments.add(video: url)
+        await attachments.add(video: url)
+        #expect(attachments.images.count == 2)
+        #expect(attachments.problem == nil)
+        await attachments.add(video: url)
+        #expect(attachments.images.count == 2)
+        #expect(attachments.problem == "At most 2 videos on one message.")
+        await attachments.add(try stripedPNG(width: 40, height: 40))
+        #expect(attachments.images.count == 3, "a picture still fits")
+        ComposerAttachments.discard(attachments.take())
+    }
+
     @Test @MainActor func aFileThatIsNoVideoSaysSo() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mov")
         try Data("not a film".utf8).write(to: url)
@@ -82,6 +142,13 @@ struct ComposerAttachmentsTests {
         await attachments.add(video: url)
         #expect(attachments.isEmpty)
         #expect(attachments.problem == "That video couldn't be read.")
+        attachments.keepsVideos = true
+        let kept = (try? FileManager.default.contentsOfDirectory(atPath: ComposerVideo.keptFolder.path).count) ?? 0
+        await attachments.add(video: url)
+        #expect(attachments.isEmpty)
+        #expect(attachments.problem == "That video couldn't be read.")
+        #expect(((try? FileManager.default.contentsOfDirectory(atPath: ComposerVideo.keptFolder.path).count) ?? 0) == kept,
+                "a file that is no video leaves no copy behind")
     }
 
     @Test func aBigScreenshotBecomesAJPEGOfAtMost1568PixelsAndUnderTheCap() throws {
