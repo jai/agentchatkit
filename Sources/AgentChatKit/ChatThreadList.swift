@@ -19,6 +19,7 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
     private let open: ((Item) -> Void)?
     private var emptyWords: String?
     private var groups: [ChatThreadGroup<Item.ID>]?
+    private var rowGround: ((Item) -> AnyView)?
     @State private var folded: Set<String> = []
 
     private enum Navigation {
@@ -162,6 +163,18 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
                                controller: controllers.controller(for: item.id), presentsDialogs: false)
             .tag(item.id)
             .listRowInsets(theme.spacing.rowInsets)
+            .modifier(ChatThreadRowGround(ground: rowGround?(item)))
+    }
+
+    /// What each row is drawn on, across the list's whole width: under the row's insets and the list's own disclosure
+    /// indicator, which a background on the row's own view never reaches (a card behind a row's words alone left the
+    /// chevron and the insets on the page: Jai, Agent Pager's Feedback list on the phone, 2026-11-24). Rows drawn this
+    /// way have no hairline between them: the ground says where each ends. For a list with no selection of its own
+    /// (the phone): on the Mac a row's background replaces the list's selection.
+    public func rowBackground<Ground: View>(@ViewBuilder _ ground: @escaping (Item) -> Ground) -> Self {
+        var list = self
+        list.rowGround = { AnyView(ground($0)) }
+        return list
     }
 
     /// Words in place of the rows while there are none ("No chats yet"). A list that failed to load shows a
@@ -207,6 +220,21 @@ public struct ChatThreadList<Item: Identifiable, Row: View, Destination: View>: 
             NavigationLink { destination(item) } label: { row(item) }
                 .buttonStyle(.plain)
                 .chatIdentifier(rowIdentifier(item))
+        }
+    }
+}
+
+/// A row on a ground of the host's, with no hairline; without one, the list's own row.
+private struct ChatThreadRowGround: ViewModifier {
+    let ground: AnyView?
+
+    func body(content: Content) -> some View {
+        if let ground {
+            content
+                .listRowBackground(ground)
+                .listRowSeparator(.hidden)
+        } else {
+            content
         }
     }
 }
