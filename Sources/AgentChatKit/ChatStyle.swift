@@ -39,6 +39,8 @@ public enum ChatStyle {
     #else
     static let composerGlyphFont: CGFloat = 17
     #endif
+    /// The spinner on Send, in the body font's capitals: as tall as the arrow it takes the place of.
+    static let sendSpinner: CGFloat = 1.3
     /// How near the end of a chat counts as reading it, so a new message keeps the reader there.
     public static let followSlack: CGFloat = 40
     /// A message bar's widest on a wide iPad, centred: the width of an iPad in portrait.

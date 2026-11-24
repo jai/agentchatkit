@@ -3,7 +3,8 @@ import SwiftUI
 
 /// A composer whose send button's long-press offers "Send now", as Agent Pager's does for a thread at work.
 struct DemoComposerSendNow: View {
-    @State private var draft = ""
+    @State var draft = ""
+    var isSending = false
     @State private var notice = "Nothing sent"
     @State private var readsEnd = true
     @FocusState private var focused: Bool
@@ -15,7 +16,7 @@ struct DemoComposerSendNow: View {
             footer: { Text(notice).accessibilityIdentifier("fixture-notice") }
         ) {
             SessionComposer(
-                draft: $draft, isSending: false, send: { sent("Sent") }, focused: $focused,
+                draft: $draft, isSending: isSending, send: { sent("Sent") }, focused: $focused,
                 sendNow: SessionComposer.SendNow(label: "Send now") { sent("Sent now") }
             )
             .composerBar()

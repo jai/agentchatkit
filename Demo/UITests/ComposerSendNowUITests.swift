@@ -48,4 +48,19 @@ final class ComposerSendNowUITests: FixtureUITestCase {
         XCTAssertTrue(send.waitForExistence(timeout: 10))
         XCTAssertFalse(send.isEnabled)
     }
+
+    /// Send keeps its colour while the last message goes (`isEnabled` draws it), but neither the tap nor the press and
+    /// hold sends another (Agent Pager fb_0d3b7679635181ed).
+    func testSendKeepsItsColourWhileSendingAndSendsNothing() throws {
+        launch("composer-sending")
+        XCTAssertTrue(send.waitForExistence(timeout: 10))
+        XCTAssertTrue(send.isEnabled)
+        XCTAssertEqual(send.value as? String, "Sending")
+        try keep("send-sending")
+        let middle = send.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        middle.tap()
+        middle.press(forDuration: 1.2)
+        XCTAssertFalse(app.buttons["Send now"].waitForExistence(timeout: 2), "no menu")
+        notice("Nothing sent")
+    }
 }

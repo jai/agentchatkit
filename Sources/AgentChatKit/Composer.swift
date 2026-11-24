@@ -122,8 +122,11 @@ public struct SessionComposer: View {
             sendButton
                 .buttonStyle(.glassProminent)
                 .buttonBorderShape(.circle)
-                .disabled(!canSend)
+                // While sending it keeps its colour and takes no tap; `disabled` would turn it grey.
+                .disabled(!canSend && !isSending)
+                .allowsHitTesting(!isSending)
                 .accessibilityLabel("Send reply")
+                .accessibilityValue(isSending ? "Sending" : "")
                 .accessibilityIdentifier("sessionReplySend")
         }
     }
@@ -138,16 +141,16 @@ public struct SessionComposer: View {
             } label: {
                 sendLabel
             } primaryAction: {
-                send()
+                sendIfReady()
             }
             .menuStyle(.button)
             .transition(.identity)
         } else {
-            Button(action: send) { sendLabel }
+            Button(action: sendIfReady) { sendLabel }
                 .transition(.identity)
         }
         #else
-        Button(action: send) { sendLabel }
+        Button(action: sendIfReady) { sendLabel }
             .contextMenu {
                 if let sendNow {
                     sendNowButton(sendNow)
@@ -173,7 +176,12 @@ public struct SessionComposer: View {
             .opacity(isSending ? 0 : 1)
             .overlay {
                 if isSending {
-                    ProgressView()
+                    ChatSpinner(style: .body, capitals: ChatStyle.sendSpinner)
+                        .tint(theme.onBubble)
+                        // The Mac's spinner takes no tint: the dark one is light, as the arrow is.
+                        #if os(macOS)
+                        .environment(\.colorScheme, .dark)
+                        #endif
                 }
             }
     }

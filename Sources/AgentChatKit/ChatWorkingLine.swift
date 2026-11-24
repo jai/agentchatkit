@@ -18,9 +18,8 @@ public struct ChatWorkingLine: View {
     }
 
     public var body: some View {
-        HStack(spacing: ChatSpace.sm) {
-            ProgressView()
-                .controlSize(.small)
+        HStack(alignment: .firstTextBaseline, spacing: ChatSpace.sm) {
+            ChatSpinner(style: .footnote)
             Text(activity.hasSuffix("…") || activity.hasSuffix("...") ? activity : activity + "…")
                 .font(theme.font(.footnote))
                 .foregroundStyle(theme.inkQuiet)
