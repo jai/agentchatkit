@@ -30,6 +30,17 @@ struct ChatSpinnerTests {
         #endif
     }
 
+    /// The system's spinners are as tall as the kit scales them from.
+    @Test func theSystemsSpinnersAreTheHeightsTheKitKnows() {
+        #if os(macOS)
+        let sizes: [ControlSize] = [.small, .large]
+        #else
+        let sizes: [ControlSize] = [.regular, .large]
+        #endif
+        let heights = sizes.map { Self.width(ProgressView().controlSize($0).dynamicTypeSize(.large)) }
+        #expect(heights == [ChatSpinner.heights.small, ChatSpinner.heights.large])
+    }
+
     /// What the spinner takes of the line: all but its words, the gap and the sides.
     @Test(arguments: [13.0, 19.5, 40])
     func theWorkingLinesSpinnerIsAsTallAsItsCapitals(size: CGFloat) {

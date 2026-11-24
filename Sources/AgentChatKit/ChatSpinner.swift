@@ -14,24 +14,35 @@ struct ChatSpinner: View {
         CTFontGetCapHeight(theme.font(style).resolve(in: fonts).ctFont) * capitals
     }
 
-    /// The smallest of the system's that needs no enlarging, which would blur it. Their strokes are 12 to 14% of their
-    /// size, as the system font's are of its capitals.
-    private var system: ControlSize {
+    /// The smallest of the system's that needs no enlarging, which would blur it, and how tall it draws. Their strokes are
+    /// 12 to 14% of their size, as the system font's are of its capitals.
+    private func system(for side: CGFloat) -> (size: ControlSize, height: CGFloat) {
         #if os(macOS)
-        side <= 16 ? .small : .large
+        let small = ControlSize.small
         #else
-        side <= 20 ? .regular : .large
+        let small = ControlSize.regular
         #endif
+        return side <= Self.heights.small ? (small, Self.heights.small) : (.large, Self.heights.large)
     }
+
+    /// Known, not read as it is laid out: a `visualEffect` that read it laid the Mac's spinner out again on every pass,
+    /// thousands of times a second, until AppKit ended the app (Agent Pager run 45390008471, 2026-11-24).
+    /// `ChatSpinnerTests` holds them to the system's.
+    #if os(macOS)
+    static let heights: (small: CGFloat, large: CGFloat) = (16, 32)
+    #else
+    static let heights: (small: CGFloat, large: CGFloat) = (20, 37)
+    #endif
 
     var body: some View {
         let side = side
+        let system = system(for: side)
         ProgressView()
-            .controlSize(system)
+            .controlSize(system.size)
             // The system's grows with the text too, and thinner; `side` already has the text's size in it.
             .dynamicTypeSize(.large)
             .fixedSize()
-            .visualEffect { spinner, place in spinner.scaleEffect(side / max(place.size.height, 1)) }
+            .scaleEffect(side / system.height)
             .frame(width: side, height: side)
             .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
     }
