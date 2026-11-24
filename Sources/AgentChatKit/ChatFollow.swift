@@ -3,7 +3,8 @@ import SwiftUI
 public extension View {
     /// Keeps the reader at the end of a `ChatScroll` while they read it, and leaves them where they are once they scroll
     /// up: a long answer landing grows the page under them and they stay with its foot. Put on the `ChatScroll`, inside
-    /// a `ScrollViewReader`, with a view at the foot of the chat that has `endID`.
+    /// a `ScrollViewReader`, with `endID` the `id` of the chat's whole content (not of a row at its foot, which the
+    /// scroll view would keep in place of the end).
     ///
     /// - Parameters:
     ///   - readsEnd: Whether they were at the end when they last scrolled; the host may read it (to draw less, say).
@@ -25,24 +26,10 @@ private struct ChatFollow<Sent: Equatable>: ViewModifier {
     @Binding var readsEnd: Bool
     let isLoadingEarlier: Bool
     let sent: Sent
-    /// Where the page is scrolled to, set to hold the reader's place as the page changes under them.
-    @State private var position = ScrollPosition(edge: .bottom)
     /// While a finger, or the fling it gave, moves the page: the page is theirs, not ours.
     @State private var isScrolling = false
     /// How tall the page was when they last touched it: what arrives while they scroll is not them scrolling away.
     @State private var heightAtTouch: CGFloat = 0
-
-    /// The page's height, and where it is scrolled to as `ScrollPosition` counts it: from the top of the content, which
-    /// the content offset counts from under the top bars.
-    private struct PageSize: Equatable {
-        var contentHeight: CGFloat
-        var position: CGFloat
-
-        init(_ geometry: ScrollGeometry) {
-            contentHeight = geometry.contentSize.height
-            position = geometry.contentOffset.y + geometry.contentInsets.top
-        }
-    }
 
     /// How far below the bottom bars and keyboard the end of the page is. The visible rect runs under the bars.
     private static func distanceToEnd(_ geometry: ScrollGeometry) -> CGFloat {
@@ -51,20 +38,10 @@ private struct ChatFollow<Sent: Equatable>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .scrollPosition($position)
             // The page grows or shrinks under them: reading the end, they stay at it; loading earlier, what they read
-            // stays where it is. Corrected as the page is laid out, so no frame shows it moved.
-            .onScrollGeometryChange(for: PageSize.self, of: PageSize.init) { old, new in
-                let grown = new.contentHeight - old.contentHeight
-                guard grown != 0, !isScrolling else {
-                    return
-                }
-                if isLoadingEarlier {
-                    position.scrollTo(y: new.position + grown)
-                } else if readsEnd {
-                    position.scrollTo(edge: .bottom)
-                }
-            }
+            // stays where it is. The scroll view's own anchor, so it is laid out that way in one frame. Moved after the
+            // layout it had first shown, the page slid, and a row at its foot with an `id` of its own left it short.
+            .defaultScrollAnchor(isLoadingEarlier || (readsEnd && !isScrolling) ? .bottom : .top, for: .sizeChanges)
             // Where they read is where their own scrolling stops; the page growing, or the bars and keyboard moving,
             // says nothing of it.
             .onScrollPhaseChange { old, new, context in
@@ -79,7 +56,7 @@ private struct ChatFollow<Sent: Equatable>: ViewModifier {
                 let distance = Self.distanceToEnd(geometry)
                 readsEnd = distance <= ChatStyle.followSlack + max(0, geometry.contentSize.height - heightAtTouch)
                 // A message that landed while they flung to the end is caught up with once they let go.
-                if readsEnd, distance > 1 {
+                if readsEnd, distance > 1, old == .interacting || old == .decelerating {
                     toEnd()
                 }
             }

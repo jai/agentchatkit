@@ -111,19 +111,23 @@ public struct ChatView<Extras: View, Header: View, Footer: View, Composer: View>
                             // One element per message, its words and what hangs under it inside, for a host's UI tests.
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier(message.accessibilityIdentifier)
-                            .transition(.opacity)
+                            .transition(.opacity.animation(ChatMotion.fold))
                     }
                     footer()
-                    // The page's bottom margin, and its end: scrolled to, it shows the margin too. Under a margin
-                    // of padding, the page stopped that margin short of its end (jai/agentchatkit#7).
+                    // The page's bottom margin. Under a margin of padding, the page stopped that margin short of its
+                    // end (jai/agentchatkit#7).
                     Color.clear
                         .frame(height: ChatSpace.md)
-                        .id(Self.end)
                         .accessibilityHidden(true)
                 }
                 .padding(.horizontal, ChatSpace.lg)
                 .padding(.top, ChatSpace.md)
-                .animation(ChatMotion.fold, value: messages)
+                // The end to scroll to is the whole page's: a marker with the `id` kept the page a marker short of it.
+                .id(Self.end)
+                // Messages take their places at once, and a new one fades in where it lands. Sliding every row to
+                // its new place while the scroll view moved too threw the page down and back each time a row left its
+                // top, and flew it through all the earlier messages as they went in above (Jai, 2026-11-24).
+                .transaction(value: messages) { $0.animation = nil }
             }
             .followsChatEnd(proxy, endID: Self.end, readsEnd: $readsEnd, isLoadingEarlier: isLoadingEarlier, sent: sent)
             .dismissesKeyboard(focus)
@@ -163,19 +167,20 @@ public struct ChatView<Extras: View, Header: View, Footer: View, Composer: View>
             ChatToolLine(name: name, text: message.text)
                 .equatable()
         case .mine, .theirs:
-            if message.hasExtras || showsWaitWhat {
-                ChatBubble(message: message) {
+            // One kind of view whatever hangs under it: a branch for a bare bubble made the bubble again, fading the old
+            // one out and the new one in, each time "Wait, what?" or a status came or went (Jai, 2026-11-24).
+            let hasUnder = message.hasExtras || showsWaitWhat
+            ChatBubble(message: message, hasUnder: hasUnder) {
+                if message.hasExtras {
                     extras(message)
-                    if showsWaitWhat, let waitWhat {
-                        WaitWhatButton(isSending: isSending, send: waitWhat)
-                            .padding(.top, ChatSpace.xs)
-                            .padding(.leading, ChatSpace.md)
-                    }
                 }
-            } else {
-                ChatBubble(message: message) { EmptyView() }
-                    .equatable()
+                if showsWaitWhat, let waitWhat {
+                    WaitWhatButton(isSending: isSending, send: waitWhat)
+                        .padding(.top, ChatSpace.xs)
+                        .padding(.leading, ChatSpace.md)
+                }
             }
+            .equatable()
         }
     }
 }
@@ -206,6 +211,7 @@ struct ChatScrollToEndButton: View {
 private struct ChatBubble<Under: View>: View {
     @Environment(\.chatMessageContent) private var hostContent
     let message: ChatMessage
+    let hasUnder: Bool
     @ViewBuilder let under: () -> Under
 
     var body: some View {
@@ -225,8 +231,10 @@ private struct ChatBubble<Under: View>: View {
 
 /// With nothing under it, drawn again only when the message changes: an agent's bubble parses its Markdown as it is
 /// made, and parsing every bubble again on each read stalled the main thread on a long chat.
-extension ChatBubble: Equatable where Under == EmptyView {
-    nonisolated static func == (lhs: Self, rhs: Self) -> Bool { lhs.message == rhs.message }
+extension ChatBubble: Equatable {
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        !lhs.hasUnder && !rhs.hasUnder && lhs.message == rhs.message
+    }
 }
 
 /// A tool call: its name and a one-line summary, quiet, in the bubbles' column.
