@@ -169,14 +169,37 @@ public struct SessionComposer: View {
     private var sendLabel: some View {
         // The arrow stays, hidden, while sending: its baseline is the one the Mac lines the button up by.
         Image(systemName: "arrow.up")
-            .font(theme.font(.body).weight(.semibold))
-            .frame(width: 22, height: 22)
+            .composerGlyph()
             .opacity(isSending ? 0 : 1)
             .overlay {
                 if isSending {
                     ProgressView()
                 }
             }
+    }
+}
+
+/// The glyph on a button beside the field, in a frame that grows with the theme's body font. The font's own size says by
+/// how much: the Mac's text size is inside the host's fonts, where `@ScaledMetric` does not see it.
+private struct ComposerGlyph: ViewModifier {
+    @Environment(\.chatTheme) private var theme
+    @Environment(\.fontResolutionContext) private var fonts
+
+    private var side: CGFloat {
+        let size = theme.font(.body).resolve(in: fonts).pointSize
+        return max(ChatStyle.composerGlyph, (ChatStyle.composerGlyph * size / ChatStyle.composerGlyphFont).rounded())
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .font(theme.font(.body).weight(.semibold))
+            .frame(width: side, height: side)
+    }
+}
+
+extension View {
+    func composerGlyph() -> some View {
+        modifier(ComposerGlyph())
     }
 }
 

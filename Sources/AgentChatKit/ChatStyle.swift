@@ -32,6 +32,13 @@ public enum ChatStyle {
     /// The clear cut the first tick leaves on each side of its stroke in the second, as a share of a tick's width:
     /// 0.9 pt on a 9 pt tick.
     public static let tickCut: CGFloat = 0.9 / 9.0
+    /// The frame of the glyph on Send and on the paperclip, at a body font of `composerGlyphFont`: the standard size.
+    static let composerGlyph: CGFloat = 22
+    #if os(macOS)
+    static let composerGlyphFont: CGFloat = 14
+    #else
+    static let composerGlyphFont: CGFloat = 17
+    #endif
     /// How near the end of a chat counts as reading it, so a new message keeps the reader there.
     public static let followSlack: CGFloat = 40
     /// A message bar's widest on a wide iPad, centred: the width of an iPad in portrait.

@@ -363,8 +363,7 @@ struct ComposerAttachButton: View {
                 .accessibilityIdentifier("composerAttachFiles")
         } label: {
             Image(systemName: theme.symbols.attach)
-                .font(theme.font(.body).weight(.semibold))
-                .frame(width: 22, height: 22) // design-lint: allow the send button's own glyph frame, beside it
+                .composerGlyph()
         }
         .menuIndicator(.hidden)
         .task { await clipboard.watch() }
