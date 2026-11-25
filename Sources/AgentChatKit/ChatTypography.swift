@@ -6,7 +6,7 @@ public enum ChatTextRole: Sendable {
 }
 
 /// Both the font's leading and the extra distance between text lines belong to the host.
-public struct ChatTextStyle: Sendable {
+public struct ChatTextStyle: Equatable, Sendable {
     public var font: Font
     /// Nil preserves inherited line spacing or leading already encoded in the host font.
     public var lineSpacing: CGFloat?
@@ -24,7 +24,7 @@ public struct ChatTextStyle: Sendable {
 }
 
 /// Nil roles fall back to ChatTheme.font. Existing font-only themes remain source compatible.
-public struct ChatTypography: Sendable {
+public struct ChatTypography: Equatable, Sendable {
     public var meta: ChatTextStyle?
     public var objectTitle: ChatTextStyle?
     public var body: ChatTextStyle?

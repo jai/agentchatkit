@@ -12,7 +12,7 @@ public enum ChatControlStyle: Sendable {
 
 extension ChatTheme {
     /// A host's own action buttons: their style, and the Reply button's words (its symbol is `symbols.reply`).
-    public struct Controls: Sendable {
+    public struct Controls: Equatable, Sendable {
         public var style = ChatControlStyle.standard
         public var replyLabel = "Reply"
 

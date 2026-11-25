@@ -1,3 +1,4 @@
+import os
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -8,15 +9,40 @@ import AppKit
 /// What a chat takes from the app around it: its fonts, colours and icons. A host sets its own with `.chatTheme(_:)` at
 /// its root; with none, `standard` draws the system's, which is what PRHub's DESIGN.md draws today.
 public struct ChatTheme: Sendable {
-    /// Its values, in a box no one changes: a copy of a theme nobody changed is the same box, and SwiftUI sees the same
-    /// theme. Compared field by field, `typography`'s empty roles did not always compare equal to their own copies, so
-    /// as a chat opened SwiftUI took an unchanged theme for a new one and made each bubble again, its Markdown parsed
-    /// again, up to five times (Agent Pager fb_3cde3642c7513c88).
+    /// Its values, in a box no one changes: a theme nobody changed is the same box, and SwiftUI sees the same theme.
+    /// Compared field by field, `typography`'s empty roles did not always compare equal to their own copies, so as a
+    /// chat opened SwiftUI took an unchanged theme for a new one and made each bubble again, its Markdown parsed again,
+    /// up to five times (Agent Pager fb_3cde3642c7513c88).
+    ///
+    /// A host also changes the theme on its way down (`transformEnvironment(\.chatTheme) { $0.typography… }`), and
+    /// SwiftUI runs that again and again: a change to what a theme already has is the theme itself, and the same change
+    /// of the same theme is the same box. A box for each change made every bubble again (0.12.1).
     private final class Box: Sendable {
         let values: Values
+        /// The themes lately made from this one by a change, newest last.
+        private let changed = OSAllocatedUnfairLock(uncheckedState: [(field: AnyKeyPath, box: Box)]())
 
         init(_ values: Values) {
             self.values = values
+        }
+
+        func changing<Value: Equatable>(_ field: WritableKeyPath<Values, Value>, to value: Value) -> Box {
+            if values[keyPath: field] == value {
+                return self
+            }
+            return changed.withLockUnchecked { changed in
+                if let made = changed.first(where: { $0.field == field && $0.box.values[keyPath: field] == value }) {
+                    return made.box
+                }
+                var values = values
+                values[keyPath: field] = value
+                let box = Box(values)
+                changed.append((field, box))
+                if changed.count > 8 {
+                    changed.removeFirst()
+                }
+                return box
+            }
         }
     }
 
@@ -43,114 +69,119 @@ public struct ChatTheme: Sendable {
 
     private var box: Box
 
-    private var values: Values {
-        get { box.values }
-        set { box = Box(newValue) }
-    }
-
     /// A text style's font: the bubble's words are `.callout`, a time `.caption2`.
     public var font: @Sendable (Font.TextStyle) -> Font {
-        get { values.font }
-        set { values.font = newValue }
+        get { box.values.font }
+        set {
+            // Two closures cannot be compared: a change is always another theme.
+            var values = box.values
+            values.font = newValue
+            box = Box(values)
+        }
     }
 
     /// A fenced code block's words in a message.
     public var code: @MainActor @Sendable (Text) -> AnyView {
-        get { values.code }
-        set { values.code = newValue }
+        get { box.values.code }
+        set {
+            // Two closures cannot be compared: a change is always another theme.
+            var values = box.values
+            values.code = newValue
+            box = Box(values)
+        }
     }
 
     /// Words, and quiet words (a time, a tool call).
     public var ink: Color {
-        get { values.ink }
-        set { values.ink = newValue }
+        get { box.values.ink }
+        set { box = box.changing(\.ink, to: newValue) }
     }
 
     public var inkQuiet: Color {
-        get { values.inkQuiet }
-        set { values.inkQuiet = newValue }
+        get { box.values.inkQuiet }
+        set { box = box.changing(\.inkQuiet, to: newValue) }
     }
 
     /// Words on the person's own bubble, which is the tint.
     public var onBubble: Color {
-        get { values.onBubble }
-        set { values.onBubble = newValue }
+        get { box.values.onBubble }
+        set { box = box.changing(\.onBubble, to: newValue) }
     }
 
     /// The page under the chat, and a box on it.
     public var groundPage: Color {
-        get { values.groundPage }
-        set { values.groundPage = newValue }
+        get { box.values.groundPage }
+        set { box = box.changing(\.groundPage, to: newValue) }
     }
 
     public var groundCard: Color {
-        get { values.groundCard }
-        set { values.groundCard = newValue }
+        get { box.values.groundCard }
+        set { box = box.changing(\.groundCard, to: newValue) }
     }
 
     /// The full-screen screenshot viewer stays dark even when the host chooses a light paper theme.
     public var pictureGround: Color {
-        get { values.pictureGround }
-        set { values.pictureGround = newValue }
+        get { box.values.pictureGround }
+        set { box = box.changing(\.pictureGround, to: newValue) }
     }
 
     /// Behind a table's header.
     public var groundFill: Color {
-        get { values.groundFill }
-        set { values.groundFill = newValue }
+        get { box.values.groundFill }
+        set { box = box.changing(\.groundFill, to: newValue) }
     }
 
     /// A hairline: a box's border.
     public var line: Color {
-        get { values.line }
-        set { values.line = newValue }
+        get { box.values.line }
+        set { box = box.changing(\.line, to: newValue) }
     }
 
     /// Delivered, a problem, and waiting (an agent paused).
     public var toneGood: Color {
-        get { values.toneGood }
-        set { values.toneGood = newValue }
+        get { box.values.toneGood }
+        set { box = box.changing(\.toneGood, to: newValue) }
     }
 
     public var toneBad: Color {
-        get { values.toneBad }
-        set { values.toneBad = newValue }
+        get { box.values.toneBad }
+        set { box = box.changing(\.toneBad, to: newValue) }
     }
 
     public var toneWaiting: Color {
-        get { values.toneWaiting }
-        set { values.toneWaiting = newValue }
+        get { box.values.toneWaiting }
+        set { box = box.changing(\.toneWaiting, to: newValue) }
     }
 
     /// Semantic host typography; unset roles continue to use `font`, including later mutations of it.
     public var typography: ChatTypography {
-        get { values.typography }
-        set { values.typography = newValue }
+        get { box.values.typography }
+        set { box = box.changing(\.typography, to: newValue) }
     }
 
     public var spacing: ChatSpacing {
-        get { values.spacing }
-        set { values.spacing = newValue }
+        get { box.values.spacing }
+        set { box = box.changing(\.spacing, to: newValue) }
     }
 
     public var controlSize: ControlSize {
-        get { values.controlSize }
-        set { values.controlSize = newValue }
+        get { box.values.controlSize }
+        set { box = box.changing(\.controlSize, to: newValue) }
     }
 
     public var symbols: Symbols {
-        get { values.symbols }
-        set { values.symbols = newValue }
+        get { box.values.symbols }
+        set { box = box.changing(\.symbols, to: newValue) }
     }
 
     /// The action buttons' style and the Reply button's words (`Controls`).
     public var controls: Controls {
-        get { values.controls }
-        set { values.controls = newValue }
+        get { box.values.controls }
+        set { box = box.changing(\.controls, to: newValue) }
     }
 
     /// The SF Symbols a chat draws, by what they mean.
-    public struct Symbols: Sendable {
+    public struct Symbols: Equatable, Sendable {
         public var toolCall = "wrench.and.screwdriver"
         public var copy = "doc.on.doc"
         public var askAI = "questionmark.bubble"

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Host spacing tokens for the shared thread, queue, question, status and screenshot views.
-public struct ChatSpacing: Sendable {
+public struct ChatSpacing: Equatable, Sendable {
     public var xs: CGFloat
     public var sm: CGFloat
     public var md: CGFloat
