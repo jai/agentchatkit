@@ -121,7 +121,7 @@ private struct MarkdownBlockView: View {
         if let onCheckbox = context.onCheckbox, let index = context.checkboxes[block.id],
            let isChecked = Self.checkedState(block) {
             Button { onCheckbox(index, !isChecked) } label: {
-                HStack(alignment: .firstTextBaseline, spacing: MarkdownStyle.markerGap) {
+                MarkdownListItemLayout(gap: MarkdownStyle.markerGap) {
                     Image(systemName: isChecked ? theme.symbols.taskDone : theme.symbols.taskOpen)
                         .foregroundStyle(isChecked ? Color.accentColor : Color.secondary)
                     // After the box and the space that follows it, so wrapped lines line up with the first.
@@ -135,7 +135,7 @@ private struct MarkdownBlockView: View {
             .accessibilityValue(isChecked ? "checked" : "unchecked")
             .accessibilityIdentifier("pr-checkbox-\(index)")
         } else {
-            HStack(alignment: .firstTextBaseline, spacing: MarkdownStyle.markerGap) {
+            MarkdownListItemLayout(gap: MarkdownStyle.markerGap) {
                 Text(marker)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
