@@ -8,38 +8,146 @@ import AppKit
 /// What a chat takes from the app around it: its fonts, colours and icons. A host sets its own with `.chatTheme(_:)` at
 /// its root; with none, `standard` draws the system's, which is what PRHub's DESIGN.md draws today.
 public struct ChatTheme: Sendable {
+    /// Its values, in a box no one changes: a copy of a theme nobody changed is the same box, and SwiftUI sees the same
+    /// theme. Compared field by field, `typography`'s empty roles did not always compare equal to their own copies, so
+    /// as a chat opened SwiftUI took an unchanged theme for a new one and made each bubble again, its Markdown parsed
+    /// again, up to five times (Agent Pager fb_3cde3642c7513c88).
+    private final class Box: Sendable {
+        let values: Values
+
+        init(_ values: Values) {
+            self.values = values
+        }
+    }
+
+    private struct Values: Sendable {
+        var font: @Sendable (Font.TextStyle) -> Font
+        var code: @MainActor @Sendable (Text) -> AnyView
+        var ink: Color
+        var inkQuiet: Color
+        var onBubble: Color
+        var groundPage: Color
+        var groundCard: Color
+        var pictureGround: Color
+        var groundFill: Color
+        var line: Color
+        var toneGood: Color
+        var toneBad: Color
+        var toneWaiting: Color
+        var typography: ChatTypography
+        var spacing: ChatSpacing
+        var controlSize: ControlSize
+        var symbols: Symbols
+        var controls = Controls()
+    }
+
+    private var box: Box
+
+    private var values: Values {
+        get { box.values }
+        set { box = Box(newValue) }
+    }
+
     /// A text style's font: the bubble's words are `.callout`, a time `.caption2`.
-    public var font: @Sendable (Font.TextStyle) -> Font
+    public var font: @Sendable (Font.TextStyle) -> Font {
+        get { values.font }
+        set { values.font = newValue }
+    }
+
     /// A fenced code block's words in a message.
-    public var code: @MainActor @Sendable (Text) -> AnyView
+    public var code: @MainActor @Sendable (Text) -> AnyView {
+        get { values.code }
+        set { values.code = newValue }
+    }
 
     /// Words, and quiet words (a time, a tool call).
-    public var ink: Color
-    public var inkQuiet: Color
+    public var ink: Color {
+        get { values.ink }
+        set { values.ink = newValue }
+    }
+
+    public var inkQuiet: Color {
+        get { values.inkQuiet }
+        set { values.inkQuiet = newValue }
+    }
+
     /// Words on the person's own bubble, which is the tint.
-    public var onBubble: Color
+    public var onBubble: Color {
+        get { values.onBubble }
+        set { values.onBubble = newValue }
+    }
+
     /// The page under the chat, and a box on it.
-    public var groundPage: Color
-    public var groundCard: Color
+    public var groundPage: Color {
+        get { values.groundPage }
+        set { values.groundPage = newValue }
+    }
+
+    public var groundCard: Color {
+        get { values.groundCard }
+        set { values.groundCard = newValue }
+    }
+
     /// The full-screen screenshot viewer stays dark even when the host chooses a light paper theme.
-    public var pictureGround: Color
+    public var pictureGround: Color {
+        get { values.pictureGround }
+        set { values.pictureGround = newValue }
+    }
+
     /// Behind a table's header.
-    public var groundFill: Color
+    public var groundFill: Color {
+        get { values.groundFill }
+        set { values.groundFill = newValue }
+    }
+
     /// A hairline: a box's border.
-    public var line: Color
+    public var line: Color {
+        get { values.line }
+        set { values.line = newValue }
+    }
+
     /// Delivered, a problem, and waiting (an agent paused).
-    public var toneGood: Color
-    public var toneBad: Color
-    public var toneWaiting: Color
+    public var toneGood: Color {
+        get { values.toneGood }
+        set { values.toneGood = newValue }
+    }
+
+    public var toneBad: Color {
+        get { values.toneBad }
+        set { values.toneBad = newValue }
+    }
+
+    public var toneWaiting: Color {
+        get { values.toneWaiting }
+        set { values.toneWaiting = newValue }
+    }
 
     /// Semantic host typography; unset roles continue to use `font`, including later mutations of it.
-    public var typography: ChatTypography
-    public var spacing: ChatSpacing
-    public var controlSize: ControlSize
+    public var typography: ChatTypography {
+        get { values.typography }
+        set { values.typography = newValue }
+    }
 
-    public var symbols: Symbols
+    public var spacing: ChatSpacing {
+        get { values.spacing }
+        set { values.spacing = newValue }
+    }
+
+    public var controlSize: ControlSize {
+        get { values.controlSize }
+        set { values.controlSize = newValue }
+    }
+
+    public var symbols: Symbols {
+        get { values.symbols }
+        set { values.symbols = newValue }
+    }
+
     /// The action buttons' style and the Reply button's words (`Controls`).
-    public var controls = Controls()
+    public var controls: Controls {
+        get { values.controls }
+        set { values.controls = newValue }
+    }
 
     /// The SF Symbols a chat draws, by what they mean.
     public struct Symbols: Sendable {
@@ -97,23 +205,12 @@ public struct ChatTheme: Sendable {
         typography: ChatTypography = ChatTypography(), spacing: ChatSpacing = ChatSpacing(),
         controlSize: ControlSize = .large
     ) {
-        self.font = font
-        self.code = code
-        self.ink = ink
-        self.inkQuiet = inkQuiet
-        self.onBubble = onBubble
-        self.groundPage = groundPage
-        self.groundCard = groundCard
-        self.pictureGround = pictureGround
-        self.groundFill = groundFill
-        self.line = line
-        self.toneGood = toneGood
-        self.toneBad = toneBad
-        self.toneWaiting = toneWaiting
-        self.symbols = symbols
-        self.typography = typography
-        self.spacing = spacing
-        self.controlSize = controlSize
+        box = Box(Values(
+            font: font, code: code, ink: ink, inkQuiet: inkQuiet,
+            onBubble: onBubble, groundPage: groundPage, groundCard: groundCard, pictureGround: pictureGround,
+            groundFill: groundFill, line: line, toneGood: toneGood, toneBad: toneBad, toneWaiting: toneWaiting,
+            typography: typography, spacing: spacing, controlSize: controlSize, symbols: symbols
+        ))
     }
 
     public static let standard = ChatTheme()
