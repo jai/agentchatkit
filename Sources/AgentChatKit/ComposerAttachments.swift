@@ -377,22 +377,23 @@ struct ComposerAttachButton: View {
     @State private var photos: [PhotosPickerItem] = []
 
     var body: some View {
-        Menu {
-            if clipboard.hasPicture {
-                pasteItem
-            }
-            Button("Photos", systemImage: theme.symbols.attachPhoto) { choosingPhotos = true }
-                .accessibilityIdentifier("composerAttachPhotos")
-            Button("Files", systemImage: theme.symbols.attachFile) { choosingFiles = true }
-                .accessibilityIdentifier("composerAttachFiles")
-        } label: {
-            Image(systemName: theme.symbols.attach)
-                .composerGlyph()
-        }
-        .menuIndicator(.hidden)
+        SteadyMenu(
+            AttachRows.Shown(
+                pastes: clipboard.hasPicture, photo: theme.symbols.attachPhoto, file: theme.symbols.attachFile
+            ),
+            look: theme.symbols.attach,
+            perform: { (choice: AttachRows.Choice) in
+                switch choice {
+                case .paste(let pictures): paste(pictures)
+                case .photos: choosingPhotos = true
+                case .files: choosingFiles = true
+                }
+            },
+            rows: { AttachRows(shown: $0, choose: $1) },
+            face: { Image(systemName: $0).composerGlyph() }
+        )
+        .modifier(AttachStyle())
         .task { await clipboard.watch() }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
         .disabled(attachments.isFull)
         .accessibilityLabel("Attach a screenshot or video")
         .accessibilityIdentifier("composerAttach")
@@ -455,16 +456,53 @@ struct ComposerAttachButton: View {
 }
 
 extension ComposerAttachButton {
-    /// "Paste screenshot": the system's Paste control on the phone, which reads the clipboard without asking.
-    private var pasteItem: some View {
-        PasteButton(payloadType: ComposerPicture.self) { pictures in
-            Task { @MainActor in
-                for picture in pictures {
-                    await attachments.add(picture.data)
-                }
+    private func paste(_ pictures: [ComposerPicture]) {
+        Task {
+            for picture in pictures {
+                await attachments.add(picture.data)
             }
         }
-        .accessibilityIdentifier("composerAttachPaste")
+    }
+}
+
+/// Apart from the button, and empty: it is the same at each redraw. A style set by a body that is run again was handed to
+/// the open menu with new rows, on a busy machine (`SteadyMenu`).
+private struct AttachStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .menuIndicator(.hidden)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+    }
+}
+
+/// The paperclip's menu.
+private struct AttachRows: View {
+    struct Shown: Equatable {
+        let pastes: Bool
+        let photo: String
+        let file: String
+    }
+
+    enum Choice {
+        case paste([ComposerPicture])
+        case photos
+        case files
+    }
+
+    let shown: Shown
+    let choose: (Choice) -> Void
+
+    var body: some View {
+        if shown.pastes {
+            // "Paste screenshot": the system's Paste control on the phone, which reads the clipboard without asking.
+            PasteButton(payloadType: ComposerPicture.self) { choose(.paste($0)) }
+                .accessibilityIdentifier("composerAttachPaste")
+        }
+        Button("Photos", systemImage: shown.photo) { choose(.photos) }
+            .accessibilityIdentifier("composerAttachPhotos")
+        Button("Files", systemImage: shown.file) { choose(.files) }
+            .accessibilityIdentifier("composerAttachFiles")
     }
 }
 

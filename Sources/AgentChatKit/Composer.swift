@@ -13,7 +13,6 @@ import UIKit
 /// it holds a picture (its menu's Paste); a picture pasted into the field is attached too (words paste as always). The
 /// tray above the field shows them, and takes no room while empty. A message may then be screenshots alone.
 public struct SessionComposer: View {
-    @Environment(\.chatTheme) private var theme
     /// From the field's bottom up to the middle of its last line: its padding and half a line.
     @ScaledMetric(relativeTo: .body) private var lineMiddle = 20.0
     @Binding public var draft: String
@@ -120,8 +119,7 @@ public struct SessionComposer: View {
                 }
                 .accessibilityIdentifier("sessionReplyField")
             sendButton
-                .buttonStyle(.glassProminent)
-                .buttonBorderShape(.circle)
+                .modifier(SendStyle())
                 // While sending it keeps its colour and takes no tap; `disabled` would turn it grey.
                 .disabled(!canSend && !isSending)
                 .allowsHitTesting(!isSending)
@@ -136,40 +134,73 @@ public struct SessionComposer: View {
     @ViewBuilder private var sendButton: some View {
         #if os(iOS)
         if let sendNow {
-            Menu {
-                sendNowButton(sendNow)
-            } label: {
-                sendLabel
-            } primaryAction: {
-                sendIfReady()
-            }
-            .menuStyle(.button)
+            SteadyMenu(
+                sendNow.label, look: isSending, primary: SendChoice.send,
+                perform: { choice in
+                    switch choice {
+                    case .send: sendIfReady()
+                    case .now: sendNowIfReady()
+                    }
+                },
+                rows: { label, choose in SendNowButton(label: label) { choose(.now) } },
+                face: { SendFace(isSending: $0) }
+            )
             .transition(.identity)
         } else {
-            Button(action: sendIfReady) { sendLabel }
+            Button(action: sendIfReady) { SendFace(isSending: isSending) }
                 .transition(.identity)
         }
         #else
-        Button(action: sendIfReady) { sendLabel }
+        Button(action: sendIfReady) { SendFace(isSending: isSending) }
             .contextMenu {
                 if let sendNow {
-                    sendNowButton(sendNow)
+                    SendNowButton(label: sendNow.label, send: sendNowIfReady)
                 }
             }
         #endif
     }
 
-    private func sendNowButton(_ sendNow: SendNow) -> some View {
-        // As the tap: nothing for an empty box, or while the last one is still going.
-        Button(sendNow.label) {
-            if canSend {
-                sendNow.action()
-            }
+    /// As the tap: nothing for an empty box, or while the last one is still going.
+    private func sendNowIfReady() {
+        if canSend {
+            sendNow?.action()
         }
-        .accessibilityIdentifier("sessionReplySendNow")
     }
+}
 
-    private var sendLabel: some View {
+/// Empty, so the same at each redraw (`AttachStyle`).
+private struct SendStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .menuStyle(.button)
+            .buttonStyle(.glassProminent)
+            .buttonBorderShape(.circle)
+    }
+}
+
+#if os(iOS)
+private enum SendChoice {
+    case send
+    case now
+}
+#endif
+
+private struct SendNowButton: View {
+    let label: String
+    let send: () -> Void
+
+    var body: some View {
+        Button(label, action: send)
+            .accessibilityIdentifier("sessionReplySendNow")
+    }
+}
+
+/// The send button's arrow, and its spinner while sending.
+private struct SendFace: View {
+    @Environment(\.chatTheme) private var theme
+    let isSending: Bool
+
+    var body: some View {
         // The arrow stays, hidden, while sending: its baseline is the one the Mac lines the button up by.
         Image(systemName: "arrow.up")
             .composerGlyph()

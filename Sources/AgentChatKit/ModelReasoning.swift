@@ -102,23 +102,12 @@ public struct ModelReasoningChip: View {
     public var body: some View {
         if let chip = picker.options.chip {
             HStack(spacing: ChatSpace.sm) {
-                Menu {
-                    menu
-                } label: {
-                    HStack(spacing: ChatSpace.xs) {
-                        Text(chip)
-                        if isSetting {
-                            ProgressView()
-                                .controlSize(.mini)
-                        }
-                    }
-                    .font(theme.font(.caption2).weight(.semibold))
-                    .foregroundStyle(theme.inkQuiet)
-                    .padding(.horizontal, ChatSpace.sm)
-                    .padding(.vertical, ChatSpace.xs)
-                    .background(theme.groundFill, in: .capsule)
-                }
-                .buttonStyle(.plain)
+                SteadyMenu(
+                    picker.options, look: ChipFace.Look(words: chip, isSetting: isSetting),
+                    perform: { pick in Task { await set(pick) } },
+                    rows: { ModelReasoningRows(options: $0, choose: $1) }, face: { ChipFace(look: $0) }
+                )
+                .modifier(ChipStyle())
                 .disabled(isSetting)
                 .accessibilityLabel("Model and reasoning: \(chip)")
                 .accessibilityIdentifier("modelReasoningChip")
@@ -132,8 +121,57 @@ public struct ModelReasoningChip: View {
         }
     }
 
-    @ViewBuilder private var menu: some View {
-        let options = picker.options
+    private func set(_ pick: ModelReasoning.Pick) async {
+        isSetting = true
+        failure = nil
+        defer { isSetting = false }
+        do {
+            try await picker.pick(pick)
+        } catch {
+            failure = error.localizedDescription
+        }
+    }
+}
+
+/// Empty, so the same at each redraw (`AttachStyle`).
+private struct ChipStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content.buttonStyle(.plain)
+    }
+}
+
+/// The chip itself: its words, and a spinner while a pick is on its way.
+private struct ChipFace: View {
+    struct Look: Equatable {
+        let words: String
+        let isSetting: Bool
+    }
+
+    @Environment(\.chatTheme) private var theme
+    let look: Look
+
+    var body: some View {
+        HStack(spacing: ChatSpace.xs) {
+            Text(look.words)
+            if look.isSetting {
+                ProgressView()
+                    .controlSize(.mini)
+            }
+        }
+        .font(theme.font(.caption2).weight(.semibold))
+        .foregroundStyle(theme.inkQuiet)
+        .padding(.horizontal, ChatSpace.sm)
+        .padding(.vertical, ChatSpace.xs)
+        .background(theme.groundFill, in: .capsule)
+    }
+}
+
+/// The chip's menu: the models, and the model's levels.
+private struct ModelReasoningRows: View {
+    let options: ModelReasoning
+    let choose: (ModelReasoning.Pick) -> Void
+
+    var body: some View {
         Section("Model") {
             Picker("Model", selection: choice(options.model, pick: ModelReasoning.Pick.model)) {
                 ForEach(options.models) { Text($0.label).tag($0.id) }
@@ -156,19 +194,8 @@ public struct ModelReasoningChip: View {
     private func choice(_ held: String?, pick: @escaping (String) -> ModelReasoning.Pick) -> Binding<String> {
         Binding(get: { held ?? "" }, set: { picked in
             if picked != held {
-                Task { await set(pick(picked)) }
+                choose(pick(picked))
             }
         })
-    }
-
-    private func set(_ pick: ModelReasoning.Pick) async {
-        isSetting = true
-        failure = nil
-        defer { isSetting = false }
-        do {
-            try await picker.pick(pick)
-        } catch {
-            failure = error.localizedDescription
-        }
     }
 }
